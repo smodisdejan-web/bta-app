@@ -1,8 +1,10 @@
 // src/lib/contexts/SettingsContext.tsx
 'use client'
-import { createContext, useContext, useState, useEffect } from 'react'
-import type { Campaign, Settings } from '../types'
+import { createContext, useContext, useState, useEffect, useMemo } from 'react'
+import useSWR, { mutate } from 'swr'
+import type { Campaign, Settings, TabData } from '../types'
 import { DEFAULT_SHEET_URL } from '../config'
+import { fetchAllTabsData, getCampaigns } from '../sheetsData'
 
 export type SettingsContextType = {
   settings: Settings
@@ -10,17 +12,18 @@ export type SettingsContextType = {
   setSheetUrl: (url: string) => void
   setCurrency: (currency: string) => void
   setSelectedCampaign: (campaignId: string) => void
-  setCampaigns: (campaigns: Campaign[]) => void
+  fetchedData: TabData | undefined
+  dataError: any
+  isDataLoading: boolean
+  refreshData: () => void
+  campaigns: Campaign[]
 }
 
 const defaultSettings: Settings = {
   sheetUrl: DEFAULT_SHEET_URL,
   currency: '$',
   selectedCampaign: undefined,
-  campaigns: [],
-  activeTab: 'daily',
-  optimizationStrategy: 'profit',
-  costMetric: 0
+  activeTab: 'daily'
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined)
@@ -33,7 +36,9 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     const saved = localStorage.getItem('settings')
     if (saved) {
       try {
-        setSettings({ ...defaultSettings, ...JSON.parse(saved) })
+        const parsedSettings = JSON.parse(saved)
+        delete parsedSettings.campaigns // Ensure campaigns are not loaded
+        setSettings({ ...defaultSettings, ...parsedSettings })
       } catch {
         setSettings(defaultSettings)
       }
@@ -42,8 +47,24 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 
   // Save settings to localStorage
   useEffect(() => {
-    localStorage.setItem('settings', JSON.stringify(settings))
+    const { campaigns, ...settingsToSave } = settings as any // Exclude campaigns if present
+    localStorage.setItem('settings', JSON.stringify(settingsToSave))
   }, [settings])
+
+  // Fetch data using useSWR based on sheetUrl
+  const { data: fetchedData, error: dataError, isLoading: isDataLoading, mutate: refreshData } = useSWR<TabData>(
+    settings.sheetUrl ? settings.sheetUrl : null,
+    fetchAllTabsData,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false
+    }
+  )
+
+  // Calculate campaigns based on fetchedData
+  const campaigns = useMemo(() => {
+    return fetchedData?.daily ? getCampaigns(fetchedData.daily) : []
+  }, [fetchedData])
 
   const setSheetUrl = (url: string) => {
     setSettings(prev => ({ ...prev, sheetUrl: url }))
@@ -57,10 +78,6 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     setSettings(prev => ({ ...prev, selectedCampaign: id }))
   }
 
-  const setCampaigns = (campaigns: Settings['campaigns']) => {
-    setSettings(prev => ({ ...prev, campaigns }))
-  }
-
   const updateSettings = (newSettings: Partial<Settings>) => {
     setSettings(prev => ({ ...prev, ...newSettings }))
   }
@@ -72,7 +89,11 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       setSheetUrl,
       setCurrency,
       setSelectedCampaign,
-      setCampaigns
+      fetchedData,
+      dataError,
+      isDataLoading,
+      refreshData: () => refreshData(),
+      campaigns
     }}>
       {children}
     </SettingsContext.Provider>

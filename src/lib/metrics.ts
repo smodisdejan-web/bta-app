@@ -1,6 +1,15 @@
 // src/lib/metrics.ts
 import type { AdMetric, DailyMetrics, SearchTermMetric } from './types'
 
+// Interface for Search Terms with calculated metrics
+export interface CalculatedSearchTermMetric extends SearchTermMetric {
+  CTR: number
+  CvR: number
+  CPA: number
+  ROAS: number
+  CPC: number
+}
+
 // Calculate aggregated metrics for daily campaign data
 export function calculateMetrics(data: AdMetric[]): DailyMetrics {
   const totals = data.reduce((acc, d) => ({
@@ -45,56 +54,28 @@ export function calculateDailyMetrics(data: AdMetric[]): DailyMetrics[] {
   }))
 }
 
-// Calculate profit for either daily or search term data
-export function calculateProfit(
-  data: AdMetric[] | SearchTermMetric[],
-  costMetric: number,
-  isProfitStrategy: boolean
-): number {
-  const totalValue = data.reduce((sum, d) => {
-    if ('value' in d) {
-      return sum + d.value
-    }
-    return sum + d.conversion_value
-  }, 0)
+// Calculate derived metrics for a single Search Term row
+export function calculateSingleSearchTermMetrics(term: SearchTermMetric): CalculatedSearchTermMetric {
+  const { impr, clicks, cost, conv, value } = term;
+  const CTR = impr > 0 ? (clicks / impr) * 100 : 0;
+  const CvR = clicks > 0 ? (conv / clicks) * 100 : 0;
+  const CPA = conv > 0 ? cost / conv : 0;
+  const ROAS = cost > 0 ? value / cost : 0;
+  const CPC = clicks > 0 ? cost / clicks : 0;
 
-  const totalCost = data.reduce((sum, d) => sum + d.cost, 0)
-  const totalConv = data.reduce((sum, d) => {
-    if ('conv' in d) {
-      return sum + d.conv
-    }
-    return sum + d.conversions
-  }, 0)
-
-  if (isProfitStrategy) {
-    // For profit strategy, costMetric is Cost of Goods Sold (COGS)
-    const totalCOGS = totalConv * costMetric
-    return totalValue - totalCost - totalCOGS
-  } else {
-    // For revenue strategy, costMetric is Breakeven CPA
-    const targetCost = totalConv * costMetric
-    return totalValue - targetCost
-  }
+  return {
+    ...term,
+    CTR,
+    CvR,
+    CPA,
+    ROAS,
+    CPC,
+  };
 }
 
-// Calculate daily profit values for either data type
-export function calculateDailyProfit(
-  data: AdMetric[] | SearchTermMetric[],
-  costMetric: number,
-  isProfitStrategy: boolean
-): number[] {
-  return data.map(d => {
-    const value = 'value' in d ? d.value : d.conversion_value
-    const conv = 'conv' in d ? d.conv : d.conversions
-
-    if (isProfitStrategy) {
-      const COGS = conv * costMetric
-      return value - d.cost - COGS
-    } else {
-      const targetCost = conv * costMetric
-      return value - targetCost
-    }
-  })
+// Calculate derived metrics for an array of Search Terms
+export function calculateAllSearchTermMetrics(terms: SearchTermMetric[]): CalculatedSearchTermMetric[] {
+  return terms.map(calculateSingleSearchTermMetrics);
 }
 
 // Format metric values consistently

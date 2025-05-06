@@ -24,17 +24,11 @@ async function fetchTabData(sheetUrl: string, tab: SheetTab): Promise<AdMetric[]
         search_term: String(row['search_term'] || ''),
         campaign: String(row['campaign'] || ''),
         ad_group: String(row['ad_group'] || ''),
-        impressions: Number(row['impressions'] || 0),
+        impr: Number(row['impr'] || 0),
         clicks: Number(row['clicks'] || 0),
         cost: Number(row['cost'] || 0),
-        conversions: Number(row['conversions'] || 0),
-        conversion_value: Number(row['conversion_value'] || 0),
-        cpc: Number(row['cpc'] || 0),
-        ctr: Number(row['ctr'] || 0),
-        conv_rate: Number(row['conv_rate'] || 0),
-        cpa: Number(row['cpa'] || 0),
-        roas: Number(row['roas'] || 0),
-        aov: Number(row['aov'] || 0)
+        conv: Number(row['conv'] || 0),
+        value: Number(row['value'] || 0),
       }))
     }
 

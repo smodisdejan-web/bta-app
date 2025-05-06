@@ -10,30 +10,33 @@ import { Card } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { fetchAllTabsData, getCampaigns } from '@/lib/sheetsData'
 import { CURRENCY_OPTIONS } from '@/lib/utils'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowRight } from 'lucide-react'
 import { useToast } from "@/hooks/use-toast"
 
 export default function SettingsPage() {
   const router = useRouter()
-  const { settings, setSheetUrl, setCurrency, setCampaigns } = useSettings()
+  const { settings, setSheetUrl, setCurrency, refreshData, isDataLoading: isContextLoading, dataError: contextError } = useSettings()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string>()
+
+  useEffect(() => {
+    if (contextError) {
+      setError('Error loading initial data. Check URL or network.');
+    }
+  }, [contextError]);
 
   const handleUpdate = async () => {
     setIsLoading(true)
     setError(undefined)
 
     try {
-      const allData = await fetchAllTabsData(settings.sheetUrl)
-      const dailyData = allData.daily || []
-      const campaigns = getCampaigns(dailyData)
-      setCampaigns(campaigns)
+      await refreshData()
       router.push('/')
     } catch (err) {
       console.error('Error updating data:', err)
-      setError('Failed to update data. Please check your Sheet URL.')
+      setError('Failed to update data. Please check your Sheet URL or network connection.')
     } finally {
       setIsLoading(false)
     }
@@ -91,10 +94,10 @@ export default function SettingsPage() {
               <div className="pt-4">
                 <Button
                   onClick={handleUpdate}
-                  disabled={isLoading || !settings.sheetUrl}
+                  disabled={isLoading || isContextLoading || !settings.sheetUrl}
                   className="w-full h-12 text-lg bg-[#ea580c] hover:bg-[#c2410c] text-white"
                 >
-                  {isLoading ? (
+                  {isLoading || isContextLoading ? (
                     'Updating...'
                   ) : (
                     <span className="flex items-center gap-2">

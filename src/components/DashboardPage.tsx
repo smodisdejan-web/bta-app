@@ -7,7 +7,7 @@ import { MetricsScorecard } from '@/components/MetricsScorecard'
 import { MetricsChart } from '@/components/MetricsChart'
 import { useSettings } from '@/lib/contexts/SettingsContext'
 import { fetchAllTabsData, getCampaigns, getMetricsByDate, getMetricOptions } from '@/lib/sheetsData'
-import { calculateMetrics, calculateDailyMetrics, calculateProfit, calculateDailyProfit } from '@/lib/metrics'
+import { calculateDailyMetrics } from '@/lib/metrics'
 import { formatCurrency } from '@/lib/utils'
 import type { MetricKey, AdMetric, AllMetricKeys, DailyMetrics } from '@/lib/types'
 import type { SheetTab } from '@/lib/config'
@@ -19,7 +19,6 @@ export function DashboardPage() {
     const metricOptions = getMetricOptions(activeTab)
     const [selectedMetrics, setSelectedMetrics] = useState<AllMetricKeys[]>(['cost', 'value'])
     const [chartType, setChartType] = useState<'line' | 'bar'>('line')
-    const [activeChart, setActiveChart] = useState<'profit' | 'metrics'>('profit')
 
     const { data: tabsData = {} as Record<SheetTab, AdMetric[]>, error, isLoading } = useSWR(
         settings.sheetUrl,
@@ -42,18 +41,7 @@ export function DashboardPage() {
     }, [campaigns, selectedCampaignId])
 
     const campaignData = getMetricsByDate(adData, selectedCampaignId)
-    const calculatedMetrics = calculateMetrics(campaignData)
     const dailyMetrics = calculateDailyMetrics(campaignData)
-
-    // Calculate profit metrics
-    const isProfitStrategy = settings.optimizationStrategy === 'profit'
-    const totalProfit = calculateProfit(campaignData, settings.costMetric, isProfitStrategy)
-
-    // Ensure profit data has the same structure as daily metrics
-    const dailyProfitData = dailyMetrics.map(day => ({
-        date: day.date,
-        profit: calculateProfit([day], settings.costMetric, isProfitStrategy)
-    }))
 
     const handleMetricClick = (metric: AllMetricKeys) => {
         setSelectedMetrics((current) => {
@@ -101,17 +89,6 @@ export function DashboardPage() {
                 />
             </div>
 
-            {settings.costMetric > 0 && (
-                <div className="mb-8 bg-white rounded-xl shadow-sm border p-6">
-                    <h2 className="text-xl font-semibold mb-4 text-gray-900">
-                        {isProfitStrategy ? 'Total Profit' : 'Net Revenue'}
-                    </h2>
-                    <div className={`text-4xl font-bold ${totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {formatCurrency(totalProfit, settings.currency)}
-                    </div>
-                </div>
-            )}
-
             <div className="space-y-4">
                 <MetricsScorecard
                     data={dailyMetrics}
@@ -121,72 +98,25 @@ export function DashboardPage() {
                 />
             </div>
 
-            {/* Chart Toggle */}
-            <div className="mt-8 mb-4 flex justify-end gap-2">
-                <Button
-                    variant={activeChart === 'profit' ? 'default' : 'outline'}
-                    onClick={() => setActiveChart('profit')}
-                    className={activeChart === 'profit' ? 'bg-[#ea580c] hover:bg-[#c2410c] text-white' : ''}
-                    disabled={!settings.costMetric}
-                >
-                    {isProfitStrategy ? 'Daily Profit' : 'Daily Net Revenue'}
-                </Button>
-                <Button
-                    variant={activeChart === 'metrics' ? 'default' : 'outline'}
-                    onClick={() => setActiveChart('metrics')}
-                    className={activeChart === 'metrics' ? 'bg-[#ea580c] hover:bg-[#c2410c] text-white' : ''}
-                >
-                    Campaign Metrics
-                </Button>
-            </div>
-
-            {/* Chart Container */}
-            <div className="bg-white rounded-xl shadow-sm border p-6">
-                {activeChart === 'metrics' ? (
-                    <>
-                        <h2 className="text-xl font-semibold mb-4 text-gray-900">Campaign Metrics</h2>
-                        <MetricsChart
-                            data={dailyMetrics}
-                            metric1={{
-                                key: selectedMetrics[0],
-                                label: metricOptions[selectedMetrics[0]].label,
-                                color: '#1e40af',
-                                format: (v: number) => metricOptions[selectedMetrics[0]].format(v)
-                            }}
-                            metric2={{
-                                key: selectedMetrics[1],
-                                label: metricOptions[selectedMetrics[1]].label,
-                                color: '#ea580c',
-                                format: (v: number) => metricOptions[selectedMetrics[1]].format(v)
-                            }}
-                            chartType={chartType}
-                        />
-                    </>
-                ) : settings.costMetric > 0 ? (
-                    <>
-                        <h2 className="text-xl font-semibold mb-4 text-gray-900">
-                            Daily {isProfitStrategy ? 'Profit' : 'Net Revenue'}
-                        </h2>
-                        <MetricsChart
-                            data={dailyProfitData}
-                            metric1={{
-                                key: 'profit',
-                                label: isProfitStrategy ? 'Profit' : 'Net Revenue',
-                                color: '#1e40af',
-                                format: (v: number) => formatCurrency(v, settings.currency)
-                            }}
-                            chartType="bar"
-                            barColors={{
-                                profit: (value: number) => value >= 0 ? 'rgb(229 231 235)' : 'rgb(252 165 165)'
-                            }}
-                        />
-                    </>
-                ) : (
-                    <div className="text-center py-12 text-gray-500">
-                        Please set your {isProfitStrategy ? 'Cost of Goods Sold' : 'Breakeven CPA'} in settings
-                        to view profit metrics
-                    </div>
-                )}
+            {/* Chart Container - Simplified to always show metrics */}
+            <div className="bg-white rounded-xl shadow-sm border p-6 mt-8">
+                <h2 className="text-xl font-semibold mb-4 text-gray-900">Campaign Metrics</h2>
+                <MetricsChart
+                    data={dailyMetrics}
+                    metric1={{
+                        key: selectedMetrics[0],
+                        label: metricOptions[selectedMetrics[0]].label,
+                        color: '#1e40af',
+                        format: (v: number) => metricOptions[selectedMetrics[0]].format(v)
+                    }}
+                    metric2={{
+                        key: selectedMetrics[1],
+                        label: metricOptions[selectedMetrics[1]].label,
+                        color: '#ea580c',
+                        format: (v: number) => metricOptions[selectedMetrics[1]].format(v)
+                    }}
+                    chartType={chartType}
+                />
             </div>
         </div>
     )

@@ -5,10 +5,7 @@ export interface Settings {
   sheetUrl: string
   currency: string
   selectedCampaign?: string
-  campaigns?: Campaign[]
   activeTab?: SheetTab
-  optimizationStrategy: 'profit' | 'revenue'
-  costMetric: number
 }
 
 export interface Campaign {
@@ -29,22 +26,16 @@ export interface AdMetric {
   date: string
 }
 
-// Search term metrics
+// Search term metrics - Core metrics from script
 export interface SearchTermMetric {
   search_term: string
   campaign: string
   ad_group: string
-  impressions: number
+  impr: number
   clicks: number
   cost: number
-  conversions: number
-  conversion_value: number
-  cpc: number
-  ctr: number
-  conv_rate: number
-  cpa: number
-  roas: number
-  aov: number
+  conv: number
+  value: number
 }
 
 // Calculated metrics for daily data
@@ -63,7 +54,7 @@ export type MetricKey = keyof Omit<AdMetric, 'campaign' | 'campaignId' | 'date'>
 export type SearchTermMetricKey = keyof Omit<SearchTermMetric, 'search_term' | 'campaign' | 'ad_group'>
 
 // All possible metrics (regular + calculated)
-export type AllMetricKeys = MetricKey | keyof Omit<DailyMetrics, keyof AdMetric> | SearchTermMetricKey
+export type AllMetricKeys = MetricKey | keyof Omit<DailyMetrics, keyof AdMetric>
 
 export interface MetricOption {
   label: string

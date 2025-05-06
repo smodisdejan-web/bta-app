@@ -4,7 +4,7 @@
 
 import { useEffect, useState } from 'react'
 import { useSettings } from '@/lib/contexts/SettingsContext'
-import { fetchAllTabsData, getCampaigns } from '@/lib/sheetsData'
+import { getCampaigns } from '@/lib/sheetsData'
 import type { AdMetric, DailyMetrics, TabData } from '@/lib/types'
 import { calculateDailyMetrics } from '@/lib/metrics'
 import { MetricCard } from '@/components/MetricCard'
@@ -19,21 +19,18 @@ type DisplayMetric = 'impr' | 'clicks' | 'CTR' | 'CPC' | 'cost' |
 const metricConfig = {
     impr: { label: 'Impressions', format: (v: number) => v.toLocaleString(), row: 1 },
     clicks: { label: 'Clicks', format: (v: number) => v.toLocaleString(), row: 1 },
-    CTR: { label: 'CTR', format: formatPercent, row: 1 },
-    CPC: { label: 'CPC', format: (v: number, currency: string) => formatCurrency(v, currency), row: 1 },
+    CTR: { label: 'CTR', format: formatPercent, row: 2 },
+    CPC: { label: 'CPC', format: (v: number, currency: string) => formatCurrency(v, currency), row: 2 },
     cost: { label: 'Cost', format: (v: number, currency: string) => formatCurrency(v, currency), row: 1 },
-    conv: { label: 'Conv', format: formatConversions, row: 2 },
+    conv: { label: 'Conv', format: formatConversions, row: 1 },
     CvR: { label: 'Conv Rate', format: formatPercent, row: 2 },
     CPA: { label: 'CPA', format: (v: number, currency: string) => formatCurrency(v, currency), row: 2 },
-    value: { label: 'Value', format: (v: number, currency: string) => formatCurrency(v, currency), row: 2 },
+    value: { label: 'Value', format: (v: number, currency: string) => formatCurrency(v, currency), row: 1 },
     ROAS: { label: 'ROAS', format: (v: number) => v.toFixed(2) + 'x', row: 2 }
 } as const
 
 export default function DashboardPage() {
-    const { settings, setCampaigns } = useSettings()
-    const [data, setData] = useState<AdMetric[]>([])
-    const [isLoading, setIsLoading] = useState(true)
-    const [error, setError] = useState<string>()
+    const { settings, fetchedData, dataError, isDataLoading, campaigns } = useSettings()
     const [selectedMetrics, setSelectedMetrics] = useState<[DisplayMetric, DisplayMetric]>(['cost', 'value'])
     const [selectedCampaignId, setSelectedCampaignId] = useState<string>('')
 
@@ -66,31 +63,10 @@ export default function DashboardPage() {
         )
     }
 
-    useEffect(() => {
-        if (!settings.sheetUrl) {
-            setIsLoading(false)
-            return
-        }
-
-        fetchAllTabsData(settings.sheetUrl)
-            .then((allData: TabData) => {
-                const dailyData = allData.daily || []
-                setData(dailyData)
-
-                const campaigns = getCampaigns(dailyData)
-                setCampaigns(campaigns)
-            })
-            .catch((err: Error) => {
-                console.error('Error loading data:', err)
-                setError('Failed to load data. Please check your Sheet URL.')
-            })
-            .finally(() => setIsLoading(false))
-    }, [settings.sheetUrl, setCampaigns])
-
     const dailyMetrics = calculateDailyMetrics(
         selectedCampaignId
-            ? data.filter(d => d.campaignId === selectedCampaignId)
-            : aggregateMetricsByDate(data)
+            ? (fetchedData?.daily || []).filter(d => d.campaignId === selectedCampaignId)
+            : aggregateMetricsByDate(fetchedData?.daily || [])
     )
 
     const calculateTotals = () => {
@@ -120,18 +96,19 @@ export default function DashboardPage() {
         setSelectedMetrics(prev => [prev[1], metric])
     }
 
-    if (isLoading) return <DashboardLayout>Loading...</DashboardLayout>
+    if (isDataLoading) return <DashboardLayout>Loading...</DashboardLayout>
     if (!settings.sheetUrl) return <DashboardLayout>Please configure your Google Sheet URL in settings</DashboardLayout>
-    if (dailyMetrics.length === 0) return <DashboardLayout>No data found</DashboardLayout>
+    if (dataError) return <DashboardLayout error={'Failed to load data. Please check your Sheet URL.'}><></></DashboardLayout>
+    if (dailyMetrics.length === 0 && !isDataLoading) return <DashboardLayout>No data found</DashboardLayout>
 
     const totals = calculateTotals()
     if (!totals) return null
 
     return (
-        <DashboardLayout error={error}>
+        <DashboardLayout error={dataError ? 'Failed to load data. Please check your Sheet URL.' : undefined}>
             <div className="space-y-6">
                 <CampaignSelect
-                    campaigns={settings.campaigns || []}
+                    campaigns={campaigns || []}
                     selectedId={selectedCampaignId}
                     onSelect={setSelectedCampaignId}
                 />

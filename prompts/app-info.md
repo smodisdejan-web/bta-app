@@ -25,7 +25,7 @@ src/
 │   ├── contexts/         
 │   │   └── SettingsContext.tsx  # Global settings state
 │   ├── sheetsData.ts     # Google Sheets data fetching
-│   ├── metrics.ts        # Metric calculations
+│   ├── metrics.ts        # Metric calculations (Core & Derived)
 │   ├── types.ts          # TypeScript definitions
 │   ├── utils.ts          # Formatting helpers
 │   └── config.ts         # App constants
@@ -39,22 +39,17 @@ src/
 - conv: Conversions
 - value: Conversion Value
 
-### Calculated Metrics
+### Calculated Metrics (Calculated on Frontend)
 - CTR: Click-Through Rate (clicks/impr)
 - CPC: Cost per Click (cost/clicks)
 - CvR: Conversion Rate (conv/clicks)
 - ROAS: Return on Ad Spend (value/cost)
 - CPA: Cost per Acquisition (cost/conv)
 
-### Share Metrics
-- imprShare: Impression Share
-- lostBudget: Lost IS (Budget)
-- lostRank: Lost IS (Rank)
-
 ## Data Flow
-1. Data source: Google Sheet published as web app
+1. Data source: Google Sheet published as web app (outputs only core metrics)
 2. Frontend fetches data via sheetsData.ts
-3. Raw data processed through metrics.ts
+3. Core metrics processed and derived metrics calculated in metrics.ts
 4. UI updates via React state/context
 
 ## Key Features

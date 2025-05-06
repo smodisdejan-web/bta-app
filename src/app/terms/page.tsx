@@ -1,11 +1,10 @@
 'use client'
 
-import { useState } from 'react'
-import useSWR from 'swr'
+import { useState, useMemo } from 'react'
 import { useSettings } from '@/lib/contexts/SettingsContext'
-import { fetchAllTabsData } from '@/lib/sheetsData'
 import { formatCurrency, formatNumber, formatPercent } from '@/lib/utils'
 import type { SearchTermMetric, TabData } from '@/lib/types'
+import { calculateAllSearchTermMetrics, type CalculatedSearchTermMetric } from '@/lib/metrics'
 import {
     Table,
     TableBody,
@@ -16,20 +15,38 @@ import {
 } from "@/components/ui/table"
 import { Button } from '@/components/ui/button'
 
-type SortField = keyof SearchTermMetric
+type SortField = keyof CalculatedSearchTermMetric
 type SortDirection = 'asc' | 'desc'
 
 export default function TermsPage() {
-    const { settings } = useSettings()
+    const { settings, fetchedData, dataError, isDataLoading } = useSettings()
     const [sortField, setSortField] = useState<SortField>('cost')
     const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
 
-    const { data: tabsData, error, isLoading } = useSWR<TabData>(
-        settings.sheetUrl,
-        fetchAllTabsData
-    )
+    // --- Hooks called unconditionally at the top --- 
+    const searchTermsRaw = useMemo(() => (fetchedData?.searchTerms || []) as SearchTermMetric[], [fetchedData]);
 
-    if (error) {
+    // Calculate derived metrics for all terms using useMemo
+    const calculatedSearchTerms = useMemo(() => {
+        return calculateAllSearchTermMetrics(searchTermsRaw)
+    }, [searchTermsRaw])
+
+    // Sort data (now using calculated terms)
+    const sortedTerms = useMemo(() => {
+        return [...calculatedSearchTerms].sort((a, b) => {
+            const aVal = a[sortField]
+            const bVal = b[sortField]
+            // Handle potential string sorting for non-numeric fields if necessary
+            if (typeof aVal === 'string' && typeof bVal === 'string') {
+                return aVal.localeCompare(bVal) * (sortDirection === 'asc' ? 1 : -1);
+            }
+            return (Number(aVal) - Number(bVal)) * (sortDirection === 'asc' ? 1 : -1)
+        })
+    }, [calculatedSearchTerms, sortField, sortDirection])
+    // --- End of unconditional hooks ---
+
+    // Handle loading and error states *after* hooks
+    if (dataError) {
         return (
             <div className="p-8 text-center">
                 <div className="text-red-500 mb-4">Error loading data</div>
@@ -37,26 +54,19 @@ export default function TermsPage() {
         )
     }
 
-    if (isLoading) {
+    if (isDataLoading) {
         return <div className="p-8 text-center">Loading...</div>
     }
 
-    const searchTerms = (tabsData?.searchTerms || []) as SearchTermMetric[]
-
-    // Sort data
-    const sortedTerms = [...searchTerms].sort((a, b) => {
-        const aVal = a[sortField]
-        const bVal = b[sortField]
-        const multiplier = sortDirection === 'asc' ? 1 : -1
-        return (Number(aVal) - Number(bVal)) * multiplier
-    })
-
     const handleSort = (field: SortField) => {
+        const isStringField = ['search_term', 'campaign', 'ad_group'].includes(field);
+        const defaultDirection = isStringField ? 'asc' : 'desc';
+
         if (field === sortField) {
             setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')
         } else {
             setSortField(field)
-            setSortDirection('desc')
+            setSortDirection(defaultDirection)
         }
     }
 
@@ -93,7 +103,7 @@ export default function TermsPage() {
                                 <SortButton field="ad_group">Ad Group</SortButton>
                             </TableHead>
                             <TableHead className="text-right">
-                                <SortButton field="impressions">Impr</SortButton>
+                                <SortButton field="impr">Impr</SortButton>
                             </TableHead>
                             <TableHead className="text-right">
                                 <SortButton field="clicks">Clicks</SortButton>
@@ -102,40 +112,46 @@ export default function TermsPage() {
                                 <SortButton field="cost">Cost</SortButton>
                             </TableHead>
                             <TableHead className="text-right">
-                                <SortButton field="conversions">Conv</SortButton>
+                                <SortButton field="conv">Conv</SortButton>
                             </TableHead>
                             <TableHead className="text-right">
-                                <SortButton field="conversion_value">Value</SortButton>
+                                <SortButton field="value">Value</SortButton>
                             </TableHead>
                             <TableHead className="text-right">
-                                <SortButton field="ctr">CTR</SortButton>
+                                <SortButton field="CTR">CTR</SortButton>
                             </TableHead>
                             <TableHead className="text-right">
-                                <SortButton field="conv_rate">CvR</SortButton>
+                                <SortButton field="CPC">CPC</SortButton>
                             </TableHead>
                             <TableHead className="text-right">
-                                <SortButton field="cpa">CPA</SortButton>
+                                <SortButton field="CvR">CvR</SortButton>
                             </TableHead>
                             <TableHead className="text-right">
-                                <SortButton field="roas">ROAS</SortButton>
+                                <SortButton field="CPA">CPA</SortButton>
+                            </TableHead>
+                            <TableHead className="text-right">
+                                <SortButton field="ROAS">ROAS</SortButton>
                             </TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {sortedTerms.slice(0, 10).map((term, i) => (
-                            <TableRow key={`${term.search_term}-${i}`}>
+                            <TableRow key={`${term.search_term}-${term.campaign}-${term.ad_group}-${i}`}>
                                 <TableCell className="font-medium">{term.search_term}</TableCell>
                                 <TableCell>{term.campaign}</TableCell>
                                 <TableCell>{term.ad_group}</TableCell>
-                                <TableCell className="text-right">{formatNumber(term.impressions)}</TableCell>
+                                <TableCell className="text-right">{formatNumber(term.impr)}</TableCell>
                                 <TableCell className="text-right">{formatNumber(term.clicks)}</TableCell>
                                 <TableCell className="text-right">{formatCurrency(term.cost, settings.currency)}</TableCell>
-                                <TableCell className="text-right">{formatNumber(term.conversions)}</TableCell>
-                                <TableCell className="text-right">{formatCurrency(term.conversion_value, settings.currency)}</TableCell>
-                                <TableCell className="text-right">{formatPercent(term.ctr * 100)}</TableCell>
-                                <TableCell className="text-right">{formatPercent(term.conv_rate * 100)}</TableCell>
-                                <TableCell className="text-right">{formatCurrency(term.cpa, settings.currency)}</TableCell>
-                                <TableCell className="text-right">{term.roas.toFixed(2)}x</TableCell>
+                                <TableCell className="text-right">{formatNumber(term.conv)}</TableCell>
+                                <TableCell className="text-right">{formatCurrency(term.value, settings.currency)}</TableCell>
+                                <TableCell className="text-right">{formatPercent(term.CTR)}</TableCell>
+                                <TableCell className="text-right">{formatCurrency(term.CPC, settings.currency)}</TableCell>
+                                <TableCell className="text-right">{formatPercent(term.CvR)}</TableCell>
+                                <TableCell className="text-right">{formatCurrency(term.CPA, settings.currency)}</TableCell>
+                                <TableCell className="text-right">
+                                    {(term.ROAS && isFinite(term.ROAS)) ? `${term.ROAS.toFixed(2)}x` : '-'}
+                                </TableCell>
                             </TableRow>
                         ))}
                     </TableBody>

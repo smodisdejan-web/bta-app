@@ -49,22 +49,24 @@ function main() {
       ss = SpreadsheetApp.openByUrl(SHEET_URL);
     }
 
-    // Process Search Terms tab
+    // Process Search Terms tab - Simplified headers
     processTab(
       ss,
       SEARCH_TERMS_TAB,
-      ["search_term", "campaign", "ad_group", "impressions", "clicks", "cost", "conversions", "conversion_value", "cpc", "ctr", "conv_rate", "cpa", "roas"],
+      // Headers: Only core metrics + identifiers
+      ["search_term", "campaign", "ad_group", "impr", "clicks", "cost", "conv", "value"],
       SEARCH_TERMS_QUERY,
-      calculateSearchTermsMetrics
+      calculateSearchTermsMetrics // Still use this, but it will be simplified
     );
 
-    // Process Daily tab
+    // Process Daily tab - Simplified headers
     processTab(
       ss,
       DAILY_TAB,
-      ["campaign", "campaignId", "impr", "clicks", "value", "conv", "cost", "date"],
+      // Headers: Only core metrics + identifiers
+      ["campaign", "campaignId", "impr", "clicks", "cost", "conv", "value", "date"],
       DAILY_QUERY,
-      processDailyData
+      processDailyData // This function already returns data mostly in this format
     );
 
   } catch (e) {
@@ -112,24 +114,16 @@ function calculateSearchTermsMetrics(rows) {
     const searchTerm = row['search_term_view.search_term'];
     const campaign = row['campaign.name'];
     const adGroup = row['ad_group.name'];
-    const impressions = parseInt(row['metrics.impressions'], 10) || 0;
+    const impr = parseInt(row['metrics.impressions'], 10) || 0;
     const clicks = parseInt(row['metrics.clicks'], 10) || 0;
     const costMicros = parseInt(row['metrics.cost_micros'], 10) || 0;
-    const conversions = parseFloat(row['metrics.conversions']) || 0;
-    const conversionValue = parseFloat(row['metrics.conversions_value']) || 0;
+    const conv = parseFloat(row['metrics.conversions']) || 0;
+    const value = parseFloat(row['metrics.conversions_value']) || 0;
 
-    // Calculate metrics
-    const cost = costMicros / 1000000;  // Convert micros to actual currency
-    const cpc = clicks > 0 ? cost / clicks : 0;
-    const ctr = impressions > 0 ? clicks / impressions : 0;
-    const convRate = clicks > 0 ? conversions / clicks : 0;
-    const cpa = conversions > 0 ? cost / conversions : 0;
-    const roas = cost > 0 ? conversionValue / cost : 0;
+    const cost = costMicros / 1000000;
 
-    // Add all variables and calculated metrics to a new row
-    const newRow = [searchTerm, campaign, adGroup, impressions, clicks, cost, conversions, conversionValue, cpc, ctr, convRate, cpa, roas];
+    const newRow = [searchTerm, campaign, adGroup, impr, clicks, cost, conv, value];
 
-    // Push new row to the data array
     data.push(newRow);
   }
   return data;
@@ -140,19 +134,19 @@ function processDailyData(rows) {
   while (rows.hasNext()) {
     const row = rows.next();
 
-    // Extract data according to the requested columns
+    // Extract data according to the simplified headers
     const campaign = String(row['campaign.name'] || '');
     const campaignId = String(row['campaign.id'] || '');
+    const impr = Number(row['metrics.impressions'] || 0);
     const clicks = Number(row['metrics.clicks'] || 0);
-    const value = Number(row['metrics.conversions_value'] || 0);
-    const conv = Number(row['metrics.conversions'] || 0);
     const costMicros = Number(row['metrics.cost_micros'] || 0);
     const cost = costMicros / 1000000;  // Convert micros to actual currency
-    const impr = Number(row['metrics.impressions'] || 0);
+    const conv = Number(row['metrics.conversions'] || 0);
+    const value = Number(row['metrics.conversions_value'] || 0);
     const date = String(row['segments.date'] || '');
 
-    // Create a new row with the data
-    const newRow = [campaign, campaignId, impr, clicks, value, conv, cost, date];
+    // Create a new row matching the simplified Daily headers
+    const newRow = [campaign, campaignId, impr, clicks, cost, conv, value, date];
 
     // Push new row to the data array
     data.push(newRow);

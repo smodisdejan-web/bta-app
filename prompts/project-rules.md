@@ -22,11 +22,6 @@
 - Use `ROAS` for Return on Ad Spend
 - Use `CPA` for Cost per Acquisition
 
-### Share Metrics
-- Use `imprShare` for Impression Share
-- Use `lostBudget` for Lost IS (Budget)
-- Use `lostRank` for Lost IS (Rank)
-
 ## Data Type Handling
 - Parse numeric fields with `Number()` or `parseFloat()`
 - Handle all string fields appropriately
@@ -45,7 +40,7 @@
 - Place type definitions in `src/lib/types.ts`
 - Store constants in `src/lib/config.ts`
 - Handle data fetching in `src/lib/sheetsData.ts`
-- Process metrics in `src/lib/metrics.ts`
+- Process metrics (core & derived) in `src/lib/metrics.ts`
 
 ## File References
 @file:src/lib/types.ts

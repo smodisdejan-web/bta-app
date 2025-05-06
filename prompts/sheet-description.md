@@ -22,17 +22,11 @@ This tab contains search term performance data:
 | search_term | string | The actual search query used |
 | campaign | string | Campaign name |
 | ad_group | string | Ad group name |
-| impressions | number | Number of ad impressions |
+| impr | number | Number of ad impressions |
 | clicks | number | Number of clicks received |
 | cost | number | Cost in account currency (already converted from micros) |
-| conversions | number | Number of conversions |
-| conversion_value | number | Total conversion value |
-| cpc | number | Cost per click (calculated) |
-| ctr | number | Click-through rate (decimal, not percentage) |
-| conv_rate | number | Conversion rate (decimal, not percentage) |
-| cpa | number | Cost per acquisition |
-| roas | number | Return on ad spend (value/cost) |
-| aov | number | Average order value (value/conversions) |
+| conv | number | Number of conversions |
+| value | number | Total conversion value |
 
 ## Tab 2: "Daily"
 This tab contains daily campaign performance data:
@@ -42,9 +36,6 @@ This tab contains daily campaign performance data:
 | campaign | string | Campaign name |
 | campaignId | string | Campaign ID (stored as string) |
 | clicks | number | Number of clicks received |
-| lostBudget | number | Budget lost impression share (decimal) |
-| imprShare | number | Impression share (decimal) |
-| lostRank | number | Rank lost impression share (decimal) |
 | value | number | Conversion value |
 | conv | number | Number of conversions |
 | cost | number | Cost in account currency (already converted from micros) |
@@ -60,14 +51,13 @@ This tab contains daily campaign performance data:
    - Ensure consistent typing between dev/prod: use `TabData` interface
 
 2. **Percentage Values**: 
-   - Store as decimals (0.15 rather than 15%)
-   - Format for display using `formatPercent(value * 100)`
-   - Key metrics: CTR, conv_rate, imprShare, etc.
+   - Calculated metrics (CTR, CvR) are computed on the frontend from core metrics.
+   - Format for display using `formatPercent(value)` (Note: frontend calculation already scales to %)
 
 3. **Currency Values**: 
    - Use the account's currency setting from context
    - Format using `formatCurrency(value, settings.currency)`
-   - Applies to: cost, conversion_value, cpc, cpa
+   - Applies to: cost, value (fetched), CPA, CPC (calculated on frontend)
 
 4. **Error Handling**: 
    - Always provide fallback empty arrays: `tabsData?.searchTerms || []`
