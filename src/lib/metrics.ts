@@ -56,7 +56,7 @@ export function calculateDailyMetrics(data: AdMetric[]): DailyMetrics[] {
 
 // Calculate derived metrics for a single Search Term row
 export function calculateSingleSearchTermMetrics(term: SearchTermMetric): CalculatedSearchTermMetric {
-  const { impr, clicks, cost, conv, value } = term;
+  const { impr, clicks, cost, conv, value, keywordText } = term;
   const CTR = impr > 0 ? (clicks / impr) * 100 : 0;
   const CvR = clicks > 0 ? (conv / clicks) * 100 : 0;
   const CPA = conv > 0 ? cost / conv : 0;

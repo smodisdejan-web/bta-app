@@ -59,7 +59,7 @@ export default function TermsPage() {
     }
 
     const handleSort = (field: SortField) => {
-        const isStringField = ['search_term', 'campaign', 'ad_group'].includes(field);
+        const isStringField = ['searchTerm', 'campaign', 'adGroup', 'keywordText'].includes(field);
         const defaultDirection = isStringField ? 'asc' : 'desc';
 
         if (field === sortField) {
@@ -94,13 +94,16 @@ export default function TermsPage() {
                     <TableHeader>
                         <TableRow>
                             <TableHead className="w-[200px]">
-                                <SortButton field="search_term">Search Term</SortButton>
+                                <SortButton field="searchTerm">Search Term</SortButton>
+                            </TableHead>
+                            <TableHead>
+                                <SortButton field="keywordText">Keyword</SortButton>
                             </TableHead>
                             <TableHead>
                                 <SortButton field="campaign">Campaign</SortButton>
                             </TableHead>
                             <TableHead>
-                                <SortButton field="ad_group">Ad Group</SortButton>
+                                <SortButton field="adGroup">Ad Group</SortButton>
                             </TableHead>
                             <TableHead className="text-right">
                                 <SortButton field="impr">Impr</SortButton>
@@ -136,10 +139,11 @@ export default function TermsPage() {
                     </TableHeader>
                     <TableBody>
                         {sortedTerms.slice(0, 10).map((term, i) => (
-                            <TableRow key={`${term.search_term}-${term.campaign}-${term.ad_group}-${i}`}>
-                                <TableCell className="font-medium">{term.search_term}</TableCell>
+                            <TableRow key={`${term.searchTerm}-${term.campaign}-${term.adGroup}-${i}-${term.keywordText}`}>
+                                <TableCell className="font-medium">{term.searchTerm}</TableCell>
+                                <TableCell>{term.keywordText || '-'}</TableCell>
                                 <TableCell>{term.campaign}</TableCell>
-                                <TableCell>{term.ad_group}</TableCell>
+                                <TableCell>{term.adGroup}</TableCell>
                                 <TableCell className="text-right">{formatNumber(term.impr)}</TableCell>
                                 <TableCell className="text-right">{formatNumber(term.clicks)}</TableCell>
                                 <TableCell className="text-right">{formatCurrency(term.cost, settings.currency)}</TableCell>

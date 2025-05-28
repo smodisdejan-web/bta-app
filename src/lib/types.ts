@@ -26,11 +26,31 @@ export interface AdMetric {
   date: string
 }
 
+// Add the new AdGroupMetric interface
+export interface AdGroupMetric {
+  campaign: string
+  campaignId: string
+  adGroup: string
+  adGroupId: string
+  impr: number
+  clicks: number
+  value: number
+  conv: number
+  cost: number
+  date: string
+  cpc: number
+  ctr: number
+  convRate: number
+  cpa: number
+  roas: number
+}
+
 // Search term metrics - Core metrics from script
 export interface SearchTermMetric {
-  search_term: string
+  searchTerm: string
+  keywordText?: string
   campaign: string
-  ad_group: string
+  adGroup: string
   impr: number
   clicks: number
   cost: number
@@ -51,7 +71,7 @@ export interface DailyMetrics extends AdMetric {
 export type MetricKey = keyof Omit<AdMetric, 'campaign' | 'campaignId' | 'date'>
 
 // Search term metrics excluding metadata
-export type SearchTermMetricKey = keyof Omit<SearchTermMetric, 'search_term' | 'campaign' | 'ad_group'>
+export type SearchTermMetricKey = keyof Omit<SearchTermMetric, 'searchTerm' | 'campaign' | 'adGroup'>
 
 // All possible metrics (regular + calculated)
 export type AllMetricKeys = MetricKey | keyof Omit<DailyMetrics, keyof AdMetric>
@@ -75,7 +95,7 @@ export interface TabConfigs {
 
 // Type guard for search term data
 export function isSearchTermMetric(data: any): data is SearchTermMetric {
-  return 'search_term' in data && 'ad_group' in data
+  return 'searchTerm' in data && 'adGroup' in data
 }
 
 // Type guard for daily metrics
@@ -87,6 +107,7 @@ export function isAdMetric(data: any): data is AdMetric {
 export type TabData = {
   daily: AdMetric[]
   searchTerms: SearchTermMetric[]
+  adGroups: AdGroupMetric[]
 }
 
 // Helper type to get numeric values from metrics

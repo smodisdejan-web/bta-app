@@ -1,38 +1,89 @@
 // src/lib/sheetsData.ts
-import { AdMetric, Campaign, SearchTermMetric, TabData, isSearchTermMetric } from './types'
+import { AdMetric, Campaign, SearchTermMetric, TabData, AdGroupMetric } from './types'
 import { SHEET_TABS, SheetTab, TAB_CONFIGS, DEFAULT_SHEET_URL } from './config'
 
-async function fetchTabData(sheetUrl: string, tab: SheetTab): Promise<AdMetric[] | SearchTermMetric[]> {
+// Helper to fetch and parse SearchTerm data
+async function fetchAndParseSearchTerms(sheetUrl: string): Promise<SearchTermMetric[]> {
+  const tab: SheetTab = 'searchTerms';
   try {
-    const urlWithTab = `${sheetUrl}?tab=${tab}`
-    const response = await fetch(urlWithTab)
-
+    const urlWithTab = `${sheetUrl}?tab=${tab}`;
+    const response = await fetch(urlWithTab);
     if (!response.ok) {
-      throw new Error(`Failed to fetch data for tab ${tab}`)
+      throw new Error(`Failed to fetch data for tab ${tab}`);
     }
-
-    const rawData = await response.json()
-
+    const rawData = await response.json();
     if (!Array.isArray(rawData)) {
-      console.error(`Response is not an array:`, rawData)
-      return []
+      console.error(`Response is not an array for ${tab}:`, rawData);
+      return [];
     }
+    return rawData.map((row: any) => ({
+      searchTerm: String(row['searchTerm'] || ''),
+      keywordText: String(row['keywordText'] || ''),
+      campaign: String(row['campaign'] || ''),
+      adGroup: String(row['adGroup'] || ''),
+      impr: Number(row['impr'] || 0),
+      clicks: Number(row['clicks'] || 0),
+      cost: Number(row['cost'] || 0),
+      conv: Number(row['conv'] || 0),
+      value: Number(row['value'] || 0),
+    }));
+  } catch (error) {
+    console.error(`Error fetching ${tab} data:`, error);
+    return [];
+  }
+}
 
-    // Parse data based on tab type
-    if (tab === 'searchTerms') {
-      return rawData.map((row: any) => ({
-        search_term: String(row['search_term'] || ''),
-        campaign: String(row['campaign'] || ''),
-        ad_group: String(row['ad_group'] || ''),
-        impr: Number(row['impr'] || 0),
-        clicks: Number(row['clicks'] || 0),
-        cost: Number(row['cost'] || 0),
-        conv: Number(row['conv'] || 0),
-        value: Number(row['value'] || 0),
-      }))
+// Helper to fetch and parse AdGroup data
+async function fetchAndParseAdGroups(sheetUrl: string): Promise<AdGroupMetric[]> {
+  const tab: SheetTab = 'adGroups';
+  try {
+    const urlWithTab = `${sheetUrl}?tab=${tab}`;
+    const response = await fetch(urlWithTab);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch data for tab ${tab}`);
     }
+    const rawData = await response.json();
+    if (!Array.isArray(rawData)) {
+      console.error(`Response is not an array for ${tab}:`, rawData);
+      return [];
+    }
+    return rawData.map((row: any) => ({
+      campaign: String(row['campaign'] || ''),
+      campaignId: String(row['campaignId'] || ''),
+      adGroup: String(row['adGroup'] || ''),
+      adGroupId: String(row['adGroupId'] || ''),
+      clicks: Number(row['clicks'] || 0),
+      value: Number(row['value'] || 0),
+      conv: Number(row['conv'] || 0),
+      cost: Number(row['cost'] || 0),
+      impr: Number(row['impr'] || 0),
+      date: String(row['date'] || ''),
+      cpc: Number(row['cpc'] || 0),
+      ctr: Number(row['ctr'] || 0),
+      convRate: Number(row['convRate'] || 0),
+      cpa: Number(row['cpa'] || 0),
+      roas: Number(row['roas'] || 0)
+    }));
+  } catch (error) {
+    console.error(`Error fetching ${tab} data:`, error);
+    return [];
+  }
+}
 
-    // Daily metrics
+// Helper to fetch and parse Daily (AdMetric) data
+async function fetchAndParseDaily(sheetUrl: string): Promise<AdMetric[]> {
+  const tab: SheetTab = 'daily';
+  try {
+    const urlWithTab = `${sheetUrl}?tab=${tab}`;
+    const response = await fetch(urlWithTab);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch data for tab ${tab}`);
+    }
+    const rawData = await response.json();
+    if (!Array.isArray(rawData)) {
+      console.error(`Response is not an array for ${tab}:`, rawData);
+      return [];
+    }
     return rawData.map((row: any) => ({
       campaign: String(row['campaign'] || ''),
       campaignId: String(row['campaignId'] || ''),
@@ -42,29 +93,25 @@ async function fetchTabData(sheetUrl: string, tab: SheetTab): Promise<AdMetric[]
       cost: Number(row['cost'] || 0),
       impr: Number(row['impr'] || 0),
       date: String(row['date'] || '')
-    }))
+    }));
   } catch (error) {
-    console.error(`Error fetching ${tab} data:`, error)
-    return []
+    console.error(`Error fetching ${tab} data:`, error);
+    return [];
   }
 }
 
 export async function fetchAllTabsData(sheetUrl: string = DEFAULT_SHEET_URL): Promise<TabData> {
-  const results = await Promise.all(
-    SHEET_TABS.map(async tab => ({
-      tab,
-      data: await fetchTabData(sheetUrl, tab)
-    }))
-  )
+  const [dailyData, searchTermsData, adGroupsData] = await Promise.all([
+    fetchAndParseDaily(sheetUrl),
+    fetchAndParseSearchTerms(sheetUrl),
+    fetchAndParseAdGroups(sheetUrl)
+  ]);
 
-  return results.reduce((acc, { tab, data }) => {
-    if (tab === 'searchTerms') {
-      acc[tab] = data as SearchTermMetric[]
-    } else {
-      acc[tab] = data as AdMetric[]
-    }
-    return acc
-  }, { daily: [], searchTerms: [] } as TabData)
+  return {
+    daily: dailyData || [],
+    searchTerms: searchTermsData || [],
+    adGroups: adGroupsData || [],
+  } as TabData;
 }
 
 export function getCampaigns(data: AdMetric[]): Campaign[] {

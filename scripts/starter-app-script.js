@@ -7,6 +7,7 @@ const DAILY_TAB = 'Daily';
 const SEARCH_TERMS_QUERY = `
 SELECT 
   search_term_view.search_term, 
+  segments.keyword.info.text,
   campaign.name,
   ad_group.name,
   metrics.impressions, 
@@ -45,6 +46,8 @@ function main() {
       ss = SpreadsheetApp.create("Google Ads Report");
       let url = ss.getUrl();
       Logger.log("No SHEET_URL found, so this sheet was created: " + url);
+      Logger.log("IMPORTANT: You MUST deploy this new sheet as a web app. Go to Extensions > Apps Script, then click Deploy > New Deployment. Select 'Web app' as the type, configure access (e.g., 'Anyone, even anonymous'), and copy the Web app URL.");
+      Logger.log("Then, paste this Web app URL into the BTA app's settings page. To make this Sheet URL permanent for future script runs, update the SHEET_URL constant at the top of this script, AND update DEFAULT_SHEET_URL in the app's src/lib/config.ts file.");
     } else {
       ss = SpreadsheetApp.openByUrl(SHEET_URL);
     }
@@ -54,7 +57,7 @@ function main() {
       ss,
       SEARCH_TERMS_TAB,
       // Headers: Only core metrics + identifiers
-      ["search_term", "campaign", "ad_group", "impr", "clicks", "cost", "conv", "value"],
+      ["search_term", "keyword_text", "campaign", "ad_group", "impr", "clicks", "cost", "conv", "value"],
       SEARCH_TERMS_QUERY,
       calculateSearchTermsMetrics // Still use this, but it will be simplified
     );
@@ -112,6 +115,7 @@ function calculateSearchTermsMetrics(rows) {
   while (rows.hasNext()) {
     const row = rows.next();
     const searchTerm = row['search_term_view.search_term'];
+    const keywordText = row['segments.keyword.info.text'];
     const campaign = row['campaign.name'];
     const adGroup = row['ad_group.name'];
     const impr = parseInt(row['metrics.impressions'], 10) || 0;
@@ -122,7 +126,7 @@ function calculateSearchTermsMetrics(rows) {
 
     const cost = costMicros / 1000000;
 
-    const newRow = [searchTerm, campaign, adGroup, impr, clicks, cost, conv, value];
+    const newRow = [searchTerm, keywordText, campaign, adGroup, impr, clicks, cost, conv, value];
 
     data.push(newRow);
   }

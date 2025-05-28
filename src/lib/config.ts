@@ -6,9 +6,9 @@ export const COLORS = {
     secondary: '#ea580c'
 } as const
 
-export const DEFAULT_SHEET_URL = 'https://script.google.com/macros/s/AKfycbyivyAgb-5t-WGYk9d1i_9vZWU4_xMhfskeoHyKpMi-2AdJSkecfhzKZXSUvOCDW53O/exec'
+export const DEFAULT_SHEET_URL = 'https://script.google.com/macros/s/AKfycbxXlnj8vfXOD9mgHq9QX7ShnMhQQCzQrtc4m3TAZvpMEtLw7q6c1CdShH09e7N9aMGi/exec'
 
-export const SHEET_TABS = ['daily', 'searchTerms'] as const
+export const SHEET_TABS = ['daily', 'searchTerms', 'adGroups'] as const
 export type SheetTab = typeof SHEET_TABS[number]
 
 export interface TabConfig {
@@ -35,6 +35,21 @@ export const TAB_CONFIGS: Record<SheetTab, TabConfig> = {
             cost: { label: 'Cost', format: (val: number) => `$${val.toFixed(2)}` },
             conv: { label: 'Conv', format: (val: number) => val.toFixed(1) },
             value: { label: 'Value', format: (val: number) => `$${val.toFixed(2)}` }
+        }
+    },
+    adGroups: {
+        name: 'adGroups',
+        metrics: {
+            impr: { label: 'Impr', format: (val: number) => val.toLocaleString() },
+            clicks: { label: 'Clicks', format: (val: number) => val.toLocaleString() },
+            cost: { label: 'Cost', format: (val: number) => `$${val.toFixed(2)}` },
+            conv: { label: 'Conv', format: (val: number) => val.toFixed(1) },
+            value: { label: 'Value', format: (val: number) => `$${val.toFixed(2)}` },
+            cpc: { label: 'CPC', format: (val: number) => `$${val.toFixed(2)}` },
+            ctr: { label: 'CTR', format: (val: number) => `${(val * 100).toFixed(2)}%` },
+            convRate: { label: 'CvR', format: (val: number) => `${(val * 100).toFixed(2)}%` },
+            cpa: { label: 'CPA', format: (val: number) => `$${val.toFixed(2)}` },
+            roas: { label: 'ROAS', format: (val: number) => val.toFixed(2) }
         }
     }
 } 
