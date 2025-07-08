@@ -12,6 +12,7 @@ import { MetricsChart } from '@/components/MetricsChart'
 import { CampaignSelect } from '@/components/CampaignSelect'
 import { formatCurrency, formatPercent, formatConversions } from '@/lib/utils'
 import { COLORS } from '@/lib/config'
+import { Button } from '@/components/ui/button'
 
 type DisplayMetric = 'impr' | 'clicks' | 'CTR' | 'CPC' | 'cost' |
     'conv' | 'CvR' | 'CPA' | 'value' | 'ROAS'
@@ -63,6 +64,21 @@ export default function DashboardPage() {
         )
     }
 
+    const handleCampaignNavigate = (direction: 'next' | 'prev') => {
+        if (!campaigns || campaigns.length === 0) return;
+
+        const campaignIds = ['', ...campaigns.map(c => c.id)]; // Include "All Campaigns"
+        const currentIndex = campaignIds.indexOf(selectedCampaignId);
+
+        let nextIndex;
+        if (direction === 'next') {
+            nextIndex = (currentIndex + 1) % campaignIds.length;
+        } else {
+            nextIndex = (currentIndex - 1 + campaignIds.length) % campaignIds.length;
+        }
+        setSelectedCampaignId(campaignIds[nextIndex]);
+    };
+
     const dailyMetrics = calculateDailyMetrics(
         selectedCampaignId
             ? (fetchedData?.daily || []).filter(d => d.campaignId === selectedCampaignId)
@@ -107,11 +123,22 @@ export default function DashboardPage() {
     return (
         <DashboardLayout error={dataError ? 'Failed to load data. Please check your Sheet URL.' : undefined}>
             <div className="space-y-6">
-                <CampaignSelect
-                    campaigns={campaigns || []}
-                    selectedId={selectedCampaignId}
-                    onSelect={setSelectedCampaignId}
-                />
+                <div className="flex items-center space-x-2">
+                    <div className="w-2/5">
+                        <CampaignSelect
+                            campaigns={campaigns || []}
+                            selectedId={selectedCampaignId}
+                            onSelect={setSelectedCampaignId}
+                        />
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => handleCampaignNavigate('prev')}>
+                        Prev
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => handleCampaignNavigate('next')}>
+                        Next
+                    </Button>
+                </div>
+
 
                 {[1, 2].map(row => (
                     <div key={row} className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">

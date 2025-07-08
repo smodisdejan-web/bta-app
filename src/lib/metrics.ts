@@ -1,4 +1,4 @@
-// src/lib/metrics.ts
+// src/lib/metrics.ts 
 import type { AdMetric, DailyMetrics, SearchTermMetric } from './types'
 
 // Interface for Search Terms with calculated metrics

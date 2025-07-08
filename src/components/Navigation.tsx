@@ -28,24 +28,7 @@ export function Navigation() {
                         >
                             Search Terms
                         </Link>
-                        <Link
-                            href="/adgroups"
-                            className={cn(
-                                "text-sm font-medium transition-colors hover:text-foreground/80",
-                                pathname === "/adgroups" ? "text-foreground" : "text-foreground/60"
-                            )}
-                        >
-                            Ad Groups
-                        </Link>
-                        <Link
-                            href="/data-test"
-                            className={cn(
-                                "text-sm font-medium transition-colors hover:text-foreground/80",
-                                pathname === "/data-test" ? "text-foreground" : "text-foreground/60"
-                            )}
-                        >
-                            Data Test
-                        </Link>
+                        
                     </div>
                     <Link
                         href="/settings"

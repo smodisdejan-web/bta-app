@@ -1,6 +1,6 @@
 // src/lib/sheetsData.ts
-import { AdMetric, Campaign, SearchTermMetric, TabData, AdGroupMetric } from './types'
-import { SHEET_TABS, SheetTab, TAB_CONFIGS, DEFAULT_WEB_APP_URL } from './config'
+import { AdMetric, Campaign, SearchTermMetric, TabData } from './types'
+import { SheetTab, TAB_CONFIGS, DEFAULT_WEB_APP_URL } from './config'
 
 // Helper to fetch and parse SearchTerm data
 async function fetchAndParseSearchTerms(sheetUrl: string): Promise<SearchTermMetric[]> {
@@ -26,43 +26,6 @@ async function fetchAndParseSearchTerms(sheetUrl: string): Promise<SearchTermMet
       cost: Number(row['cost'] || 0),
       conv: Number(row['conv'] || 0),
       value: Number(row['value'] || 0),
-    }));
-  } catch (error) {
-    console.error(`Error fetching ${tab} data:`, error);
-    return [];
-  }
-}
-
-// Helper to fetch and parse AdGroup data
-async function fetchAndParseAdGroups(sheetUrl: string): Promise<AdGroupMetric[]> {
-  const tab: SheetTab = 'adGroups';
-  try {
-    const urlWithTab = `${sheetUrl}?tab=${tab}`;
-    const response = await fetch(urlWithTab);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch data for tab ${tab}`);
-    }
-    const rawData = await response.json();
-    if (!Array.isArray(rawData)) {
-      console.error(`Response is not an array for ${tab}:`, rawData);
-      return [];
-    }
-    return rawData.map((row: any) => ({
-      campaign: String(row['campaign'] || ''),
-      campaignId: String(row['campaignId'] || ''),
-      adGroup: String(row['adGroup'] || ''),
-      adGroupId: String(row['adGroupId'] || ''),
-      clicks: Number(row['clicks'] || 0),
-      value: Number(row['value'] || 0),
-      conv: Number(row['conv'] || 0),
-      cost: Number(row['cost'] || 0),
-      impr: Number(row['impr'] || 0),
-      date: String(row['date'] || ''),
-      cpc: Number(row['cpc'] || 0),
-      ctr: Number(row['ctr'] || 0),
-      convRate: Number(row['convRate'] || 0),
-      cpa: Number(row['cpa'] || 0),
-      roas: Number(row['roas'] || 0)
     }));
   } catch (error) {
     console.error(`Error fetching ${tab} data:`, error);
@@ -101,16 +64,14 @@ async function fetchAndParseDaily(sheetUrl: string): Promise<AdMetric[]> {
 }
 
 export async function fetchAllTabsData(sheetUrl: string = DEFAULT_WEB_APP_URL): Promise<TabData> {
-  const [dailyData, searchTermsData, adGroupsData] = await Promise.all([
+  const [dailyData, searchTermsData] = await Promise.all([
     fetchAndParseDaily(sheetUrl),
-    fetchAndParseSearchTerms(sheetUrl),
-    fetchAndParseAdGroups(sheetUrl)
+    fetchAndParseSearchTerms(sheetUrl)
   ]);
 
   return {
     daily: dailyData || [],
     searchTerms: searchTermsData || [],
-    adGroups: adGroupsData || [],
   } as TabData;
 }
 

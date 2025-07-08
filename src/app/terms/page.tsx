@@ -1,3 +1,4 @@
+// src/app/terms/page.tsx
 'use client'
 
 import { useState, useMemo } from 'react'
@@ -5,6 +6,7 @@ import { useSettings } from '@/lib/contexts/SettingsContext'
 import { formatCurrency, formatNumber, formatPercent } from '@/lib/utils'
 import type { SearchTermMetric, TabData } from '@/lib/types'
 import { calculateAllSearchTermMetrics, type CalculatedSearchTermMetric } from '@/lib/metrics'
+import { usePagination, DOTS } from '@/hooks/use-pagination';
 import {
     Table,
     TableBody,
@@ -14,14 +16,28 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import { Button } from '@/components/ui/button'
+import {
+    Pagination,
+    PaginationContent,
+    PaginationEllipsis,
+    PaginationItem,
+    PaginationLink,
+    PaginationNext,
+    PaginationPrevious,
+} from "@/components/ui/pagination"
+
 
 type SortField = keyof CalculatedSearchTermMetric
 type SortDirection = 'asc' | 'desc'
+
+const PAGE_SIZE = 20; // Show 20 items per page
 
 export default function TermsPage() {
     const { settings, fetchedData, dataError, isDataLoading } = useSettings()
     const [sortField, setSortField] = useState<SortField>('cost')
     const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
+    const [currentPage, setCurrentPage] = useState(1);
+
 
     // --- Hooks called unconditionally at the top --- 
     const searchTermsRaw = useMemo(() => (fetchedData?.searchTerms || []) as SearchTermMetric[], [fetchedData]);
@@ -43,7 +59,23 @@ export default function TermsPage() {
             return (Number(aVal) - Number(bVal)) * (sortDirection === 'asc' ? 1 : -1)
         })
     }, [calculatedSearchTerms, sortField, sortDirection])
+
+    const paginationRange = usePagination({
+        currentPage,
+        totalCount: sortedTerms.length,
+        siblingCount: 1,
+        pageSize: PAGE_SIZE
+    });
+
     // --- End of unconditional hooks ---
+
+    // Calculate pagination variables
+    const totalPages = Math.ceil(sortedTerms.length / PAGE_SIZE);
+    const paginatedTerms = useMemo(() => {
+        const startIndex = (currentPage - 1) * PAGE_SIZE;
+        return sortedTerms.slice(startIndex, startIndex + PAGE_SIZE);
+    }, [sortedTerms, currentPage]);
+
 
     // Handle loading and error states *after* hooks
     if (dataError) {
@@ -138,7 +170,7 @@ export default function TermsPage() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {sortedTerms.slice(0, 10).map((term, i) => (
+                        {paginatedTerms.map((term, i) => (
                             <TableRow key={`${term.searchTerm}-${term.campaign}-${term.adGroup}-${i}-${term.keywordText}`}>
                                 <TableCell className="font-medium">{term.searchTerm}</TableCell>
                                 <TableCell>{term.keywordText || '-'}</TableCell>
@@ -160,6 +192,58 @@ export default function TermsPage() {
                         ))}
                     </TableBody>
                 </Table>
+            </div>
+            {/* Pagination Controls */}
+            <div className="flex items-center justify-between mt-4">
+                <div className="text-sm text-gray-700">
+                    Page {currentPage} of {totalPages}
+                </div>
+                <Pagination>
+                    <PaginationContent>
+                        <PaginationItem>
+                            <PaginationPrevious
+                                href="#"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    setCurrentPage(prev => Math.max(prev - 1, 1));
+                                }}
+                                className={currentPage === 1 ? "pointer-events-none opacity-50" : undefined}
+                            />
+                        </PaginationItem>
+
+                        {paginationRange?.map((pageNumber, index) => {
+                            if (pageNumber === DOTS) {
+                                return <PaginationItem key={`dots-${index}`}><PaginationEllipsis /></PaginationItem>;
+                            }
+
+                            return (
+                                <PaginationItem key={pageNumber}>
+                                    <PaginationLink
+                                        href="#"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            setCurrentPage(pageNumber as number);
+                                        }}
+                                        isActive={currentPage === pageNumber}
+                                    >
+                                        {pageNumber}
+                                    </PaginationLink>
+                                </PaginationItem>
+                            );
+                        })}
+
+                        <PaginationItem>
+                            <PaginationNext
+                                href="#"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    setCurrentPage(prev => Math.min(prev + 1, totalPages));
+                                }}
+                                className={currentPage === totalPages ? "pointer-events-none opacity-50" : undefined}
+                            />
+                        </PaginationItem>
+                    </PaginationContent>
+                </Pagination>
             </div>
         </div>
     )

@@ -1,3 +1,4 @@
+// scripts/script-with-adgroups.js
 const SHEET_URL = '';                     // add your sheet url here
 const SEARCH_TERMS_TAB = 'searchTerms';
 const DAILY_TAB = 'daily';

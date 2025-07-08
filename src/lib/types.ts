@@ -26,24 +26,6 @@ export interface AdMetric {
   date: string
 }
 
-// Add the new AdGroupMetric interface
-export interface AdGroupMetric {
-  campaign: string
-  campaignId: string
-  adGroup: string
-  adGroupId: string
-  impr: number
-  clicks: number
-  value: number
-  conv: number
-  cost: number
-  date: string
-  cpc: number
-  ctr: number
-  convRate: number
-  cpa: number
-  roas: number
-}
 
 // Search term metrics - Core metrics from script
 export interface SearchTermMetric {
@@ -107,7 +89,6 @@ export function isAdMetric(data: any): data is AdMetric {
 export type TabData = {
   daily: AdMetric[]
   searchTerms: SearchTermMetric[]
-  adGroups: AdGroupMetric[]
 }
 
 // Helper type to get numeric values from metrics

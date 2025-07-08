@@ -1,6 +1,7 @@
+// scripts/use-this-for-week3.js
 const SHEET_URL = '';                     // add your sheet url here
-const SEARCH_TERMS_TAB = 'SearchTerms';
-const DAILY_TAB = 'Daily';
+const SEARCH_TERMS_TAB = 'searchTerms';
+const DAILY_TAB = 'daily';
 
 
 // GAQL query for search terms
@@ -57,7 +58,7 @@ function main() {
       ss,
       SEARCH_TERMS_TAB,
       // Headers: Only core metrics + identifiers
-      ["search_term", "keyword_text", "campaign", "ad_group", "impr", "clicks", "cost", "conv", "value"],
+      ["searchTerm", "keywordText", "campaign", "adGroup", "impr", "clicks", "cost", "conv", "value"],
       SEARCH_TERMS_QUERY,
       calculateSearchTermsMetrics // Still use this, but it will be simplified
     );
@@ -67,7 +68,7 @@ function main() {
       ss,
       DAILY_TAB,
       // Headers: Only core metrics + identifiers
-      ["campaign", "campaignId", "impr", "clicks", "cost", "conv", "value", "date"],
+      ["date", "campaign", "campaignId", "impr", "clicks", "cost", "conv", "value"],
       DAILY_QUERY,
       processDailyData // This function already returns data mostly in this format
     );
@@ -150,7 +151,7 @@ function processDailyData(rows) {
     const date = String(row['segments.date'] || '');
 
     // Create a new row matching the simplified Daily headers
-    const newRow = [campaign, campaignId, impr, clicks, cost, conv, value, date];
+    const newRow = [date, campaign, campaignId, impr, clicks, cost, conv, value];
 
     // Push new row to the data array
     data.push(newRow);
