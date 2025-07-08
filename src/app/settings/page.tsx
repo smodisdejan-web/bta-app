@@ -1,19 +1,15 @@
 // src/app/settings/page.tsx 
-
 'use client'
-
 import { useSettings } from '@/lib/contexts/SettingsContext'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { fetchAllTabsData, getCampaigns } from '@/lib/sheetsData'
 import { CURRENCY_OPTIONS } from '@/lib/utils'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowRight } from 'lucide-react'
-import { useToast } from "@/hooks/use-toast"
 
 export default function SettingsPage() {
   const router = useRouter()

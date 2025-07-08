@@ -1,6 +1,5 @@
 // src/app/terms/page.tsx
 'use client'
-
 import { useState, useMemo } from 'react'
 import { useSettings } from '@/lib/contexts/SettingsContext'
 import { formatCurrency, formatNumber, formatPercent } from '@/lib/utils'

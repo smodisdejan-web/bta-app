@@ -124,7 +124,7 @@ export default function DashboardPage() {
         <DashboardLayout error={dataError ? 'Failed to load data. Please check your Sheet URL.' : undefined}>
             <div className="space-y-6">
                 <div className="flex items-center space-x-2">
-                    <div className="w-2/5">
+                    <div className="w-2/6">
                         <CampaignSelect
                             campaigns={campaigns || []}
                             selectedId={selectedCampaignId}
