@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, useEffect, useMemo } from 'react'
 import useSWR, { mutate } from 'swr'
 import type { Campaign, Settings, TabData } from '../types'
-import { DEFAULT_SHEET_URL } from '../config'
+import { DEFAULT_WEB_APP_URL } from '../config'
 import { fetchAllTabsData, getCampaigns } from '../sheetsData'
 
 export type SettingsContextType = {
@@ -20,7 +20,7 @@ export type SettingsContextType = {
 }
 
 const defaultSettings: Settings = {
-  sheetUrl: DEFAULT_SHEET_URL,
+  sheetUrl: DEFAULT_WEB_APP_URL,
   currency: '$',
   selectedCampaign: undefined,
   activeTab: 'daily'
@@ -30,26 +30,6 @@ const SettingsContext = createContext<SettingsContextType | undefined>(undefined
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<Settings>(defaultSettings)
-
-  // Load settings from localStorage
-  useEffect(() => {
-    const saved = localStorage.getItem('settings')
-    if (saved) {
-      try {
-        const parsedSettings = JSON.parse(saved)
-        delete parsedSettings.campaigns // Ensure campaigns are not loaded
-        setSettings({ ...defaultSettings, ...parsedSettings })
-      } catch {
-        setSettings(defaultSettings)
-      }
-    }
-  }, [])
-
-  // Save settings to localStorage
-  useEffect(() => {
-    const { campaigns, ...settingsToSave } = settings as any // Exclude campaigns if present
-    localStorage.setItem('settings', JSON.stringify(settingsToSave))
-  }, [settings])
 
   // Fetch data using useSWR based on sheetUrl
   const { data: fetchedData, error: dataError, isLoading: isDataLoading, mutate: refreshData } = useSWR<TabData>(

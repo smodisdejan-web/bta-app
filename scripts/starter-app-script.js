@@ -47,7 +47,7 @@ function main() {
       let url = ss.getUrl();
       Logger.log("No SHEET_URL found, so this sheet was created: " + url);
       Logger.log("IMPORTANT: You MUST deploy this new sheet as a web app. Go to Extensions > Apps Script, then click Deploy > New Deployment. Select 'Web app' as the type, configure access (e.g., 'Anyone, even anonymous'), and copy the Web app URL.");
-      Logger.log("Then, paste this Web app URL into the BTA app's settings page. To make this Sheet URL permanent for future script runs, update the SHEET_URL constant at the top of this script, AND update DEFAULT_SHEET_URL in the app's src/lib/config.ts file.");
+      Logger.log("Then, paste this Web app URL into the BTA app's settings page. To make this Sheet URL permanent for future script runs, update the SHEET_URL constant at the top of this script, AND update DEFAULT_WEB_APP_URL in the app's src/lib/config.ts file.");
     } else {
       ss = SpreadsheetApp.openByUrl(SHEET_URL);
     }

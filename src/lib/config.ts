@@ -6,7 +6,7 @@ export const COLORS = {
     secondary: '#ea580c'
 } as const
 
-export const DEFAULT_SHEET_URL = 'https://script.google.com/macros/s/AKfycbxXlnj8vfXOD9mgHq9QX7ShnMhQQCzQrtc4m3TAZvpMEtLw7q6c1CdShH09e7N9aMGi/exec'
+export const DEFAULT_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxNQLvDnrot-HULvVYznwlBRo-O0wl1Hbp2vreKw9nABklT6Gu0s4QQWeWMyXZF-fzM/exec'
 
 export const SHEET_TABS = ['daily', 'searchTerms', 'adGroups'] as const
 export type SheetTab = typeof SHEET_TABS[number]

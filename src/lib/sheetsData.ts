@@ -1,6 +1,6 @@
 // src/lib/sheetsData.ts
 import { AdMetric, Campaign, SearchTermMetric, TabData, AdGroupMetric } from './types'
-import { SHEET_TABS, SheetTab, TAB_CONFIGS, DEFAULT_SHEET_URL } from './config'
+import { SHEET_TABS, SheetTab, TAB_CONFIGS, DEFAULT_WEB_APP_URL } from './config'
 
 // Helper to fetch and parse SearchTerm data
 async function fetchAndParseSearchTerms(sheetUrl: string): Promise<SearchTermMetric[]> {
@@ -100,7 +100,7 @@ async function fetchAndParseDaily(sheetUrl: string): Promise<AdMetric[]> {
   }
 }
 
-export async function fetchAllTabsData(sheetUrl: string = DEFAULT_SHEET_URL): Promise<TabData> {
+export async function fetchAllTabsData(sheetUrl: string = DEFAULT_WEB_APP_URL): Promise<TabData> {
   const [dailyData, searchTermsData, adGroupsData] = await Promise.all([
     fetchAndParseDaily(sheetUrl),
     fetchAndParseSearchTerms(sheetUrl),

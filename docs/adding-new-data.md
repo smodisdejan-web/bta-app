@@ -149,7 +149,7 @@ Add your new tab to `SHEET_TABS` and configure its metrics in `TAB_CONFIGS`.
 // src/lib/config.ts
 import type { MetricOptions } from './types'; // Ensure TabConfig is also imported or defined if needed
 
-// ... existing COLORS, DEFAULT_SHEET_URL ...
+// ... existing COLORS, DEFAULT_WEB_APP_URL ...
 
 // Update the SHEET_TABS array
 export const SHEET_TABS = ['daily', 'searchTerms', 'adGroups', 'audiences'] as const; // Added 'audiences'
@@ -186,7 +186,7 @@ Create a new dedicated asynchronous function to fetch and parse your new data ty
 ```typescript
 // src/lib/sheetsData.ts
 import { AdMetric, Campaign, SearchTermMetric, TabData, AdGroupMetric, AudienceMetric } from './types'; // Added AudienceMetric
-import { SHEET_TABS, SheetTab, TAB_CONFIGS, DEFAULT_SHEET_URL } from './config';
+import { SHEET_TABS, SheetTab, TAB_CONFIGS, DEFAULT_WEB_APP_URL } from './config';
 
 // ... existing fetchAndParseSearchTerms, fetchAndParseAdGroups, fetchAndParseDaily ...
 
@@ -223,7 +223,7 @@ async function fetchAndParseAudiences(sheetUrl: string): Promise<AudienceMetric[
   }
 }
 
-export async function fetchAllTabsData(sheetUrl: string = DEFAULT_SHEET_URL): Promise<TabData> {
+export async function fetchAllTabsData(sheetUrl: string = DEFAULT_WEB_APP_URL): Promise<TabData> {
   const [
     dailyData,
     searchTermsData,

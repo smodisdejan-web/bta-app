@@ -1,7 +1,7 @@
 const SHEET_URL = '';                     // add your sheet url here
-const SEARCH_TERMS_TAB = 'SearchTerms';
-const DAILY_TAB = 'Daily';
-const AD_GROUP_TAB = 'AdGroups';  // New tab for ad group data
+const SEARCH_TERMS_TAB = 'searchTerms';
+const DAILY_TAB = 'daily';
+const AD_GROUP_TAB = 'adGroups';  // New tab for ad group data
 
 // GAQL query for search terms
 const SEARCH_TERMS_QUERY = `
@@ -65,7 +65,7 @@ function main() {
             let url = ss.getUrl();
             Logger.log("No SHEET_URL found, so this sheet was created: " + url);
             Logger.log("IMPORTANT: You MUST deploy this new sheet as a web app. Go to Extensions > Apps Script, then click Deploy > New Deployment. Select 'Web app' as the type, configure access (e.g., 'Anyone, even anonymous'), and copy the Web app URL.");
-            Logger.log("Then, paste this Web app URL into the BTA app's settings page. To make this Sheet URL permanent for future script runs, update the SHEET_URL constant at the top of this script, AND update DEFAULT_SHEET_URL in the app's src/lib/config.ts file.");
+            Logger.log("Then, paste this Web app URL into the BTA app's settings page. To make this Sheet URL permanent for future script runs, update the SHEET_URL constant at the top of this script, AND update DEFAULT_WEB_APP_URL in the app's src/lib/config.ts file.");
         } else {
             ss = SpreadsheetApp.openByUrl(SHEET_URL);
         }
@@ -83,7 +83,7 @@ function main() {
         processTab(
             ss,
             DAILY_TAB,
-            ["campaign", "campaignId", "impr", "clicks", "value", "conv", "cost", "date"],
+            ["date", "campaign", "campaignId", "impr", "clicks", "value", "conv", "cost"],
             DAILY_QUERY,
             processDailyData
         );
@@ -183,7 +183,7 @@ function processDailyData(rows) {
         const date = String(row['segments.date'] || '');
 
         // Create a new row with the data
-        const newRow = [campaign, campaignId, impr, clicks, value, conv, cost, date];
+        const newRow = [date, campaign, campaignId, impr, clicks, value, conv, cost];
 
         // Push new row to the data array
         data.push(newRow);
