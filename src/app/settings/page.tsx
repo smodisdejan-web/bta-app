@@ -49,7 +49,7 @@ export default function SettingsPage() {
               <div className="space-y-4">
                 <div>
                   <Label htmlFor="sheetUrl" className="text-base">
-                    Google Sheet URL
+                    Google Web App URL
                   </Label>
                   <div className="mt-2">
                     <Input

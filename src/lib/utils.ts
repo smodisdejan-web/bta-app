@@ -11,7 +11,8 @@ export const CURRENCY_SYMBOLS: Record<string, string> = {
   EUR: '€',
   GBP: '£',
   AUD: 'A$',
-  CAD: 'C$'
+  CAD: 'C$',
+  ZAR: 'R' // South African Rand
 }
 
 export const CURRENCY_OPTIONS = [
@@ -19,7 +20,8 @@ export const CURRENCY_OPTIONS = [
   { value: 'A$', label: 'AUD (A$)' },
   { value: 'C$', label: 'CAD (C$)' },
   { value: '€', label: 'EUR (€)' },
-  { value: '£', label: 'GBP (£)' }
+  { value: '£', label: 'GBP (£)' },
+  { value: 'R', label: 'ZAR (R)' } // South African Rand
 ] as const
 
 export function formatCurrency(value: number, currency: string): string {
