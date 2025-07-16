@@ -17,7 +17,8 @@ function doGet(e) {
     .setMimeType(ContentService.MimeType.JSON);
   }
 
-  // Get data from the sheet
+
+  // Get data from the sheet 
   var data = sheet.getDataRange().getValues();
   var headers = data.shift();
   var jsonData = data.map(function(row) {
