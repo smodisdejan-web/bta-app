@@ -40,6 +40,25 @@ export interface SearchTermMetric {
   value: number
 }
 
+// Ad group metrics - Core metrics from script
+export interface AdGroupRecord {
+  campaign: string
+  campaignId: string
+  adGroup: string
+  adGroupId: string
+  impr: number
+  clicks: number
+  value: number        // conversion value
+  conv: number         // conversions
+  cost: number         // account currency
+  date: Date
+  cpc: number
+  ctr: number          // 0..1
+  convRate: number     // 0..1
+  cpa: number
+  roas: number
+}
+
 // Calculated metrics for daily data
 export interface DailyMetrics extends AdMetric {
   CTR: number
@@ -85,10 +104,16 @@ export function isAdMetric(data: any): data is AdMetric {
   return 'campaignId' in data && 'impr' in data
 }
 
+// Type guard for ad group data
+export function isAdGroupRecord(data: any): data is AdGroupRecord {
+  return 'adGroupId' in data && 'adGroup' in data && 'date' in data
+}
+
 // Combined tab data type
 export type TabData = {
   daily: AdMetric[]
   searchTerms: SearchTermMetric[]
+  adGroups: AdGroupRecord[]
 }
 
 // Helper type to get numeric values from metrics
