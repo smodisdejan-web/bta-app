@@ -1,9 +1,15 @@
 // src/lib/config.ts
 import type { MetricOptions } from './types'
 
+// Goolets Brand Colors
 export const COLORS = {
-    primary: '#1e40af',
-    secondary: '#ea580c'
+    primary: '#B39262', // Champagne Gold
+    secondary: '#2D2D2D', // Graphite
+    gold: '#B39262',
+    graphite: '#121212',
+    success: '#3D7C4D',
+    warning: '#C7930A',
+    error: '#B83C3C'
 } as const
 
 export const DEFAULT_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycby4WR2b5WyZ7qKcJvNUtYjGQPPVpJzFWAnF5SyJntvtNGwGaob-hCu4hAdECHmnRVfn/exec'

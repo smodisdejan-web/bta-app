@@ -5,6 +5,11 @@ const config: Config = {
     content: ["./src/**/*.{js,ts,jsx,tsx,mdx}"],
   theme: {
   	extend: {
+  		fontFamily: {
+  			serif: ['Sigvar-Serial', 'Georgia', 'serif'],
+  			sans: ['Inter', 'system-ui', 'sans-serif'],
+  			script: ['Hamilton Script', 'cursive']
+  		},
   		backgroundImage: {
   			'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
   			'gradient-conic': 'conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))'
@@ -15,6 +20,19 @@ const config: Config = {
   			sm: 'calc(var(--radius) - 4px)'
   		},
   		colors: {
+  			// Goolets brand colors
+  			gold: {
+  				DEFAULT: '#B39262',
+  				light: '#C9A876',
+  				dark: '#9D7B4F',
+  				subtle: '#E8DCC8'
+  			},
+  			graphite: {
+  				DEFAULT: '#121212',
+  				light: '#2D2D2D'
+  			},
+  			ivory: '#FAF8F5',
+  			sand: '#F5F1EB',
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
   			card: {
