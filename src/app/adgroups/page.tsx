@@ -572,7 +572,7 @@ export default function AdGroupsPage() {
                 <div className="text-sm text-gray-600">
                     Showing <span className="font-semibold text-gray-900">{((currentPage - 1) * PAGE_SIZE) + 1}</span> to{' '}
                     <span className="font-semibold text-gray-900">{Math.min(currentPage * PAGE_SIZE, filteredAdGroups.length)}</span> of{' '}
-                    <span className="font-semibold text-gray-900">{filteredAdGroups.toLocaleString()}</span> ad groups
+                    <span className="font-semibold text-gray-900">{filteredAdGroups.length.toLocaleString()}</span> ad groups
                 </div>
                 <Pagination>
                     <PaginationContent>
