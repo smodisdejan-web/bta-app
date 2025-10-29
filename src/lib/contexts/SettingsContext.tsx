@@ -21,7 +21,7 @@ export type SettingsContextType = {
 
 const defaultSettings: Settings = {
   sheetUrl: DEFAULT_WEB_APP_URL,
-  currency: '$',
+  currency: '€',
   selectedCampaign: undefined,
   activeTab: 'daily'
 }

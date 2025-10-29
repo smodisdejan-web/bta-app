@@ -28,9 +28,9 @@ export const TAB_CONFIGS: Record<SheetTab, TabConfig> = {
         metrics: {
             impr: { label: 'Impr', format: (val: number) => val.toLocaleString() },
             clicks: { label: 'Clicks', format: (val: number) => val.toLocaleString() },
-            cost: { label: 'Cost', format: (val: number) => `$${val.toFixed(2)}` },
+            cost: { label: 'Cost', format: (val: number) => `€${val.toFixed(2)}` },
             conv: { label: 'Conv', format: (val: number) => val.toFixed(1) },
-            value: { label: 'Value', format: (val: number) => `$${val.toFixed(2)}` }
+            value: { label: 'Value', format: (val: number) => `€${val.toFixed(2)}` }
         }
     },
     searchTerms: {
@@ -38,9 +38,9 @@ export const TAB_CONFIGS: Record<SheetTab, TabConfig> = {
         metrics: {
             impr: { label: 'Impr', format: (val: number) => val.toLocaleString() },
             clicks: { label: 'Clicks', format: (val: number) => val.toLocaleString() },
-            cost: { label: 'Cost', format: (val: number) => `$${val.toFixed(2)}` },
+            cost: { label: 'Cost', format: (val: number) => `€${val.toFixed(2)}` },
             conv: { label: 'Conv', format: (val: number) => val.toFixed(1) },
-            value: { label: 'Value', format: (val: number) => `$${val.toFixed(2)}` }
+            value: { label: 'Value', format: (val: number) => `€${val.toFixed(2)}` }
         }
     },
     adGroups: {
@@ -48,13 +48,13 @@ export const TAB_CONFIGS: Record<SheetTab, TabConfig> = {
         metrics: {
             impr: { label: 'Impr', format: (val: number) => val.toLocaleString() },
             clicks: { label: 'Clicks', format: (val: number) => val.toLocaleString() },
-            cost: { label: 'Cost', format: (val: number) => `$${val.toFixed(2)}` },
+            cost: { label: 'Cost', format: (val: number) => `€${val.toFixed(2)}` },
             conv: { label: 'Conv', format: (val: number) => val.toFixed(1) },
-            value: { label: 'Value', format: (val: number) => `$${val.toFixed(2)}` },
-            cpc: { label: 'CPC', format: (val: number) => `$${val.toFixed(2)}` },
+            value: { label: 'Value', format: (val: number) => `€${val.toFixed(2)}` },
+            cpc: { label: 'CPC', format: (val: number) => `€${val.toFixed(2)}` },
             ctr: { label: 'CTR', format: (val: number) => `${(val * 100).toFixed(1)}%` },
             convRate: { label: 'Conv Rate', format: (val: number) => `${(val * 100).toFixed(1)}%` },
-            cpa: { label: 'CPA', format: (val: number) => `$${val.toFixed(2)}` },
+            cpa: { label: 'CPA', format: (val: number) => `€${val.toFixed(2)}` },
             roas: { label: 'ROAS', format: (val: number) => val.toFixed(2) }
         }
     }

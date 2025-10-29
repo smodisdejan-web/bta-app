@@ -15,13 +15,15 @@ export function Navigation() {
                 <div className="flex items-center justify-between w-full">
                     <div className="flex items-center space-x-8">
                         {/* Logo - Goolets branding */}
-                        <Link href="/" className="flex items-center space-x-2">
-                            <span className="font-serif text-xl font-semibold text-foreground tracking-tight">
-                                Goolets
-                            </span>
-                            <span className="text-xs text-muted-foreground font-sans">
-                                Analytics
-                            </span>
+                        <Link href="/" className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
+                            <div className="flex flex-col">
+                                <span className="font-bold text-xl text-foreground tracking-tight">
+                                    GOOLETS
+                                </span>
+                                <span className="text-xs text-muted-foreground font-sans uppercase tracking-wider">
+                                    AI Agent
+                                </span>
+                            </div>
                         </Link>
                         
                         {/* Navigation Links */}
@@ -47,6 +49,39 @@ export function Navigation() {
                                 )}
                             >
                                 Ad Groups
+                            </Link>
+                            <Link
+                                href="/budgets"
+                                className={cn(
+                                    "px-3 py-2 text-sm font-medium rounded-md transition-all",
+                                    pathname === "/budgets" 
+                                        ? "text-primary bg-primary/10" 
+                                        : "text-foreground/70 hover:text-primary hover:bg-primary/5"
+                                )}
+                            >
+                                Budget Pacing
+                            </Link>
+                            <Link
+                                href="/landing-pages"
+                                className={cn(
+                                    "px-3 py-2 text-sm font-medium rounded-md transition-all",
+                                    pathname === "/landing-pages" 
+                                        ? "text-primary bg-primary/10" 
+                                        : "text-foreground/70 hover:text-primary hover:bg-primary/5"
+                                )}
+                            >
+                                Landing Pages
+                            </Link>
+                            <Link
+                                href="/insights"
+                                className={cn(
+                                    "px-3 py-2 text-sm font-medium rounded-md transition-all",
+                                    pathname === "/insights" 
+                                        ? "text-primary bg-primary/10" 
+                                        : "text-foreground/70 hover:text-primary hover:bg-primary/5"
+                                )}
+                            >
+                                Data Insights
                             </Link>
                         </div>
                     </div>
