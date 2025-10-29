@@ -18,6 +18,7 @@ export async function POST(request: Request) {
 
     // set cookie on the response (supported way)
     const res = NextResponse.json({ ok: true, redirectTo: redirectTo || '/' });
+    res.headers.set('Cache-Control', 'no-store');
     res.cookies.set(AUTH_COOKIE, '1', {
       path: '/',
       httpOnly: false,          // set true if client-side read is not needed

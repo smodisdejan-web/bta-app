@@ -16,7 +16,9 @@ export function middleware(request: NextRequest) {
   const isUnlockRoute = pathname === '/unlock' || pathname.startsWith('/api/auth')
 
   if (isPublicAsset || isUnlockRoute) {
-    return NextResponse.next()
+    const res = NextResponse.next()
+    res.headers.set('Cache-Control', 'no-store')
+    return res
   }
 
   const isAuthenticated = request.cookies.get(AUTH_COOKIE)?.value === '1'
@@ -25,10 +27,14 @@ export function middleware(request: NextRequest) {
     const url = request.nextUrl.clone()
     url.pathname = '/unlock'
     url.searchParams.set('redirect', pathname || '/')
-    return NextResponse.redirect(url)
+    const res = NextResponse.redirect(url)
+    res.headers.set('Cache-Control', 'no-store')
+    return res
   }
 
-  return NextResponse.next()
+  const res = NextResponse.next()
+  res.headers.set('Cache-Control', 'no-store')
+  return res
 }
 
 export const config = {

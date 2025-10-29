@@ -27,7 +27,8 @@ export default function UnlockClient() {
         setError(data?.error || 'Invalid password');
         return;
       }
-      router.push(redirectTo);
+      // router.push(redirectTo);
+      window.location.assign(redirectTo);
     } catch {
       setError('Something went wrong');
     } finally {
