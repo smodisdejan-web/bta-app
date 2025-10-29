@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 
-const AUTH_COOKIE = 'bta_auth'
+const AUTH_COOKIE = 'ai_unlock'
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
