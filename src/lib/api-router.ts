@@ -84,4 +84,8 @@ function generateMockLandingPageData(): LandingPageData[] {
     roas: Math.random() * 5 + 0.5, // 0.5-5.5x
     status: statuses[index % statuses.length]
   })).sort((a, b) => b.cost - a.cost) // Sort by cost descending
-}
+}// --- TEMP: stub so the Insights page can import it without breaking the build ---
+// Replace with the real implementation later.
+export const generateInsightsWithProvider = async (..._args: any[]) => {
+  return { insights: [], aiInsights: [] };
+};
