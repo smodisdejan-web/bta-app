@@ -1,30 +1,32 @@
-import { cookies } from 'next/headers'
-import { NextResponse } from 'next/server'
+import { NextResponse } from 'next/server';
 
-const AUTH_COOKIE = 'bta_auth'
-const PASSWORD = 'GooletsAIagent'
+const AUTH_COOKIE = 'ai_unlock';            // keep consistent with middleware
+const MAX_AGE = 60 * 60 * 24 * 7;           // 7 days
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json().catch(() => ({})) as { password?: string }
-    const { password } = body
+    const { password, redirectTo } = await request.json();
 
-    if (password !== PASSWORD) {
-      return NextResponse.json({ ok: false, error: 'Invalid password' }, { status: 401 })
+    // simple password check; keep or switch to env
+    const ok =
+      password === process.env.UNLOCK_PASSWORD ||
+      password === 'GooletsAIagent';
+
+    if (!ok) {
+      return NextResponse.json({ ok: false, error: 'Invalid password' }, { status: 401 });
     }
 
-    // Set cookie for 7 days
-    cookies().set(AUTH_COOKIE, '1', {
+    // set cookie on the response (supported way)
+    const res = NextResponse.json({ ok: true, redirectTo: redirectTo || '/' });
+    res.cookies.set(AUTH_COOKIE, '1', {
       path: '/',
-      httpOnly: false,
+      httpOnly: false,          // set true if client-side read is not needed
       sameSite: 'lax',
-      secure: true,
-      maxAge: 60 * 60 * 24 * 7
-    })
-
-    return NextResponse.json({ ok: true })
-  } catch (err) {
-    return NextResponse.json({ ok: false, error: 'Unexpected error' }, { status: 500 })
+      maxAge: MAX_AGE,
+    });
+    return res;
+  } catch {
+    return NextResponse.json({ ok: false, error: 'Bad request' }, { status: 400 });
   }
 }
 
