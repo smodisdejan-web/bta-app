@@ -10,7 +10,6 @@ import type {
   LLMResponse,
   ColumnDataType
 } from '@/lib/types'
-import { generateInsightsWithProvider } from '@/lib/api-router'
 
 interface UseDataInsightsProps {
   rawData: Record<DataSourceType, any[]>
@@ -233,17 +232,46 @@ export function useDataInsights({ rawData, currency }: UseDataInsightsProps) {
 
     setIsGenerating(true)
     try {
-      const result = await generateInsightsWithProvider({
+      // Convert model to provider:model format
+      const modelMap: Record<string, string> = {
+        'gemini-pro': 'gemini:gemini-pro',
+        'gpt-4': 'openai:gpt-4o-mini',
+        'claude-3-sonnet': 'anthropic:claude-3-sonnet'
+      }
+      const model = modelMap[selectedModel] || selectedModel
+
+      const payload = {
         prompt: aiPrompt,
-        provider: selectedModel,
-        dataSource,
-        data: sortedData,
-        filters,
-        totalRowsOriginal: rawData[dataSource]?.length || 0,
-        totalRowsFiltered: sortedData.length,
-        currency
+        model
+      }
+
+      console.log('[insights] click', { model, promptLength: aiPrompt.length })
+
+      const response = await fetch('/api/insights', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
       })
-      setAiInsights(result)
+
+      const data = await response.json()
+
+      console.log('[insights] response', { ok: response.ok, status: response.status, hasError: !!data.error })
+
+      if (!response.ok || data.error) {
+        setAiInsights({
+          text: '',
+          error: data.error || 'Failed to generate insights'
+        })
+        return
+      }
+
+      // Handle new response format with 'answer' field
+      setAiInsights({
+        text: data.answer || data.text || '',
+        tokenUsage: data.tokenUsage
+      })
     } catch (error) {
       console.error('Error generating insights:', error)
       setAiInsights({

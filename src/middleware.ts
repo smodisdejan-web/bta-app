@@ -11,11 +11,25 @@ export function middleware(request: NextRequest) {
     pathname.startsWith('/favicon') ||
     pathname.startsWith('/branding') ||
     pathname.startsWith('/icons') ||
-    pathname.startsWith('/images')
+    pathname.startsWith('/images') ||
+    pathname.startsWith('/fonts')
 
-  const isUnlockRoute = pathname === '/unlock' || pathname.startsWith('/api/auth')
+  const PUBLIC_PATHS = [
+    '/unlock',
+    '/api/auth',
+    '/api/insights', // <= required
+    '/api/models',
+    '/api/diag',
+    '/favicon.ico',
+    '/branding',
+    '/fonts'
+  ]
 
-  if (isPublicAsset || isUnlockRoute) {
+  const isPublicPath = PUBLIC_PATHS.some(path => 
+    pathname === path || pathname.startsWith(path + '/')
+  )
+
+  if (isPublicAsset || isPublicPath) {
     const res = NextResponse.next()
     res.headers.set('Cache-Control', 'no-store')
     return res

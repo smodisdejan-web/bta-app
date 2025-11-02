@@ -1094,7 +1094,11 @@ export default function DataInsightsPage() {
 
           {/* Generate Button */}
           <Button
-            onClick={insights.generateInsights}
+            type="button"
+            onClick={(e) => {
+              e.preventDefault()
+              insights.generateInsights()
+            }}
             disabled={!insights.aiPrompt.trim() || insights.totalRowsFiltered === 0 || insights.isGenerating}
             className="w-full h-14 text-lg font-semibold"
             size="lg"
