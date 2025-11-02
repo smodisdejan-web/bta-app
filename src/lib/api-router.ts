@@ -1,5 +1,6 @@
 // src/lib/api-router.ts
 import type { LLMProvider, LLMResponse, InsightsPayload } from './types'
+import { DEFAULT_WEB_APP_URL } from './config'
 
 const MAX_RECOMMENDED_INSIGHT_ROWS = 100
 
@@ -196,4 +197,26 @@ async function callClaude(prompt: string, context: string): Promise<LLMResponse>
 
   return { text, tokenUsage }
 }
+
+// --- BEGIN getSheetData shim for landing-pages ---
+export type SheetFetchOptions = {
+  sort?: string;
+  dir?: 'asc' | 'desc';
+  limit?: number;
+  search?: string;
+};
+
+export async function getSheetData(tab: string, opts: SheetFetchOptions = {}) {
+  const params = new URLSearchParams({ tab });
+  if (opts.sort) params.set('sort', opts.sort);
+  if (opts.dir) params.set('dir', opts.dir);
+  if (typeof opts.limit === 'number') params.set('limit', String(opts.limit));
+  if (opts.search) params.set('q', opts.search);
+
+  const url = `${DEFAULT_WEB_APP_URL}?${params.toString()}`;
+  const res = await fetch(url, { next: { revalidate: 60 } as any });
+  if (!res.ok) throw new Error(`getSheetData failed: ${res.status} ${res.statusText}`);
+  return res.json();
+}
+// --- END getSheetData shim ---
 
