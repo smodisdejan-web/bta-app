@@ -1,14 +1,9 @@
-import { Suspense } from 'react';
-import UnlockClient from './UnlockClient';
+// app/unlock/page.tsx
+import UnlockClient from "./UnlockClient";
 
-export const dynamic = 'force-dynamic'; // avoid static prerender issues
+export const metadata = { title: "Unlock • Goolets AI Agent" };
 
-export default function UnlockPage() {
-  return (
-    <Suspense fallback={<div className="p-6">Loading…</div>}>
-      <UnlockClient />
-    </Suspense>
-  );
+export default function Page({ searchParams }: { searchParams: { redirect?: string } }) {
+  const redirect = searchParams?.redirect || "/";
+  return <UnlockClient redirect={redirect} />;
 }
-
-
