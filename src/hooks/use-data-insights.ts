@@ -232,13 +232,14 @@ export function useDataInsights({ rawData, currency }: UseDataInsightsProps) {
 
     setIsGenerating(true)
     try {
-      // Convert model to provider:model format
+      // Map UI model selection to OpenAI model name
+      // For now, we only support OpenAI, so convert to OpenAI model names
       const modelMap: Record<string, string> = {
-        'gemini-pro': 'gemini:gemini-pro',
-        'gpt-4': 'openai:gpt-4o-mini',
-        'claude-3-sonnet': 'anthropic:claude-3-sonnet'
+        'gemini-pro': 'gpt-4o-mini', // Fallback to OpenAI for now
+        'gpt-4': 'gpt-4o-mini',
+        'claude-3-sonnet': 'gpt-4o-mini' // Fallback to OpenAI for now
       }
-      const model = modelMap[selectedModel] || selectedModel
+      const model = modelMap[selectedModel] || 'gpt-4o-mini'
 
       const payload = {
         prompt: aiPrompt,
