@@ -18,7 +18,9 @@ import { BudgetTable } from '@/components/BudgetTable'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { useToast } from '@/hooks/use-toast'
+import { Check, ChevronsUpDown } from 'lucide-react'
 
 type ViewMode = 'cards' | 'table'
 
@@ -29,6 +31,7 @@ export default function BudgetsPage() {
   const [sortBy, setSortBy] = useState<BudgetSortKey>('pacing')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const [filterPacingStatus, setFilterPacingStatus] = useState<string>('all')
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
   const { toast } = useToast()
 
   // Load budgets on mount
@@ -40,6 +43,18 @@ export default function BudgetsPage() {
   // Calculate pacing data for all budgets
   const pacingData = useMemo(() => {
     return budgets.map(budget => calculateBudgetPacing(budget))
+  }, [budgets])
+
+  // Get unique campaign names for dropdown
+  const campaignNames = useMemo(() => {
+    const names = new Set<string>()
+    budgets.forEach(budget => {
+      names.add(budget.campaignName)
+      if (budget.accountName) {
+        names.add(budget.accountName)
+      }
+    })
+    return Array.from(names).sort()
   }, [budgets])
 
   // Filter and sort pacing data
@@ -329,12 +344,66 @@ export default function BudgetsPage() {
 
         {/* Filters */}
         <div className="flex flex-col md:flex-row gap-4 bg-card border rounded-lg p-4">
-          <div className="flex-1">
-            <Input
-              placeholder="Search campaigns or accounts..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+          <div className="flex-1 relative">
+            <Popover open={isSearchOpen} onOpenChange={setIsSearchOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  className="w-full justify-between"
+                >
+                  {searchQuery || 'Search campaigns or accounts...'}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-0" align="start">
+                <div className="p-2 border-b">
+                  <Input
+                    placeholder="Type to search..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') {
+                        setIsSearchOpen(false)
+                      }
+                    }}
+                  />
+                </div>
+                <div className="max-h-[200px] overflow-auto">
+                  <div
+                    className="px-2 py-1.5 text-sm hover:bg-accent cursor-pointer flex items-center"
+                    onClick={() => {
+                      setSearchQuery('')
+                      setIsSearchOpen(false)
+                    }}
+                  >
+                    <Check className={`mr-2 h-4 w-4 ${!searchQuery ? 'opacity-100' : 'opacity-0'}`} />
+                    All Campaigns
+                  </div>
+                  {campaignNames.length === 0 ? (
+                    <div className="px-2 py-1.5 text-sm text-muted-foreground">No campaigns found</div>
+                  ) : (
+                    campaignNames
+                      .filter(name => 
+                        !searchQuery || name.toLowerCase().includes(searchQuery.toLowerCase())
+                      )
+                      .map((name) => (
+                        <div
+                          key={name}
+                          className="px-2 py-1.5 text-sm hover:bg-accent cursor-pointer flex items-center"
+                          onClick={() => {
+                            setSearchQuery(name)
+                            setIsSearchOpen(false)
+                          }}
+                        >
+                          <Check className={`mr-2 h-4 w-4 ${searchQuery === name ? 'opacity-100' : 'opacity-0'}`} />
+                          {name}
+                        </div>
+                      ))
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
           
           <Select value={filterPacingStatus} onValueChange={setFilterPacingStatus}>
