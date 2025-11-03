@@ -1,11 +1,9 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 
 type Props = { redirect: string };
 
 export default function UnlockClient({ redirect }: Props) {
-  const router = useRouter();
   const [pw, setPw] = useState("");
   const [show, setShow] = useState(false);
   const [caps, setCaps] = useState(false);
@@ -32,8 +30,8 @@ export default function UnlockClient({ redirect }: Props) {
         setLoading(false);
         return;
       }
-      router.push(redirect || "/");
-      router.refresh();
+      // Use window.location for immediate redirect after cookie is set
+      window.location.href = redirect || "/";
     } catch {
       setErr("Network error. Please try again.");
       setLoading(false);
@@ -139,7 +137,7 @@ export default function UnlockClient({ redirect }: Props) {
               )}
               Unlock
             </button>
-            <button type="button" onClick={() => router.push("/")} className="text-sm text-zinc-600 hover:text-zinc-800">
+            <button type="button" onClick={() => window.location.href = "/"} className="text-sm text-zinc-600 hover:text-zinc-800">
               Back to home
             </button>
           </div>

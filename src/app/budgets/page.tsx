@@ -15,6 +15,8 @@ import { BudgetEntryForm } from '@/components/BudgetEntryForm'
 import { CSVUpload } from '@/components/CSVUpload'
 import { BudgetCard } from '@/components/BudgetCard'
 import { BudgetTable } from '@/components/BudgetTable'
+import { CampaignSelect } from '@/components/CampaignSelect'
+import { useSettings } from '@/lib/contexts/SettingsContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -25,6 +27,7 @@ import { Check, ChevronsUpDown } from 'lucide-react'
 type ViewMode = 'cards' | 'table'
 
 export default function BudgetsPage() {
+  const { campaigns } = useSettings()
   const [budgets, setBudgets] = useState<Budget[]>([])
   const [viewMode, setViewMode] = useState<ViewMode>('cards')
   const [searchQuery, setSearchQuery] = useState('')
@@ -32,6 +35,7 @@ export default function BudgetsPage() {
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const [filterPacingStatus, setFilterPacingStatus] = useState<string>('all')
   const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [selectedCampaignId, setSelectedCampaignId] = useState<string>('')
   const { toast } = useToast()
 
   // Load budgets on mount
@@ -57,9 +61,39 @@ export default function BudgetsPage() {
     return Array.from(names).sort()
   }, [budgets])
 
+  // Campaign navigation handler
+  const handleCampaignNavigate = (direction: 'next' | 'prev') => {
+    if (!campaigns || campaigns.length === 0) return;
+
+    const campaignIds = ['', ...campaigns.map(c => c.id)];
+    const currentIndex = campaignIds.indexOf(selectedCampaignId);
+
+    let nextIndex;
+    if (direction === 'next') {
+      nextIndex = (currentIndex + 1) % campaignIds.length;
+    } else {
+      nextIndex = (currentIndex - 1 + campaignIds.length) % campaignIds.length;
+    }
+    setSelectedCampaignId(campaignIds[nextIndex]);
+  };
+
+  // Get selected campaign name for filtering budgets
+  const selectedCampaignName = useMemo(() => {
+    if (!selectedCampaignId) return null;
+    const campaign = campaigns.find(c => c.id === selectedCampaignId);
+    return campaign?.name || null;
+  }, [selectedCampaignId, campaigns])
+
   // Filter and sort pacing data
   const filteredAndSortedData = useMemo(() => {
     let filtered = pacingData
+
+    // Filter by selected campaign
+    if (selectedCampaignName) {
+      filtered = filtered.filter(pd => 
+        pd.budget.campaignName === selectedCampaignName
+      )
+    }
 
     // Filter by search query
     if (searchQuery) {
@@ -101,7 +135,7 @@ export default function BudgetsPage() {
     })
 
     return sorted
-  }, [pacingData, searchQuery, filterPacingStatus, sortBy, sortDirection])
+  }, [pacingData, selectedCampaignName, searchQuery, filterPacingStatus, sortBy, sortDirection])
 
   const handleAddBudget = (budget: Budget) => {
     addBudget(budget)
@@ -299,6 +333,26 @@ export default function BudgetsPage() {
             ))}
           </div>
         )}
+
+        {/* Campaign Selector */}
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex-1 min-w-[200px] max-w-md">
+            <CampaignSelect
+              campaigns={campaigns || []}
+              selectedId={selectedCampaignId}
+              onSelect={setSelectedCampaignId}
+            />
+          </div>
+          
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => handleCampaignNavigate('prev')}>
+              ← Prev
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => handleCampaignNavigate('next')}>
+              Next →
+            </Button>
+          </div>
+        </div>
 
         {/* Controls */}
         <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between bg-card border rounded-lg p-4">
