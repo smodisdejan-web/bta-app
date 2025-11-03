@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { getSheetData } from '@/lib/api-router'
 import type { LandingPageData } from '@/lib/types'
 import { COLORS } from '@/lib/config'
+import { InsightsGenerator } from '@/components/ai/InsightsGenerator'
 import { 
   Search, 
   Filter, 
@@ -28,6 +29,12 @@ import {
   Settings,
   MoreHorizontal
 } from 'lucide-react'
+
+// North metric configuration for summary cards
+type Row = LandingPageData
+const NORTH_METRIC: keyof Row = 'conv' // conversions
+const formatNorth = (v: number) => v.toLocaleString() // integer formatting
+const northLabel = 'Conv'
 
 // Enhanced UI Components
 const Card = ({ children, className = '', gradient = false }: { 
@@ -211,19 +218,27 @@ export default function LandingPagesPage() {
 
   // Performance insights
   const insights = useMemo(() => {
+    // Top Performers: sort desc by conv (highest conversions first)
     const topPerformers = data
       .filter(row => row.status === 'active')
-      .sort((a, b) => b.roas - a.roas)
+      .sort((a, b) => b.conv - a.conv)
       .slice(0, 3)
 
+    // Needs Attention: sort asc by conv (lowest conversions first)
     const underperformers = data
-      .filter(row => row.status === 'active' && row.roas < 2)
-      .sort((a, b) => a.roas - b.roas)
+      .filter(row => row.status === 'active')
+      .sort((a, b) => a.conv - b.conv)
       .slice(0, 3)
 
+    // High Volume: keep volume filter, but prefer higher conv when breaking ties
     const highVolume = data
       .filter(row => row.clicks > 100)
-      .sort((a, b) => b.clicks - a.clicks)
+      .sort((a, b) => {
+        // Primary sort by clicks (volume), secondary by conv (desc)
+        const clicksDiff = b.clicks - a.clicks
+        if (clicksDiff !== 0) return clicksDiff
+        return b.conv - a.conv
+      })
       .slice(0, 3)
 
     return { topPerformers, underperformers, highVolume }
@@ -434,10 +449,10 @@ export default function LandingPagesPage() {
                 <div key={index} className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">{page.url}</p>
-                    <p className="text-xs text-gray-500">ROAS: {formatRoas(page.roas)}</p>
+                    <p className="text-xs text-gray-500">{northLabel}: {formatNorth(page.conv)}</p>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <PerformanceIndicator value={page.roas} type="roas" />
+                    <PerformanceIndicator value={page.convRate} type="conv" />
                   </div>
                 </div>
               ))}
@@ -454,10 +469,10 @@ export default function LandingPagesPage() {
                 <div key={index} className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">{page.url}</p>
-                    <p className="text-xs text-gray-500">ROAS: {formatRoas(page.roas)}</p>
+                    <p className="text-xs text-gray-500">{northLabel}: {formatNorth(page.conv)}</p>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <PerformanceIndicator value={page.roas} type="roas" />
+                    <PerformanceIndicator value={page.convRate} type="conv" />
                   </div>
                 </div>
               ))}
@@ -474,10 +489,10 @@ export default function LandingPagesPage() {
                 <div key={index} className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">{page.url}</p>
-                    <p className="text-xs text-gray-500">{formatCompact(page.clicks)} clicks</p>
+                    <p className="text-xs text-gray-500">{northLabel}: {formatNorth(page.conv)}</p>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <PerformanceIndicator value={page.ctr} type="ctr" />
+                    <PerformanceIndicator value={page.convRate} type="conv" />
                   </div>
                 </div>
               ))}
@@ -611,6 +626,15 @@ export default function LandingPagesPage() {
             </div>
           )}
         </Card>
+
+        {/* AI Insights Generator */}
+        <div className="mt-8">
+          <InsightsGenerator
+            defaultModel="gpt-4"
+            defaultPrompt="Based on the landing pages table above, identify the underperforming URLs and give me 3–6 specific actions to improve conversions."
+            contextHint="AI Insights for Landing Pages"
+          />
+        </div>
       </div>
     </div>
   )

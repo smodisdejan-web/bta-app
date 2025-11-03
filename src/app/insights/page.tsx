@@ -41,6 +41,7 @@ import {
 } from 'lucide-react'
 import { DataInsightsChart } from '@/components/DataInsightsChart'
 import { useToast } from '@/hooks/use-toast'
+import { InsightsGenerator } from '@/components/ai/InsightsGenerator'
 
 interface SavedFilter {
   id: string
@@ -94,7 +95,6 @@ const SAMPLE_PROMPTS = [
 export default function DataInsightsPage() {
   const { fetchedData, settings, isDataLoading, dataError } = useSettings()
   const { toast } = useToast()
-  const [copied, setCopied] = useState(false)
   const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([])
   const [filterName, setFilterName] = useState('')
   const [insightHistory, setInsightHistory] = useState<InsightHistory[]>([])
@@ -136,26 +136,7 @@ export default function DataInsightsPage() {
     }
   }, [isDataLoading])
 
-  // Save insight to history
-  useEffect(() => {
-    if (insights.aiInsights && insights.aiInsights.text && !insights.isGenerating) {
-      const newHistory: InsightHistory = {
-        id: `history-${Date.now()}`,
-        prompt: insights.aiPrompt,
-        response: insights.aiInsights.text,
-        model: insights.selectedModel,
-        timestamp: Date.now(),
-        dataSource: insights.dataSource
-      }
-      setInsightHistory(prevHistory => {
-        const updated = [newHistory, ...prevHistory].slice(0, 20) // Keep last 20
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('dataInsights_history', JSON.stringify(updated))
-        }
-        return updated
-      })
-    }
-  }, [insights.aiInsights?.text, insights.aiPrompt, insights.selectedModel, insights.dataSource, insights.isGenerating])
+  // Note: History tracking removed as InsightsGenerator is now a standalone component
 
   const exportData = (format: 'csv' | 'json') => {
     if (!insights.filteredData || insights.filteredData.length === 0) {
@@ -204,14 +185,10 @@ export default function DataInsightsPage() {
       if (e.metaKey || e.ctrlKey) {
         switch(e.key) {
           case 'k':
-            e.preventDefault()
-            document.getElementById('prompt')?.focus()
+            // Focus handled by InsightsGenerator component
             break
           case 'Enter':
-            if (document.activeElement?.id === 'prompt') {
-              e.preventDefault()
-              insights.generateInsights()
-            }
+            // Generate handled by InsightsGenerator component
             break
           case 's':
             e.preventDefault()
@@ -268,16 +245,6 @@ export default function DataInsightsPage() {
     setSavedFilters(updated)
     if (typeof window !== 'undefined') {
       localStorage.setItem('dataInsights_savedFilters', JSON.stringify(updated))
-    }
-  }
-
-
-  const copyInsight = () => {
-    if (insights.aiInsights?.text) {
-      navigator.clipboard.writeText(insights.aiInsights.text)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-      toast({ title: "✅ Copied to clipboard" })
     }
   }
 
@@ -1008,9 +975,11 @@ export default function DataInsightsPage() {
                 variant="outline"
                 className="h-auto p-4 flex flex-col items-start text-left hover:bg-primary/10 hover:border-primary transition-all"
                 onClick={() => {
-                  insights.setAiPrompt(sample.prompt)
+                  // Scroll to AI generator and set prompt via custom event
                   if (typeof document !== 'undefined') {
-                    document.getElementById('prompt')?.scrollIntoView({ behavior: 'smooth' })
+                    document.getElementById('ai-prompt')?.scrollIntoView({ behavior: 'smooth' })
+                    // Dispatch custom event to set prompt
+                    window.dispatchEvent(new CustomEvent('set-ai-prompt', { detail: sample.prompt }))
                   }
                 }}
               >
@@ -1024,168 +993,16 @@ export default function DataInsightsPage() {
       </Card>
 
       {/* AI Insights Generation */}
-      <Card className="border-2 border-primary/30 bg-gradient-to-br from-primary/5 via-background to-background">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-2xl">
-            <Sparkles className="h-7 w-7 text-primary animate-pulse" />
-            AI Insights Generator
-          </CardTitle>
-          <CardDescription className="text-base">
-            Generate qualitative insights using large language models • Cmd+K to focus
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Model Selection */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="model" className="text-base font-semibold">AI Model</Label>
-              <Select
-                value={insights.selectedModel}
-                onValueChange={(value) => insights.setSelectedModel(value as LLMProvider)}
-              >
-                <SelectTrigger id="model" className="h-12">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="gemini-pro">
-                    <div className="flex items-center gap-2">
-                      <span>🔷</span>
-                      <div>
-                        <div className="font-medium">Google Gemini Pro</div>
-                        <div className="text-xs text-muted-foreground">Fast & Free tier available</div>
-                      </div>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="gpt-4">
-                    <div className="flex items-center gap-2">
-                      <span>🟢</span>
-                      <div>
-                        <div className="font-medium">OpenAI GPT-4</div>
-                        <div className="text-xs text-muted-foreground">Most capable</div>
-                      </div>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="claude-3-sonnet">
-                    <div className="flex items-center gap-2">
-                      <span>🟣</span>
-                      <div>
-                        <div className="font-medium">Anthropic Claude 3 Sonnet</div>
-                        <div className="text-xs text-muted-foreground">Balanced performance</div>
-                      </div>
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+      <InsightsGenerator
+        defaultModel="gpt-4"
+        contextHint="Generate qualitative insights using large language models • Cmd+K to focus"
+      />
 
-          {/* Prompt Input */}
-          <div className="space-y-2">
-            <Label htmlFor="prompt" className="text-base font-semibold">Your Question or Prompt</Label>
-            <textarea
-              id="prompt"
-              className="w-full min-h-[120px] p-4 rounded-md border-2 border-input bg-background focus:border-primary transition-colors text-base"
-              placeholder="E.g., What are the top performing search terms? What patterns do you see in the data? What recommendations would you make?"
-              value={insights.aiPrompt}
-              onChange={(e) => insights.setAiPrompt(e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">
-              💡 Tip: Be specific about what you want to know. Cmd+Enter to generate
-            </p>
-          </div>
-
-          {/* Generate Button */}
-          <Button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault()
-              insights.generateInsights()
-            }}
-            disabled={!insights.aiPrompt.trim() || insights.totalRowsFiltered === 0 || insights.isGenerating}
-            className="w-full h-14 text-lg font-semibold"
-            size="lg"
-          >
-            {insights.isGenerating ? (
-              <>
-                <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                Generating Insights...
-              </>
-            ) : (
-              <>
-                <Sparkles className="h-5 w-5 mr-2" />
-                Generate AI Insights
-              </>
-            )}
-          </Button>
-
-          {/* AI Response */}
-          {insights.aiInsights && (
-            <div className="mt-6 space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              {insights.aiInsights.error ? (
-                <div className="p-6 bg-destructive/10 border-2 border-destructive rounded-lg text-destructive">
-                  <div className="flex items-start gap-3">
-                    <span className="text-2xl">⚠️</span>
-                    <div className="flex-1">
-                      <p className="font-semibold text-lg mb-2">Error Generating Insights</p>
-                      <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">{insights.aiInsights.error}</pre>
-                      <div className="mt-4 p-3 bg-background/50 rounded text-xs">
-                        <p className="font-semibold mb-1">💡 Quick Tip:</p>
-                        <p>Switch to <strong>Gemini Pro</strong> in the dropdown above - it has a free tier and works great for testing!</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-lg flex items-center gap-2">
-                      <Sparkles className="h-5 w-5 text-primary" />
-                      Generated Insights
-                    </h3>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={copyInsight}
-                      className="gap-2"
-                    >
-                      {copied ? (
-                        <>
-                          <Check className="h-4 w-4" />
-                          Copied!
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="h-4 w-4" />
-                          Copy
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                  <div className="p-6 bg-gradient-to-br from-muted/50 to-background rounded-lg border-2 prose prose-sm max-w-none">
-                    <div className="whitespace-pre-wrap leading-relaxed">{insights.aiInsights.text}</div>
-                  </div>
-                  {insights.aiInsights.tokenUsage && (
-                    <div className="flex gap-4 text-xs text-muted-foreground bg-muted/30 p-3 rounded-lg">
-                      <span>📊 Token usage:</span>
-                      <span><strong>{insights.aiInsights.tokenUsage.inputTokens.toLocaleString()}</strong> input</span>
-                      <span><strong>{insights.aiInsights.tokenUsage.outputTokens.toLocaleString()}</strong> output</span>
-                      <span><strong>{insights.aiInsights.tokenUsage.totalTokens.toLocaleString()}</strong> total</span>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Keyboard Shortcuts Help */}
+      {/* Additional Keyboard Shortcuts Help */}
       <Card className="border bg-muted/30">
         <CardContent className="p-4">
           <div className="flex flex-wrap gap-4 text-xs text-muted-foreground items-center justify-center">
-            <span className="font-semibold">⌨️ Keyboard Shortcuts:</span>
-            <Badge variant="outline">Cmd+K: Focus prompt</Badge>
-            <Badge variant="outline">Cmd+Enter: Generate</Badge>
+            <span className="font-semibold">⌨️ Additional Shortcuts:</span>
             <Badge variant="outline">Cmd+S: Save filters</Badge>
             <Badge variant="outline">Cmd+E: Export CSV</Badge>
           </div>
