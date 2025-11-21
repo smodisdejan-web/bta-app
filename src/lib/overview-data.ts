@@ -9,14 +9,23 @@ const DEFAULT_SHEET_URL = 'https://script.google.com/macros/s/AKfycby4WR2b5WyZ7q
 // Fetch Facebook Ads data
 export async function fetchFacebookAds(sheetUrl: string = DEFAULT_SHEET_URL): Promise<FacebookAdRecord[]> {
   try {
+    if (!sheetUrl) {
+      console.warn('No sheet URL provided for Facebook Ads')
+      return []
+    }
     const url = `${sheetUrl}?tab=fb_ads_raw`
-    const response = await fetch(url)
+    const response = await fetch(url, { 
+      cache: 'no-store'
+    })
     if (!response.ok) {
-      console.warn('Failed to fetch fb_ads_raw, returning empty array')
+      console.warn(`Failed to fetch fb_ads_raw (${response.status}): ${response.statusText}`)
       return []
     }
     const data = await response.json()
-    if (!Array.isArray(data)) return []
+    if (!Array.isArray(data)) {
+      console.warn('Facebook Ads data is not an array')
+      return []
+    }
     
     return data.map((row: any) => ({
       date: String(row['date'] || row['Date'] || ''),
@@ -39,14 +48,23 @@ export async function fetchFacebookAds(sheetUrl: string = DEFAULT_SHEET_URL): Pr
 // Fetch HubSpot Deals
 export async function fetchHubSpotDeals(sheetUrl: string = DEFAULT_SHEET_URL): Promise<HubSpotDeal[]> {
   try {
+    if (!sheetUrl) {
+      console.warn('No sheet URL provided for HubSpot Deals')
+      return []
+    }
     const url = `${sheetUrl}?tab=hubspot_deals_raw`
-    const response = await fetch(url)
+    const response = await fetch(url, { 
+      cache: 'no-store'
+    })
     if (!response.ok) {
-      console.warn('Failed to fetch hubspot_deals_raw, returning empty array')
+      console.warn(`Failed to fetch hubspot_deals_raw (${response.status}): ${response.statusText}`)
       return []
     }
     const data = await response.json()
-    if (!Array.isArray(data)) return []
+    if (!Array.isArray(data)) {
+      console.warn('HubSpot Deals data is not an array')
+      return []
+    }
     
     return data.map((row: any) => ({
       dealId: String(row['dealId'] || row['deal_id'] || row['hs_object_id'] || ''),
@@ -69,23 +87,34 @@ export async function fetchHubSpotDeals(sheetUrl: string = DEFAULT_SHEET_URL): P
 // Fetch HubSpot Contacts (prefer 90d, fallback to raw)
 export async function fetchHubSpotContacts(sheetUrl: string = DEFAULT_SHEET_URL): Promise<HubSpotContact[]> {
   try {
+    if (!sheetUrl) {
+      console.warn('No sheet URL provided for HubSpot Contacts')
+      return []
+    }
     // Try 90d first
     let url = `${sheetUrl}?tab=hubspot_contacts_90d`
-    let response = await fetch(url)
+    let response = await fetch(url, { 
+      cache: 'no-store'
+    })
     
     if (!response.ok) {
       // Fallback to raw
       url = `${sheetUrl}?tab=hubspot_contacts_raw`
-      response = await fetch(url)
+      response = await fetch(url, { 
+        cache: 'no-store'
+      })
     }
     
     if (!response.ok) {
-      console.warn('Failed to fetch HubSpot contacts, returning empty array')
+      console.warn(`Failed to fetch HubSpot contacts (${response.status}): ${response.statusText}`)
       return []
     }
     
     const data = await response.json()
-    if (!Array.isArray(data)) return []
+    if (!Array.isArray(data)) {
+      console.warn('HubSpot Contacts data is not an array')
+      return []
+    }
     
     return data.map((row: any) => ({
       contactId: String(row['contactId'] || row['contact_id'] || row['hs_object_id'] || ''),

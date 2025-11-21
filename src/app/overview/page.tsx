@@ -24,18 +24,45 @@ export default function OverviewPage() {
     channel: 'all',
     comparePrevious: true
   })
-  const [metrics, setMetrics] = useState<OverviewMetrics | null>(null)
+  // Default empty metrics
+  const defaultMetrics: OverviewMetrics = {
+    revenueWon: { value: 0, deltaPct: null, previousValue: null },
+    wonDeals: { value: 0, deltaPct: null, previousValue: null },
+    winRate: { value: 0, deltaPct: null, previousValue: null },
+    avgDealSize: { value: 0, deltaPct: null, previousValue: null },
+    spend: { value: 0, deltaPct: null, previousValue: null },
+    leads: { value: 0, deltaPct: null, previousValue: null },
+    cac: { value: 0, deltaPct: null, previousValue: null },
+    roas: { value: 0, deltaPct: null, previousValue: null },
+    lpViews: 0,
+    leadsCount: 0,
+    sqlCount: 0,
+    dealsCount: 0,
+    revenueTotal: 0,
+    lpToLeadRate: 0,
+    leadToSqlRate: 0,
+    sqlToDealRate: 0,
+    dealToRevenueRate: 0,
+    lpViewsDelta: null,
+    leadsDelta: null,
+    sqlDelta: null,
+    dealsDelta: null
+  }
+  
+  const [metrics, setMetrics] = useState<OverviewMetrics>(defaultMetrics)
   const [dailyMetrics, setDailyMetrics] = useState<DailyMetric[]>([])
   const [campaigns, setCampaigns] = useState<CampaignPerformance[]>([])
   const [summary, setSummary] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [regeneratingSummary, setRegeneratingSummary] = useState(false)
   const [cacMode, setCacMode] = useState<CACMode>('leads')
+  const [error, setError] = useState<string | null>(null)
   
   // Load data
   useEffect(() => {
     async function loadData() {
       setLoading(true)
+      setError(null)
       try {
         const [metricsData, dailyData, campaignsData] = await Promise.all([
           getOverviewMetrics(filters, settings.sheetUrl),
@@ -47,12 +74,19 @@ export default function OverviewPage() {
         setCampaigns(campaignsData)
       } catch (error) {
         console.error('Error loading overview data:', error)
+        setError(error instanceof Error ? error.message : 'Failed to load data')
+        // Keep default metrics on error
       } finally {
         setLoading(false)
       }
     }
     
-    loadData()
+    if (settings.sheetUrl) {
+      loadData()
+    } else {
+      setLoading(false)
+      setError('No sheet URL configured. Please configure it in Settings.')
+    }
   }, [filters, settings.sheetUrl])
   
   // Load summary on mount and when filters change
@@ -141,13 +175,15 @@ export default function OverviewPage() {
     )
   }
   
-  if (!metrics) {
+  if (error) {
     return (
       <div className="min-h-screen bg-background p-6">
         <div className="max-w-7xl mx-auto">
           <Card>
-            <CardContent className="p-8 text-center">
-              <p className="text-muted-foreground">No data available. Please check your sheet configuration.</p>
+            <CardContent className="p-8 text-center space-y-4">
+              <p className="text-destructive font-semibold">Error loading data</p>
+              <p className="text-muted-foreground">{error}</p>
+              <Button onClick={() => window.location.reload()}>Retry</Button>
             </CardContent>
           </Card>
         </div>
