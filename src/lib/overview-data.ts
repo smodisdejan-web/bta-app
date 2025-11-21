@@ -216,29 +216,50 @@ export async function getOverviewMetrics(
   prevStart.setDate(prevStart.getDate() - daysDiff)
   prevEnd.setDate(prevEnd.getDate() - daysDiff)
   
-  // Fetch all data
-  const [fbAds, deals, contacts, funnel] = await Promise.all([
-    fetchFacebookAds(sheetUrl),
-    fetchHubSpotDeals(sheetUrl),
-    fetchHubSpotContacts(sheetUrl),
-    fetchMarketingFunnel(sheetUrl)
-  ])
+  // Fetch all data with safe defaults
+  let fbAds: FacebookAdRecord[] = []
+  let deals: HubSpotDeal[] = []
+  let contacts: HubSpotContact[] = []
+  let funnel: MarketingFunnelRecord[] = []
+  
+  try {
+    const results = await Promise.allSettled([
+      fetchFacebookAds(sheetUrl),
+      fetchHubSpotDeals(sheetUrl),
+      fetchHubSpotContacts(sheetUrl),
+      fetchMarketingFunnel(sheetUrl)
+    ])
+    
+    fbAds = results[0].status === 'fulfilled' ? (results[0].value || []) : []
+    deals = results[1].status === 'fulfilled' ? (results[1].value || []) : []
+    contacts = results[2].status === 'fulfilled' ? (results[2].value || []) : []
+    funnel = results[3].status === 'fulfilled' ? (results[3].value || []) : []
+  } catch (error) {
+    console.error('Error fetching overview data:', error)
+    // All arrays already default to []
+  }
+  
+  // Ensure arrays are always defined
+  fbAds = Array.isArray(fbAds) ? fbAds : []
+  deals = Array.isArray(deals) ? deals : []
+  contacts = Array.isArray(contacts) ? contacts : []
+  funnel = Array.isArray(funnel) ? funnel : []
   
   // Filter by date range
-  const currentFbAds = fbAds.filter(ad => isDateInRange(ad.date, start, end))
-  const currentDeals = deals.filter(deal => {
+  const currentFbAds = (fbAds || []).filter(ad => isDateInRange(ad.date, start, end))
+  const currentDeals = (deals || []).filter(deal => {
     const closeDate = deal.closedate || deal.createdate
     return isDateInRange(closeDate, start, end)
   })
-  const currentContacts = contacts.filter(contact => isDateInRange(contact.createdate, start, end))
+  const currentContacts = (contacts || []).filter(contact => isDateInRange(contact.createdate, start, end))
   
   // Previous period
-  const prevFbAds = filters.comparePrevious ? fbAds.filter(ad => isDateInRange(ad.date, prevStart, prevEnd)) : []
-  const prevDeals = filters.comparePrevious ? deals.filter(deal => {
+  const prevFbAds = filters.comparePrevious ? (fbAds || []).filter(ad => isDateInRange(ad.date, prevStart, prevEnd)) : []
+  const prevDeals = filters.comparePrevious ? (deals || []).filter(deal => {
     const closeDate = deal.closedate || deal.createdate
     return isDateInRange(closeDate, prevStart, prevEnd)
   }) : []
-  const prevContacts = filters.comparePrevious ? contacts.filter(contact => isDateInRange(contact.createdate, prevStart, prevEnd)) : []
+  const prevContacts = filters.comparePrevious ? (contacts || []).filter(contact => isDateInRange(contact.createdate, prevStart, prevEnd)) : []
   
   // Calculate metrics
   const wonDeals = currentDeals.filter(d => {
@@ -371,10 +392,30 @@ export async function getDailyMetrics(
 ): Promise<DailyMetric[]> {
   const { start, end } = getDateRange(filters.dateRange, filters.customStart, filters.customEnd)
   
-  const [fbAds, deals] = await Promise.all([
-    fetchFacebookAds(sheetUrl),
-    fetchHubSpotDeals(sheetUrl)
-  ])
+  // Fetch with safe defaults
+  let fbAds: FacebookAdRecord[] = []
+  let deals: HubSpotDeal[] = []
+  let contacts: HubSpotContact[] = []
+  
+  try {
+    const results = await Promise.allSettled([
+      fetchFacebookAds(sheetUrl),
+      fetchHubSpotDeals(sheetUrl),
+      fetchHubSpotContacts(sheetUrl)
+    ])
+    
+    fbAds = results[0].status === 'fulfilled' ? (results[0].value || []) : []
+    deals = results[1].status === 'fulfilled' ? (results[1].value || []) : []
+    contacts = results[2].status === 'fulfilled' ? (results[2].value || []) : []
+  } catch (error) {
+    console.error('Error fetching daily metrics data:', error)
+    // All arrays already default to []
+  }
+  
+  // Ensure arrays are always defined
+  fbAds = Array.isArray(fbAds) ? fbAds : []
+  deals = Array.isArray(deals) ? deals : []
+  contacts = Array.isArray(contacts) ? contacts : []
   
   const dailyMap = new Map<string, DailyMetric>()
   
@@ -451,7 +492,7 @@ export async function getDailyMetrics(
     }
   })
   
-  contacts.forEach(contact => {
+  (contacts || []).forEach(contact => {
     if (isDateInRange(contact.createdate, start, end) && isPaidContact(contact)) {
       const dateStr = contact.createdate.split('T')[0]
       dailyContactsMap.set(dateStr, (dailyContactsMap.get(dateStr) || 0) + 1)
@@ -484,14 +525,33 @@ export async function getCampaignPerformance(
   prevStart.setDate(prevStart.getDate() - daysDiff)
   prevEnd.setDate(prevEnd.getDate() - daysDiff)
   
-  const [fbAds, deals, contacts] = await Promise.all([
-    fetchFacebookAds(sheetUrl),
-    fetchHubSpotDeals(sheetUrl),
-    fetchHubSpotContacts(sheetUrl)
-  ])
+  // Fetch with safe defaults
+  let fbAds: FacebookAdRecord[] = []
+  let deals: HubSpotDeal[] = []
+  let contacts: HubSpotContact[] = []
   
-  const currentFbAds = fbAds.filter(ad => isDateInRange(ad.date, start, end))
-  const prevFbAds = fbAds.filter(ad => isDateInRange(ad.date, prevStart, prevEnd))
+  try {
+    const results = await Promise.allSettled([
+      fetchFacebookAds(sheetUrl),
+      fetchHubSpotDeals(sheetUrl),
+      fetchHubSpotContacts(sheetUrl)
+    ])
+    
+    fbAds = results[0].status === 'fulfilled' ? (results[0].value || []) : []
+    deals = results[1].status === 'fulfilled' ? (results[1].value || []) : []
+    contacts = results[2].status === 'fulfilled' ? (results[2].value || []) : []
+  } catch (error) {
+    console.error('Error fetching campaign performance data:', error)
+    // All arrays already default to []
+  }
+  
+  // Ensure arrays are always defined
+  fbAds = Array.isArray(fbAds) ? fbAds : []
+  deals = Array.isArray(deals) ? deals : []
+  contacts = Array.isArray(contacts) ? contacts : []
+  
+  const currentFbAds = (fbAds || []).filter(ad => isDateInRange(ad.date, start, end))
+  const prevFbAds = (fbAds || []).filter(ad => isDateInRange(ad.date, prevStart, prevEnd))
   
   const campaignMap = new Map<string, CampaignPerformance>()
   
@@ -538,7 +598,7 @@ export async function getCampaignPerformance(
     }
   })
   
-  contacts.forEach(contact => {
+  (contacts || []).forEach(contact => {
     if (isDateInRange(contact.createdate, start, end) && isPaidContact(contact)) {
       const utmCampaign = contact.utm_campaign
       if (utmCampaign) {

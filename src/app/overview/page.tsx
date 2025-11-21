@@ -64,18 +64,35 @@ export default function OverviewPage() {
       setLoading(true)
       setError(null)
       try {
-        const [metricsData, dailyData, campaignsData] = await Promise.all([
+        const results = await Promise.allSettled([
           getOverviewMetrics(filters, settings.sheetUrl),
           getDailyMetrics(filters, settings.sheetUrl),
           getCampaignPerformance(filters, settings.sheetUrl)
         ])
+        
+        // Safely extract results with defaults
+        const metricsData = results[0].status === 'fulfilled' ? results[0].value : defaultMetrics
+        const dailyData = results[1].status === 'fulfilled' ? (results[1].value || []) : []
+        const campaignsData = results[2].status === 'fulfilled' ? (results[2].value || []) : []
+        
         setMetrics(metricsData)
-        setDailyMetrics(dailyData)
-        setCampaigns(campaignsData)
+        setDailyMetrics(Array.isArray(dailyData) ? dailyData : [])
+        setCampaigns(Array.isArray(campaignsData) ? campaignsData : [])
+        
+        // Log errors but don't break the UI
+        if (results[0].status === 'rejected') {
+          console.error('Error loading overview metrics:', results[0].reason)
+        }
+        if (results[1].status === 'rejected') {
+          console.error('Error loading daily metrics:', results[1].reason)
+        }
+        if (results[2].status === 'rejected') {
+          console.error('Error loading campaign performance:', results[2].reason)
+        }
       } catch (error) {
         console.error('Error loading overview data:', error)
-        setError(error instanceof Error ? error.message : 'Failed to load data')
-        // Keep default metrics on error
+        // Don't set error state - just use defaults
+        // setError(error instanceof Error ? error.message : 'Failed to load data')
       } finally {
         setLoading(false)
       }
@@ -85,7 +102,8 @@ export default function OverviewPage() {
       loadData()
     } else {
       setLoading(false)
-      setError('No sheet URL configured. Please configure it in Settings.')
+      // Don't show error, just use defaults
+      // setError('No sheet URL configured. Please configure it in Settings.')
     }
   }, [filters, settings.sheetUrl])
   
@@ -175,21 +193,7 @@ export default function OverviewPage() {
     )
   }
   
-  if (error) {
-    return (
-      <div className="min-h-screen bg-background p-6">
-        <div className="max-w-7xl mx-auto">
-          <Card>
-            <CardContent className="p-8 text-center space-y-4">
-              <p className="text-destructive font-semibold">Error loading data</p>
-              <p className="text-muted-foreground">{error}</p>
-              <Button onClick={() => window.location.reload()}>Retry</Button>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    )
-  }
+  // Don't break render on error - always show UI with defaults
   
   return (
     <div className="min-h-screen bg-background p-6">
