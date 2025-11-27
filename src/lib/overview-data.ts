@@ -3,42 +3,33 @@
 
 import { FacebookAdRecord, HubSpotDeal, HubSpotContact, MarketingFunnelRecord, OverviewFilters, OverviewMetrics, DailyMetric, CampaignPerformance } from './overview-types'
 import { useSettings } from './contexts/SettingsContext'
+import { fetchFbEnriched, fetchSheet, FbEnrichedRow, totalsFb } from './sheetsData'
 
 const DEFAULT_SHEET_URL = 'https://script.google.com/macros/s/AKfycby4WR2b5WyZ7qKcJvNUtYjGQPPVpJzFWAnF5SyJntvtNGwGaob-hCu4hAdECHmnRVfn/exec'
 
-// Fetch Facebook Ads data
+// Map enriched row to FacebookAdRecord for compatibility
+function mapEnrichedToRecord(row: FbEnrichedRow): FacebookAdRecord {
+  return {
+    date: row.date_iso || row.date_start, // Prefer date_iso for filtering
+    campaign: row.campaign_name,
+    spend: row.spend,
+    clicks: row.clicks,
+    landing_page_view: row.lp_views,
+    landing_page_view_unique: row.lp_views,
+    impressions: 0, // Not in enriched data
+  }
+}
+
+// Fetch Facebook Ads data using enriched sheet
 export async function fetchFacebookAds(sheetUrl: string = DEFAULT_SHEET_URL): Promise<FacebookAdRecord[]> {
   try {
     if (!sheetUrl) {
       console.warn('No sheet URL provided for Facebook Ads')
       return []
     }
-    const url = `${sheetUrl}?tab=fb_ads_raw`
-    const response = await fetch(url, { 
-      cache: 'no-store'
-    })
-    if (!response.ok) {
-      console.warn(`Failed to fetch fb_ads_raw (${response.status}): ${response.statusText}`)
-      return []
-    }
-    const data = await response.json()
-    if (!Array.isArray(data)) {
-      console.warn('Facebook Ads data is not an array')
-      return []
-    }
     
-    return data.map((row: any) => ({
-      date: String(row['date'] || row['Date'] || ''),
-      campaign: String(row['campaign'] || row['Campaign'] || ''),
-      adset: row['adset'] || row['Adset'] || undefined,
-      ad: row['ad'] || row['Ad'] || undefined,
-      spend: Number(row['spend'] || row['Spend'] || 0),
-      impressions: Number(row['impressions'] || row['Impressions'] || 0),
-      clicks: Number(row['clicks'] || row['Clicks'] || 0),
-      landing_page_view: Number(row['landing_page_view'] || row['Landing Page View'] || 0),
-      landing_page_view_unique: Number(row['landing_page_view_unique'] || row['Landing Page View (Unique)'] || 0),
-      ...row
-    }))
+    const enrichedRows = await fetchFbEnriched(fetchSheet)
+    return enrichedRows.map(mapEnrichedToRecord)
   } catch (error) {
     console.error('Error fetching Facebook Ads:', error)
     return []
@@ -277,12 +268,27 @@ export async function getOverviewMetrics(
   const paidContacts = currentContacts.filter(isPaidContact)
   const prevPaidContacts = prevContacts.filter(isPaidContact)
   
-  const spend = currentFbAds.reduce((sum, ad) => sum + (ad.spend || 0), 0)
-  const prevSpend = prevFbAds.reduce((sum, ad) => sum + (ad.spend || 0), 0)
+  // Get enriched FB data and filter by date
+  const allEnriched = await fetchFbEnriched(fetchSheet, sheetUrl)
+  const currentEnrichedFiltered = allEnriched.filter(row => {
+    const dateStr = row.date_iso || row.date_start
+    return isDateInRange(dateStr, start, end)
+  })
+  const currentFbTotals = totalsFb(currentEnrichedFiltered)
   
-  const lpViews = currentFbAds.reduce((sum, ad) => 
-    sum + (ad.landing_page_view_unique || ad.landing_page_view || 0), 0
-  )
+  // Get enriched FB totals for previous period
+  const prevEnrichedFiltered = filters.comparePrevious 
+    ? allEnriched.filter(row => {
+        const dateStr = row.date_iso || row.date_start
+        return isDateInRange(dateStr, prevStart, prevEnd)
+      })
+    : []
+  const prevFbTotals = totalsFb(prevEnrichedFiltered)
+  
+  const spend = currentFbTotals.spend
+  const prevSpend = prevFbTotals.spend
+  
+  const lpViews = currentFbTotals.lp_views
   
   const sqlCount = currentDeals.filter(d => {
     const stage = (d.dealstage || '').toLowerCase()
@@ -318,9 +324,7 @@ export async function getOverviewMetrics(
   const dealToRevenueRate = dealsCount > 0 ? (revenueTotal / dealsCount) : 0
   
   // Previous period deltas
-  const prevLpViews = prevFbAds.reduce((sum, ad) => 
-    sum + (ad.landing_page_view_unique || ad.landing_page_view || 0), 0
-  )
+  const prevLpViews = prevFbTotals.lp_views
   const prevLeadsCount = prevPaidContacts.length
   const prevSqlCount = filters.comparePrevious ? prevDeals.filter(d => {
     const stage = (d.dealstage || '').toLowerCase()

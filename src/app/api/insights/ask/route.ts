@@ -1,8 +1,9 @@
 // src/app/api/insights/ask/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
-import { getOverviewMetrics, getCampaignPerformance } from '@/lib/overview-data'
+import { getOverviewMetrics, getCampaignPerformance, getDateRange, isDateInRange } from '@/lib/overview-data'
 import { OverviewFilters } from '@/lib/overview-types'
+import { fetchFbEnriched, fetchSheet, totalsFb } from '@/lib/sheetsData'
 
 export const runtime = 'nodejs'
 
@@ -27,6 +28,17 @@ export async function POST(req: NextRequest) {
       getCampaignPerformance(filters as OverviewFilters, sheetUrl)
     ])
     
+    // Get enriched FB totals for context
+    const enrichedRows = await fetchFbEnriched(fetchSheet, sheetUrl)
+    const { start, end } = getDateRange(filters.dateRange, filters.customStart, filters.customEnd)
+    
+    const currentEnriched = enrichedRows.filter(row => {
+      const dateStr = row.date_iso || row.date_start
+      return isDateInRange(dateStr, start, end)
+    })
+    
+    const fb = totalsFb(currentEnriched)
+    
     // Build context
     const context = `
 Marketing Performance Data (${filters.dateRange}):
@@ -39,6 +51,8 @@ Key Metrics:
 - Leads: ${metrics.leads.value}
 - CAC: €${metrics.cac.value.toFixed(2)}
 - ROAS: ${metrics.roas.toFixed(2)}x
+
+Facebook enriched data: spend: €${fb.spend.toFixed(2)}, clicks: ${fb.clicks}, LP views: ${fb.lp_views}, FB form leads: ${fb.fb_form_leads}, landing leads: ${fb.landing_leads}. You can answer questions about the difference between landing leads and FB form leads, LP→Lead conversion rates, and spend efficiency.
 
 Top Campaigns by Revenue:
 ${campaigns.slice(0, 10).map(c => `- ${c.campaign} (${c.channel}): €${c.revenue.toFixed(2)} revenue, €${c.spend.toFixed(2)} spend, ${c.leads} leads`).join('\n')}
@@ -53,7 +67,7 @@ ${campaigns.slice(0, 10).map(c => `- ${c.campaign} (${c.channel}): €${c.revenu
           messages: [
             {
               role: 'system',
-              content: 'You are a marketing analyst. Answer questions about marketing performance data with concise, actionable insights. Provide up to 5 bullet points.'
+              content: 'You are a marketing analyst. Answer questions about marketing performance data with concise, actionable insights. Provide up to 5 bullet points. You have access to Facebook enriched data including landing leads vs FB form leads, LP views, clicks, and spend. Use this data to answer questions about lead sources, conversion rates, and spend efficiency.'
             },
             {
               role: 'user',
@@ -92,4 +106,6 @@ ${campaigns.slice(0, 10).map(c => `- ${c.campaign} (${c.channel}): €${c.revenu
     )
   }
 }
+
+
 

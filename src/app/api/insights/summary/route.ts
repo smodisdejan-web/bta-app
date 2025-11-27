@@ -1,8 +1,9 @@
 // src/app/api/insights/summary/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
-import { getOverviewMetrics } from '@/lib/overview-data'
+import { getOverviewMetrics, getDateRange, isDateInRange } from '@/lib/overview-data'
 import { OverviewFilters } from '@/lib/overview-types'
+import { fetchFbEnriched, fetchSheet, totalsFb } from '@/lib/sheetsData'
 
 export const runtime = 'nodejs'
 
@@ -20,6 +21,27 @@ export async function POST(req: NextRequest) {
     // Get metrics
     const metrics = await getOverviewMetrics(filters as OverviewFilters, sheetUrl)
     
+    // Get enriched FB totals for context
+    const enrichedRows = await fetchFbEnriched(fetchSheet, sheetUrl)
+    const { start, end } = getDateRange(filters.dateRange, filters.customStart, filters.customEnd)
+    const prevStart = new Date(start)
+    const prevEnd = new Date(end)
+    const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
+    prevStart.setDate(prevStart.getDate() - daysDiff)
+    prevEnd.setDate(prevEnd.getDate() - daysDiff)
+    
+    const currentEnriched = enrichedRows.filter(row => {
+      const dateStr = row.date_iso || row.date_start
+      return isDateInRange(dateStr, start, end)
+    })
+    const prevEnriched = filters.comparePrevious ? enrichedRows.filter(row => {
+      const dateStr = row.date_iso || row.date_start
+      return isDateInRange(dateStr, prevStart, prevEnd)
+    }) : []
+    
+    const fb = totalsFb(currentEnriched)
+    const prevFb = totalsFb(prevEnriched)
+    
     // Build context for AI
     const context = `
 Marketing Performance Metrics (${filters.dateRange}):
@@ -35,6 +57,8 @@ Acquisition Metrics:
 - Leads: ${metrics.leads.value} ${metrics.leads.deltaPct !== null ? `(${metrics.leads.deltaPct > 0 ? '+' : ''}${metrics.leads.deltaPct.toFixed(1)}% vs previous)` : ''}
 - CAC: €${metrics.cac.value.toFixed(2)} ${metrics.cac.deltaPct !== null ? `(${metrics.cac.deltaPct > 0 ? '+' : ''}${metrics.cac.deltaPct.toFixed(1)}% vs previous)` : ''}
 - ROAS: ${metrics.roas.toFixed(2)}x ${metrics.roas.deltaPct !== null ? `(${metrics.roas.deltaPct > 0 ? '+' : ''}${metrics.roas.deltaPct.toFixed(1)}% vs previous)` : ''}
+
+Facebook summary context: spend: €${fb.spend.toFixed(2)}, clicks: ${fb.clicks}, LP views: ${fb.lp_views}, FB form leads: ${fb.fb_form_leads}, landing leads: ${fb.landing_leads}. ${prevFb.spend > 0 ? `Previous period: spend: €${prevFb.spend.toFixed(2)}, clicks: ${prevFb.clicks}, LP views: ${prevFb.lp_views}, FB form leads: ${prevFb.fb_form_leads}, landing leads: ${prevFb.landing_leads}.` : ''} Compare to previous period deltas if available. Call out notable changes ≥ ±10%.
 
 Funnel:
 - LP Views: ${metrics.lpViews.toLocaleString()}
@@ -53,7 +77,7 @@ Funnel:
           messages: [
             {
               role: 'system',
-              content: 'You are a marketing analyst. Generate exactly 5 concise bullet points highlighting the most important changes and insights from the marketing performance data. Focus on notable increases/decreases, trends, and actionable insights. Each bullet should be one sentence.'
+              content: 'You are a marketing analyst. Generate exactly 5 concise bullet points highlighting the most important changes and insights from the marketing performance data. Focus on notable increases/decreases, trends, and actionable insights. Each bullet should be one sentence. Ensure at least one bullet mentions Landing Leads vs FB Form Leads, LP→Lead conversion, or spend efficiency.'
             },
             {
               role: 'user',
@@ -134,4 +158,6 @@ Funnel:
     )
   }
 }
+
+
 

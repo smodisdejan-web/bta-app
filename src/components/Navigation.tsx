@@ -94,6 +94,17 @@ export function Navigation() {
                             >
                                 Overview
                             </Link>
+                            <Link
+                                href="/facebook-ads"
+                                className={cn(
+                                    "px-3 py-2 text-sm font-medium rounded-md transition-all",
+                                    pathname === "/facebook-ads" 
+                                        ? "text-primary bg-primary/10" 
+                                        : "text-foreground/70 hover:text-primary hover:bg-primary/5"
+                                )}
+                            >
+                                Facebook Ads
+                            </Link>
                         </div>
                     </div>
                     
