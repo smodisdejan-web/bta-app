@@ -46,3 +46,5 @@ export function AiSummary({ bullets, onRegenerate, isRegenerating }: AiSummaryPr
   )
 }
 
+
+

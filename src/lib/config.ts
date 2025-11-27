@@ -17,6 +17,11 @@ export const DEFAULT_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycby4W
 export const SHEET_TABS = ['daily', 'searchTerms', 'adGroups'] as const
 export type SheetTab = typeof SHEET_TABS[number]
 
+export const SHEETS_TABS = {
+  FB_ENRICHED: 'fb_ads_enriched',
+  FB_RAW: 'fb_ads_raw', // fallback only
+} as const
+
 export interface TabConfig {
     name: SheetTab
     metrics: MetricOptions
