@@ -1,578 +1,863 @@
-// src/app/page.tsx
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
-import { useSettings } from '@/lib/contexts/SettingsContext'
-import { getCampaigns } from '@/lib/sheetsData'
-import type { AdMetric, DailyMetrics } from '@/lib/types'
-import { calculateDailyMetrics } from '@/lib/metrics'
-import { MetricCard } from '@/components/MetricCard'
-import { MetricsChart } from '@/components/MetricsChart'
-import { CampaignSelect } from '@/components/CampaignSelect'
-import { formatCurrency, formatPercent, formatConversions } from '@/lib/utils'
-import { COLORS } from '@/lib/config'
+import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { 
-  TrendingUp, TrendingDown, Calendar, Download, RefreshCw, 
-  BarChart3, LineChart, PieChart, Zap, Target, DollarSign,
-  MousePointerClick, Eye, ShoppingCart, ArrowUpRight, ArrowDownRight
+import { Card, CardContent } from '@/components/ui/card'
+import {
+  BarChart3,
+  DollarSign,
+  Gauge,
+  PieChart as PieIcon,
+  RefreshCw,
+  Sparkles,
+  Target,
+  Users,
+  ChevronRight
 } from 'lucide-react'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Pie, PieChart, ResponsiveContainer, Cell, Tooltip, Legend, ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { fetchFbEnriched, fetchStreakLeads, fetchStreakLeadsGoogle, fetchTab, fetchBookings, BookingRecord, StreakLeadRow } from '@/lib/sheetsData'
+import { getSheetsUrl } from '@/lib/config'
+import { formatCurrency } from '@/lib/utils'
+import { AiAsk } from '@/components/overview/AiAsk'
 
-type DisplayMetric = 'impr' | 'clicks' | 'CTR' | 'CPC' | 'cost' |
-    'conv' | 'CvR' | 'CPA' | 'value' | 'ROAS'
-
-const metricConfig = {
-    impr: { 
-        label: 'Impressions', 
-        format: (v: number) => v.toLocaleString(), 
-        icon: Eye,
-        row: 1,
-        color: 'from-blue-500 to-cyan-500'
-    },
-    clicks: { 
-        label: 'Clicks', 
-        format: (v: number) => v.toLocaleString(), 
-        icon: MousePointerClick,
-        row: 1,
-        color: 'from-green-500 to-emerald-500'
-    },
-    CTR: { 
-        label: 'CTR', 
-        format: formatPercent, 
-        icon: Target,
-        row: 2,
-        color: 'from-purple-500 to-pink-500'
-    },
-    CPC: { 
-        label: 'CPC', 
-        format: (v: number, currency: string) => formatCurrency(v, currency), 
-        icon: DollarSign,
-        row: 2,
-        color: 'from-amber-500 to-orange-500'
-    },
-    cost: { 
-        label: 'Cost', 
-        format: (v: number, currency: string) => formatCurrency(v, currency), 
-        icon: DollarSign,
-        row: 1,
-        color: 'from-red-500 to-pink-500'
-    },
-    conv: { 
-        label: 'Conversions', 
-        format: formatConversions, 
-        icon: ShoppingCart,
-        row: 1,
-        color: 'from-indigo-500 to-purple-500'
-    },
-    CvR: { 
-        label: 'Conv Rate', 
-        format: formatPercent, 
-        icon: TrendingUp,
-        row: 2,
-        color: 'from-teal-500 to-cyan-500'
-    },
-    CPA: { 
-        label: 'CPA', 
-        format: (v: number, currency: string) => formatCurrency(v, currency), 
-        icon: Target,
-        row: 2,
-        color: 'from-rose-500 to-red-500'
-    },
-    value: { 
-        label: 'Conv Value', 
-        format: (v: number, currency: string) => formatCurrency(v, currency), 
-        icon: Zap,
-        row: 1,
-        color: 'from-yellow-500 to-amber-500'
-    },
-    ROAS: { 
-        label: 'ROAS', 
-        format: (v: number) => v.toFixed(2) + 'x', 
-        icon: TrendingUp,
-        row: 2,
-        color: 'from-green-500 to-teal-500'
-    }
-} as const
-
-export default function DashboardPage() {
-    const { settings, fetchedData, dataError, isDataLoading, campaigns, refreshData } = useSettings()
-    const [selectedMetrics, setSelectedMetrics] = useState<[DisplayMetric, DisplayMetric]>(['cost', 'value'])
-    const [selectedCampaignId, setSelectedCampaignId] = useState<string>('')
-    const [chartType, setChartType] = useState<'line' | 'bar' | 'area'>('area')
-    const [dateRange, setDateRange] = useState<'7d' | '30d' | '90d' | 'all'>('30d')
-    const [isRefreshing, setIsRefreshing] = useState(false)
-
-    // Aggregate metrics by date when viewing all campaigns
-    const aggregateMetricsByDate = (data: AdMetric[]): AdMetric[] => {
-        const metricsByDate = data.reduce((acc, metric) => {
-            const date = metric.date
-            if (!acc[date]) {
-                acc[date] = {
-                    campaign: 'All Campaigns',
-                    campaignId: '',
-                    date,
-                    impr: 0,
-                    clicks: 0,
-                    cost: 0,
-                    conv: 0,
-                    value: 0,
-                }
-            }
-            acc[date].impr += metric.impr
-            acc[date].clicks += metric.clicks
-            acc[date].cost += metric.cost
-            acc[date].conv += metric.conv
-            acc[date].value += metric.value
-            return acc
-        }, {} as Record<string, AdMetric>)
-
-        return Object.values(metricsByDate).sort((a, b) =>
-            new Date(a.date).getTime() - new Date(b.date).getTime()
-        )
-    }
-
-    // Filter data by date range
-    const filterByDateRange = (data: AdMetric[]) => {
-        if (dateRange === 'all') return data
-        
-        const now = new Date()
-        const days = dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : 90
-        const cutoffDate = new Date(now.setDate(now.getDate() - days))
-        
-        return data.filter(d => new Date(d.date) >= cutoffDate)
-    }
-
-    const handleCampaignNavigate = (direction: 'next' | 'prev') => {
-        if (!campaigns || campaigns.length === 0) return;
-
-        const campaignIds = ['', ...campaigns.map(c => c.id)];
-        const currentIndex = campaignIds.indexOf(selectedCampaignId);
-
-        let nextIndex;
-        if (direction === 'next') {
-            nextIndex = (currentIndex + 1) % campaignIds.length;
-        } else {
-            nextIndex = (currentIndex - 1 + campaignIds.length) % campaignIds.length;
-        }
-        setSelectedCampaignId(campaignIds[nextIndex]);
-    };
-
-    const rawData = selectedCampaignId
-        ? (fetchedData?.daily || []).filter(d => d.campaignId === selectedCampaignId)
-        : aggregateMetricsByDate(fetchedData?.daily || [])
-
-    const filteredData = filterByDateRange(rawData)
-    const dailyMetrics = calculateDailyMetrics(filteredData)
-
-    const calculateTotals = () => {
-        if (dailyMetrics.length === 0) return null
-
-        const sums = dailyMetrics.reduce((acc, d) => ({
-            impr: acc.impr + d.impr,
-            clicks: acc.clicks + d.clicks,
-            cost: acc.cost + d.cost,
-            conv: acc.conv + d.conv,
-            value: acc.value + d.value,
-        }), {
-            impr: 0, clicks: 0, cost: 0, conv: 0, value: 0,
-        })
-
-        return {
-            ...sums,
-            CTR: (sums.impr ? (sums.clicks / sums.impr) * 100 : 0),
-            CPC: (sums.clicks ? sums.cost / sums.clicks : 0),
-            CvR: (sums.clicks ? (sums.conv / sums.clicks) * 100 : 0),
-            CPA: (sums.conv ? sums.cost / sums.conv : 0),
-            ROAS: (sums.cost ? sums.value / sums.cost : 0),
-        }
-    }
-
-    // Calculate previous period for comparison
-    const calculatePreviousPeriod = () => {
-        const days = dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : dateRange === '90d' ? 90 : filteredData.length
-        const now = new Date()
-        const startDate = new Date(now.setDate(now.getDate() - days * 2))
-        const midDate = new Date(now.setDate(now.getDate() - days))
-        
-        const previousData = rawData.filter(d => {
-            const date = new Date(d.date)
-            return date >= startDate && date < midDate
-        })
-        
-        const previousMetrics = calculateDailyMetrics(previousData)
-        if (previousMetrics.length === 0) return null
-        
-        const sums = previousMetrics.reduce((acc, d) => ({
-            cost: acc.cost + d.cost,
-            value: acc.value + d.value,
-            clicks: acc.clicks + d.clicks,
-            conv: acc.conv + d.conv,
-        }), { cost: 0, value: 0, clicks: 0, conv: 0 })
-        
-        return sums
-    }
-
-    const handleMetricClick = (metric: DisplayMetric) => {
-        setSelectedMetrics(prev => [prev[1], metric])
-    }
-
-    const handleRefresh = async () => {
-        setIsRefreshing(true)
-        await refreshData()
-        setTimeout(() => setIsRefreshing(false), 1000)
-    }
-
-    const exportData = () => {
-        const csv = [
-            ['Date', ...Object.keys(metricConfig).map(k => metricConfig[k as DisplayMetric].label)],
-            ...dailyMetrics.map(d => [
-                d.date,
-                d.impr,
-                d.clicks,
-                d.CTR,
-                d.CPC,
-                d.cost,
-                d.conv,
-                d.CvR,
-                d.CPA,
-                d.value,
-                d.ROAS
-            ])
-        ].map(row => row.join(',')).join('\n')
-        
-        const blob = new Blob([csv], { type: 'text/csv' })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `campaign-metrics-${Date.now()}.csv`
-        a.click()
-    }
-
-    if (isDataLoading) return (
-        <div className="flex items-center justify-center min-h-screen">
-            <div className="text-center">
-                <RefreshCw className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
-                <p className="text-muted-foreground">Loading your campaigns...</p>
-            </div>
-        </div>
-    )
-    
-    if (!settings.sheetUrl) return (
-        <div className="flex items-center justify-center min-h-screen">
-            <Card className="max-w-md">
-                <CardHeader>
-                    <CardTitle>⚙️ Setup Required</CardTitle>
-                    <CardDescription>Configure your Google Sheet URL to get started</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Button onClick={() => window.location.href = '/settings'}>
-                        Go to Settings
-                    </Button>
-                </CardContent>
-            </Card>
-        </div>
-    )
-    
-    if (dataError) return (
-        <div className="flex items-center justify-center min-h-screen">
-            <Card className="max-w-md border-destructive">
-                <CardHeader>
-                    <CardTitle className="text-destructive">⚠️ Data Load Error</CardTitle>
-                    <CardDescription>Failed to load data. Please check your Sheet URL.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <Button onClick={handleRefresh} variant="outline">
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                        Retry
-                    </Button>
-                    <Button onClick={() => window.location.href = '/settings'} variant="secondary">
-                        Check Settings
-                    </Button>
-                </CardContent>
-            </Card>
-        </div>
-    )
-    
-    if (dailyMetrics.length === 0 && !isDataLoading) return (
-        <div className="flex items-center justify-center min-h-screen">
-            <Card className="max-w-md">
-                <CardHeader>
-                    <CardTitle>📊 No Data Available</CardTitle>
-                    <CardDescription>No campaign data found for the selected period</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Button onClick={handleRefresh}>
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                        Refresh Data
-                    </Button>
-                </CardContent>
-            </Card>
-        </div>
-    )
-
-    const totals = calculateTotals()
-    const previousPeriod = calculatePreviousPeriod()
-    if (!totals) return null
-
-    const calculateChange = (current: number, previous: number) => {
-        if (!previous || previous === 0) return null
-        return ((current - previous) / previous) * 100
-    }
-
-    return (
-        <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
-            <div className="container mx-auto px-4 py-8 mt-16 space-y-6">
-                {/* Hero Header */}
-                <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-primary/10 via-primary/5 to-background p-8 border-2">
-                    <div className="relative z-10">
-                        <div className="flex items-center justify-between mb-4">
-                            <div>
-                                <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent mb-2">
-                                    Campaign Performance
-                                </h1>
-                                <p className="text-muted-foreground text-lg">
-                                    Real-time insights and analytics for your advertising campaigns
-                                </p>
-                            </div>
-                            <div className="flex gap-2">
-                                <Button onClick={exportData} variant="outline" size="sm" className="gap-2">
-                                    <Download className="h-4 w-4" />
-                                    Export
-                                </Button>
-                                <Button onClick={handleRefresh} variant="outline" size="sm" className="gap-2" disabled={isRefreshing}>
-                                    <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-                                    Refresh
-                                </Button>
-                            </div>
-                        </div>
-                        
-                        {/* Quick Stats */}
-                        <div className="flex gap-4 mt-4">
-                            <Badge variant="secondary" className="gap-2">
-                                <BarChart3 className="h-4 w-4" />
-                                {filteredData.length} days of data
-                            </Badge>
-                            <Badge variant="secondary" className="gap-2">
-                                <Target className="h-4 w-4" />
-                                {campaigns?.length || 0} campaigns
-                            </Badge>
-                            <Badge variant="secondary" className="gap-2">
-                                <DollarSign className="h-4 w-4" />
-                                {formatCurrency(totals.cost, settings.currency)} spend
-                            </Badge>
-                        </div>
-                    </div>
-                    <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl -z-0" />
-                </div>
-
-                {/* Controls */}
-                <div className="flex flex-wrap items-center gap-4">
-                    <div className="flex-1 min-w-[200px] max-w-md">
-                        <CampaignSelect
-                            campaigns={campaigns || []}
-                            selectedId={selectedCampaignId}
-                            onSelect={setSelectedCampaignId}
-                        />
-                    </div>
-                    
-                    <div className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={() => handleCampaignNavigate('prev')}>
-                            ← Prev
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => handleCampaignNavigate('next')}>
-                            Next →
-                        </Button>
-                    </div>
-
-                    <Select value={dateRange} onValueChange={(v: any) => setDateRange(v)}>
-                        <SelectTrigger className="w-[140px]">
-                            <Calendar className="h-4 w-4 mr-2" />
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="7d">Last 7 days</SelectItem>
-                            <SelectItem value="30d">Last 30 days</SelectItem>
-                            <SelectItem value="90d">Last 90 days</SelectItem>
-                            <SelectItem value="all">All time</SelectItem>
-                        </SelectContent>
-                    </Select>
-
-                    <Select value={chartType} onValueChange={(v: any) => setChartType(v)}>
-                        <SelectTrigger className="w-[120px]">
-                            <LineChart className="h-4 w-4 mr-2" />
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="line">Line</SelectItem>
-                            <SelectItem value="area">Area</SelectItem>
-                            <SelectItem value="bar">Bar</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-
-                {/* Metrics Row 1 - Primary Metrics */}
-                <div>
-                    <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                        <Target className="h-5 w-5 text-primary" />
-                        Primary Metrics
-                    </h2>
-                    <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
-                        {Object.entries(metricConfig)
-                            .filter(([_, config]) => config.row === 1)
-                            .map(([key, config]) => {
-                                const Icon = config.icon
-                                const change = previousPeriod ? calculateChange(
-                                    totals[key as DisplayMetric] as number,
-                                    previousPeriod[key as keyof typeof previousPeriod] || 0
-                                ) : null
-                                
-                                return (
-                                    <Card 
-                                        key={key}
-                                        className={`cursor-pointer transition-all hover:shadow-lg hover:scale-105 ${
-                                            selectedMetrics.includes(key as DisplayMetric) 
-                                                ? 'ring-2 ring-primary shadow-lg' 
-                                                : ''
-                                        }`}
-                                        onClick={() => handleMetricClick(key as DisplayMetric)}
-                                    >
-                                        <CardHeader className="pb-2">
-                                            <div className="flex items-center justify-between">
-                                                <CardTitle className="text-sm font-medium text-muted-foreground">
-                                                    {config.label}
-                                                </CardTitle>
-                                                <div className={`p-2 rounded-lg bg-gradient-to-br ${config.color}`}>
-                                                    <Icon className="h-4 w-4 text-white" />
-                                                </div>
-                                            </div>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div className="text-2xl font-bold">
-                                                {config.format(totals[key as DisplayMetric], settings.currency)}
-                                            </div>
-                                            {change !== null && (
-                                                <div className={`flex items-center gap-1 text-sm mt-1 ${
-                                                    change >= 0 ? 'text-green-600' : 'text-red-600'
-                                                }`}>
-                                                    {change >= 0 ? (
-                                                        <ArrowUpRight className="h-4 w-4" />
-                                                    ) : (
-                                                        <ArrowDownRight className="h-4 w-4" />
-                                                    )}
-                                                    {Math.abs(change).toFixed(1)}% vs previous
-                                                </div>
-                                            )}
-                                        </CardContent>
-                                    </Card>
-                                )
-                            })}
-                    </div>
-                </div>
-
-                {/* Metrics Row 2 - Performance Metrics */}
-                <div>
-                    <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                        <TrendingUp className="h-5 w-5 text-primary" />
-                        Performance Metrics
-                    </h2>
-                    <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
-                        {Object.entries(metricConfig)
-                            .filter(([_, config]) => config.row === 2)
-                            .map(([key, config]) => {
-                                const Icon = config.icon
-                                const change = previousPeriod ? calculateChange(
-                                    totals[key as DisplayMetric] as number,
-                                    key === 'CTR' || key === 'CvR' ? 0 : previousPeriod[key as keyof typeof previousPeriod] || 0
-                                ) : null
-                                
-                                return (
-                                    <Card 
-                                        key={key}
-                                        className={`cursor-pointer transition-all hover:shadow-lg hover:scale-105 ${
-                                            selectedMetrics.includes(key as DisplayMetric) 
-                                                ? 'ring-2 ring-primary shadow-lg' 
-                                                : ''
-                                        }`}
-                                        onClick={() => handleMetricClick(key as DisplayMetric)}
-                                    >
-                                        <CardHeader className="pb-2">
-                                            <div className="flex items-center justify-between">
-                                                <CardTitle className="text-sm font-medium text-muted-foreground">
-                                                    {config.label}
-                                                </CardTitle>
-                                                <div className={`p-2 rounded-lg bg-gradient-to-br ${config.color}`}>
-                                                    <Icon className="h-4 w-4 text-white" />
-                                                </div>
-                                            </div>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div className="text-2xl font-bold">
-                                                {config.format(totals[key as DisplayMetric], settings.currency)}
-                                            </div>
-                                            {change !== null && change !== 0 && (
-                                                <div className={`flex items-center gap-1 text-sm mt-1 ${
-                                                    change >= 0 ? 'text-green-600' : 'text-red-600'
-                                                }`}>
-                                                    {change >= 0 ? (
-                                                        <ArrowUpRight className="h-4 w-4" />
-                                                    ) : (
-                                                        <ArrowDownRight className="h-4 w-4" />
-                                                    )}
-                                                    {Math.abs(change).toFixed(1)}% vs previous
-                                                </div>
-                                            )}
-                                        </CardContent>
-                                    </Card>
-                                )
-                            })}
-                    </div>
-                </div>
-
-                {/* Charts */}
-                <Card className="border-2">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <LineChart className="h-5 w-5" />
-                            Performance Trends
-                        </CardTitle>
-                        <CardDescription>
-                            Comparing {metricConfig[selectedMetrics[0]].label} and {metricConfig[selectedMetrics[1]].label}
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <MetricsChart
-                            data={dailyMetrics}
-                            metric1={{
-                                key: selectedMetrics[0],
-                                label: metricConfig[selectedMetrics[0]].label,
-                                color: COLORS.primary,
-                                format: (v: number) => metricConfig[selectedMetrics[0]].format(v, settings.currency)
-                            }}
-                            metric2={{
-                                key: selectedMetrics[1],
-                                label: metricConfig[selectedMetrics[1]].label,
-                                color: COLORS.secondary,
-                                format: (v: number) => metricConfig[selectedMetrics[1]].format(v, settings.currency)
-                            }}
-                        />
-                    </CardContent>
-                </Card>
-
-                {/* Keyboard Shortcuts Help */}
-                <Card className="bg-muted/30">
-                    <CardContent className="p-4">
-                        <div className="flex flex-wrap gap-4 text-xs text-muted-foreground items-center justify-center">
-                            <span className="font-semibold">⌨️ Keyboard Shortcuts:</span>
-                            <Badge variant="outline">←/→: Navigate campaigns</Badge>
-                            <Badge variant="outline">Cmd+E: Export data</Badge>
-                            <Badge variant="outline">Cmd+R: Refresh</Badge>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
-        </div>
-    )
+type MetricCardProps = {
+  title: string
+  value: string
+  subtitle?: string
+  icon: React.ReactNode
+  accent?: string
 }
+
+type ChannelMetric = {
+  label: string
+  value: string
+  emphasis?: boolean
+}
+
+type ChannelCardProps = {
+  title: string
+  icon: React.ReactNode
+  metrics: ChannelMetric[]
+}
+
+type DailyRow = {
+  date: string
+  cost: number
+  clicks: number
+  conv: number
+  value: number
+}
+
+type SummaryData = {
+  spend: number
+  leads: number
+  qualityLeads: number
+  avgAi: number
+  bookings: number
+  revenue: number
+  lpViews: number
+}
+
+const gold = '#B39262'
+const ivory = '#f8f7f2'
+const grayBar = '#D1D5DB'
+const darkGold = '#8B7355'
+const emerald = '#047857'
+
+export default function HomePage() {
+  const [range, setRange] = useState<'7d' | '30d' | '60d' | '90d'>('30d')
+  const [cacMode, setCacMode] = useState<'leads' | 'deals'>('leads')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [bookings, setBookings] = useState<BookingRecord[]>([])
+  const [fbEnriched, setFbEnriched] = useState<any[]>([])
+  const [googleDaily, setGoogleDaily] = useState<DailyRow[]>([])
+  const [streakFb, setStreakFb] = useState<StreakLeadRow[]>([])
+  const [streakGoogle, setStreakGoogle] = useState<StreakLeadRow[]>([])
+  const [aiBullets, setAiBullets] = useState<string[]>([])
+  const [prefill, setPrefill] = useState('')
+
+  const days = useMemo(() => Number(range.replace('d', '')), [range])
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true)
+      setError(null)
+      try {
+        const sheetUrl = getSheetsUrl()
+        const [{ headers: dailyHeaders, rows: dailyRows }, fbRows, fbLeads, googleLeads, bookingRows] =
+          await Promise.all([
+            fetchTab('daily', sheetUrl),
+            fetchFbEnriched(fetchFbEnrichedSheet, sheetUrl),
+            fetchStreakLeads(fetchFbEnrichedSheet, sheetUrl),
+            fetchStreakLeadsGoogle(fetchFbEnrichedSheet, sheetUrl),
+            fetchBookings(fetchFbEnrichedSheet)
+          ])
+
+        setFbEnriched(fbRows || [])
+        setStreakFb(fbLeads || [])
+        setStreakGoogle(googleLeads || [])
+        setBookings(bookingRows || [])
+        setGoogleDaily(mapDailyRows(dailyHeaders, dailyRows))
+      } catch (e) {
+        console.error('Failed to load overview data', e)
+        setError('Failed to load data')
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [days])
+
+  const fetchFbEnrichedSheet = async ({ sheetUrl, tab }: { sheetUrl: string; tab: string }) => {
+    return fetchTab(tab, sheetUrl).then((res) => [res.headers, ...res.rows])
+  }
+
+  const dateBounds = useMemo(() => {
+    const end = new Date()
+    end.setHours(23, 59, 59, 999)
+    const start = new Date(end)
+    start.setDate(start.getDate() - (days - 1))
+    start.setHours(0, 0, 0, 0)
+    return { start, end }
+  }, [days])
+
+  const monthRangeLabel = useMemo(() => {
+    const { start, end } = dateBounds
+    const fmt = (d: Date) => d.toLocaleString('default', { month: 'short', year: 'numeric' })
+    return `${fmt(start)} - ${fmt(end)}`
+  }, [dateBounds])
+
+  const monthsInRange = useMemo(() => getMonthsInRange(range), [range])
+
+  const filteredBookings = useMemo(() => {
+    console.log('Bookings:', bookings.map((b) => ({ booking_date: b.booking_date, rvc: b.rvc })))
+    return bookings.filter((b) => {
+      const bookingMonth = String(b.booking_date || '').substring(0, 7)
+      return monthsInRange.includes(bookingMonth)
+    })
+  }, [bookings, monthsInRange])
+
+  const revenueTotals = useMemo(() => {
+    const totalRevenue = filteredBookings.reduce((sum, b) => sum + (b.rvc || 0), 0)
+    const deals = filteredBookings.length
+    const avgDeal = deals > 0 ? totalRevenue / deals : 0
+    return { totalRevenue, deals, avgDeal }
+  }, [filteredBookings])
+
+  const streakAll = useMemo(() => [...streakFb, ...streakGoogle], [streakFb, streakGoogle])
+
+  const leadsFiltered = useMemo(() => {
+    const { start, end } = dateBounds
+    return streakAll.filter((l) => {
+      if (!l.inquiry_date) return false
+      const d = new Date(l.inquiry_date)
+      return d >= start && d <= end
+    })
+  }, [streakAll, dateBounds])
+
+  const leadsFbFiltered = useMemo(() => leadsFiltered.filter((l) => l.platform?.toLowerCase().includes('facebook')), [leadsFiltered])
+  const leadsGoogleFiltered = useMemo(() => leadsFiltered.filter((l) => l.platform?.toLowerCase().includes('google')), [leadsFiltered])
+
+  const qualityCount = (list: StreakLeadRow[]) => list.filter((l) => l.ai_score >= 50).length
+  const avgAiScore = (list: StreakLeadRow[]) => {
+    const scores = list.map((l) => l.ai_score).filter((s) => s > 0)
+    if (!scores.length) return 0
+    return Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 10) / 10
+  }
+
+  const fbEnrichedFiltered = useMemo(() => {
+    const { start, end } = dateBounds
+    return fbEnriched.filter((r: any) => {
+      const d = new Date(r.date_iso || r.date_start)
+      return r.date_iso && d >= start && d <= end
+    })
+  }, [fbEnriched, dateBounds])
+
+  const googleDailyFiltered = useMemo(() => {
+    const { start, end } = dateBounds
+    return googleDaily.filter((r) => {
+      const d = new Date(r.date)
+      return d >= start && d <= end
+    })
+  }, [googleDaily, dateBounds])
+
+  const fbSpend = useMemo(
+    () => fbEnrichedFiltered.reduce((sum, r: any) => sum + (r.spend || 0), 0),
+    [fbEnrichedFiltered]
+  )
+  const fbLeads = useMemo(
+    () => fbEnrichedFiltered.reduce((sum, r: any) => sum + (r.fb_form_leads || 0) + (r.landing_leads || 0), 0),
+    [fbEnrichedFiltered]
+  )
+  const fbLpViews = useMemo(
+    () => fbEnrichedFiltered.reduce((sum, r: any) => sum + (r.lp_views || 0), 0),
+    [fbEnrichedFiltered]
+  )
+  const googleSpend = useMemo(
+    () => googleDailyFiltered.reduce((sum, r) => sum + (r.cost || 0), 0),
+    [googleDailyFiltered]
+  )
+  const googleClicks = useMemo(
+    () => googleDailyFiltered.reduce((sum, r) => sum + (r.clicks || 0), 0),
+    [googleDailyFiltered]
+  )
+
+  const totals: SummaryData = useMemo(() => {
+    const totalSpend = fbSpend + googleSpend
+    const totalLeads = leadsFiltered.length
+    const totalQuality = qualityCount(leadsFiltered)
+    const avgAi = avgAiScore(leadsFiltered)
+    const bookingsCount = filteredBookings.length
+    const revenue = revenueTotals.totalRevenue
+    const lpViews = fbLpViews + googleClicks
+    return { spend: totalSpend, leads: totalLeads, qualityLeads: totalQuality, avgAi, bookings: bookingsCount, revenue, lpViews }
+  }, [fbSpend, googleSpend, leadsFiltered, filteredBookings.length, revenueTotals.totalRevenue, fbLpViews, googleClicks])
+
+  const cacValue = useMemo(() => {
+    if (cacMode === 'deals') {
+      return totals.bookings > 0 ? totals.spend / totals.bookings : 0
+    }
+    return totals.qualityLeads > 0 ? totals.spend / totals.qualityLeads : 0
+  }, [totals, cacMode])
+
+  const roasValue = useMemo(() => (totals.spend > 0 ? totals.revenue / totals.spend : 0), [totals])
+
+  const channelFb = useMemo(() => {
+    const quality = qualityCount(leadsFbFiltered)
+    const leadsCount = leadsFbFiltered.length
+    const qRate = leadsCount > 0 ? Math.round((quality / leadsCount) * 100) : 0
+    const bookingsFb = filteredBookings.filter((b) => b.source.startsWith('fb_'))
+    const revenueFb = bookingsFb.reduce((s, b) => s + (b.rvc || 0), 0)
+    const roas = fbSpend > 0 ? revenueFb / fbSpend : 0
+    const cpql = quality > 0 ? fbSpend / quality : 0
+    return {
+      spend: fbSpend,
+      leads: leadsCount,
+      quality,
+      qRate,
+      cpql,
+      bookings: bookingsFb.length,
+      revenue: revenueFb,
+      roas
+    }
+  }, [leadsFbFiltered, filteredBookings, fbSpend])
+
+  const channelGoogle = useMemo(() => {
+    const quality = qualityCount(leadsGoogleFiltered)
+    const leadsCount = leadsGoogleFiltered.length
+    const qRate = leadsCount > 0 ? Math.round((quality / leadsCount) * 100) : 0
+    const bookingsGoogle = filteredBookings.filter((b) => b.source === 'google')
+    const revenueGoogle = bookingsGoogle.reduce((s, b) => s + (b.rvc || 0), 0)
+    const roas = googleSpend > 0 ? revenueGoogle / googleSpend : 0
+    const cpql = quality > 0 ? googleSpend / quality : 0
+    return {
+      spend: googleSpend,
+      leads: leadsCount,
+      quality,
+      qRate,
+      cpql,
+      bookings: bookingsGoogle.length,
+      revenue: revenueGoogle,
+      roas
+    }
+  }, [leadsGoogleFiltered, filteredBookings, googleSpend])
+
+  const revenueBySource = useMemo(() => {
+    const map: Record<string, number> = { 'FB Landing': 0, 'FB Lead': 0, Google: 0 }
+    filteredBookings.forEach((b) => {
+      if (b.source === 'fb_landing') map['FB Landing'] += b.rvc || 0
+      else if (b.source === 'fb_lead') map['FB Lead'] += b.rvc || 0
+      else if (b.source === 'google') map['Google'] += b.rvc || 0
+    })
+    const totalAll = Object.values(map).reduce((a, b) => a + b, 0)
+    const entries = Object.entries(map)
+      .map(([name, value]) => ({
+        name,
+        value,
+        pct: totalAll > 0 ? Math.round((value / totalAll) * 100) : 0
+      }))
+      .filter((item) => item.value > 0)
+    return entries
+  }, [filteredBookings])
+
+  const qualityByCountry = useMemo(() => {
+    const map = new Map<string, number>()
+    leadsFiltered
+      .filter((l) => l.ai_score >= 50)
+      .forEach((l) => {
+        const country = normalizeCountry(l.country)
+        map.set(country, (map.get(country) || 0) + 1)
+      })
+    return map
+  }, [leadsFiltered])
+
+  const topMarkets = useMemo(() => {
+    const map = new Map<string, { revenue: number; bookings: number; ql: number }>()
+    filteredBookings.forEach((b) => {
+      const key = normalizeCountry(b.client_country)
+      const entry = map.get(key) || { revenue: 0, bookings: 0, ql: 0 }
+      entry.revenue += b.rvc || 0
+      entry.bookings += 1
+      map.set(key, entry)
+    })
+    qualityByCountry.forEach((ql, country) => {
+      const entry = map.get(country) || { revenue: 0, bookings: 0, ql: 0 }
+      entry.ql += ql
+      map.set(country, entry)
+    })
+
+    return Array.from(map.entries())
+      .map(([country, data]) => {
+        const closeRate = data.ql > 0 ? (data.bookings / data.ql) * 100 : 0
+        return { country, revenue: data.revenue, bookings: data.bookings, qualityLeads: data.ql, closeRate }
+      })
+      .filter((m) => m.revenue > 0 || m.qualityLeads > 0 || m.bookings > 0)
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 8)
+  }, [filteredBookings, qualityByCountry])
+
+  const funnel = useMemo(() => {
+    const steps = [
+      { label: 'LP Views', value: totals.lpViews },
+      { label: 'Leads', value: totals.leads },
+      { label: 'Quality Leads', value: totals.qualityLeads },
+      { label: 'Bookings', value: totals.bookings },
+      { label: 'Revenue', value: totals.revenue }
+    ]
+    const withRates = steps.map((s, idx) => {
+      if (idx === 0) return { ...s, rate: null }
+      const prev = steps[idx - 1].value
+      const rate = prev > 0 ? Math.round((s.value / prev) * 100) : 0
+      return { ...s, rate }
+    })
+    return withRates
+  }, [totals])
+
+  const leadTrend = useMemo(() => {
+    const { start } = dateBounds
+    const groupByWeek = days > 7
+    const map = new Map<string, { totalLeads: number; qualityLeads: number; avgAi: number; count: number; label: string }>()
+    leadsFiltered.forEach((l) => {
+      const d = new Date(l.inquiry_date)
+      const key = groupByWeek ? weekKey(d) : d.toISOString().slice(0, 10)
+      const label = groupByWeek ? weekLabel(d) : d.toLocaleDateString()
+      const entry = map.get(key) || { totalLeads: 0, qualityLeads: 0, avgAi: 0, count: 0, label }
+      entry.totalLeads += 1
+      if (l.ai_score >= 50) entry.qualityLeads += 1
+      entry.avgAi += l.ai_score || 0
+      entry.count += 1
+      map.set(key, entry)
+    })
+    return Array.from(map.values())
+      .map((v) => ({
+        label: v.label,
+        totalLeads: v.totalLeads,
+        qualityLeads: v.qualityLeads,
+        avgAiScore: v.count > 0 ? Math.round((v.avgAi / v.count) * 10) / 10 : 0
+      }))
+      .sort((a, b) => new Date(a.label).getTime() - new Date(b.label).getTime())
+  }, [leadsFiltered, dateBounds, days])
+
+  const handleAsk = async (prompt: string) => {
+    const res = await fetch('/api/insights/ask', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, filters: { dateRange: range }, sheetUrl: getSheetsUrl() })
+    })
+    if (!res.ok) throw new Error('Failed to generate insights')
+    return res.json()
+  }
+
+  useEffect(() => {
+    const loadSummary = async () => {
+      try {
+        const res = await fetch('/api/insights/summary', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filters: { dateRange: range }, sheetUrl: getSheetsUrl() })
+        })
+        if (!res.ok) return
+        const data = await res.json()
+        setAiBullets(Array.isArray(data.bullets) ? data.bullets : [])
+      } catch (err) {
+        console.error('AI summary load failed', err)
+      }
+    }
+    loadSummary()
+  }, [range])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen px-4 py-10" style={{ backgroundColor: ivory }}>
+        <div className="mx-auto max-w-7xl">
+          <p className="text-muted-foreground">Loading Command Center...</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen px-4 py-8" style={{ backgroundColor: ivory }}>
+      <div className="mx-auto max-w-7xl space-y-6">
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Command Center</h1>
+            <p className="text-sm text-muted-foreground">
+              Cross-channel performance dashboard for paid marketing
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            {(['7d', '30d', '60d', '90d'] as const).map((option) => (
+              <Button
+                key={option}
+                variant={option === range ? 'default' : 'outline'}
+                onClick={() => setRange(option)}
+                className={
+                  option === range
+                    ? 'bg-[#B39262] text-white hover:bg-[#9c7f54]'
+                    : 'border-[#e1d8c7] bg-white text-gray-700 hover:bg-[#f2ede3]'
+                }
+              >
+                {option.replace('d', ' Days')}
+              </Button>
+            ))}
+            <Button
+              variant="outline"
+              size="icon"
+              className="border-[#e1d8c7] bg-white text-gray-700 hover:bg-[#f2ede3]"
+              aria-label="Refresh data"
+              onClick={() => setRange(range)}
+            >
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <Card className="border-[#e1d8c7] bg-white shadow-sm lg:col-span-2">
+            <CardContent className="p-6 space-y-3">
+              <div className="flex items-center gap-2 text-sm font-medium text-green-600">
+                <span className="h-2 w-2 rounded-full bg-green-500" />
+                Live Revenue
+              </div>
+              <p className="text-xs tracking-[0.2em] text-gray-500">{monthRangeLabel}</p>
+              <p className="text-xs tracking-[0.2em] text-gray-500">TOTAL REVENUE WON</p>
+              <div className="text-4xl font-semibold" style={{ color: gold }}>
+                {formatCurrency(revenueTotals.totalRevenue, 'EUR')}
+              </div>
+              <div className="flex flex-wrap items-center gap-3 text-sm text-gray-700">
+                <span className="flex items-center gap-1 text-green-700">
+                  ✅ <span>{revenueTotals.deals} deals closed</span>
+                </span>
+                <span className="h-4 w-px bg-gray-200" />
+                <span>Avg {formatCurrency(revenueTotals.avgDeal, 'EUR')} per deal</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-[#e1d8c7] bg-white shadow-sm">
+            <CardContent className="p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-[#B39262]" />
+                  <div>
+                    <p className="text-sm font-semibold">AI Executive Summary</p>
+                    <p className="text-xs text-muted-foreground">Key insights for today</p>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-[#e1d8c7] bg-white text-gray-700 hover:bg-[#f2ede3]"
+                  onClick={() => setRange(range)}
+                >
+                  Refresh
+                </Button>
+              </div>
+              <div className="space-y-2 text-sm text-gray-700">
+                {aiBullets.length === 0 ? (
+                  <p className="text-muted-foreground">Insights will appear after data loads.</p>
+                ) : (
+                  aiBullets.map((b, idx) => {
+                    const clean = b.replace(/\*\*/g, '')
+                    return <p key={idx}>• {clean}</p>
+                  })
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
+          <MetricCard title="Total Spend" value={formatCurrency(totals.spend, 'EUR')} subtitle="All channels" icon={<DollarSign className="h-4 w-4 text-[#B39262]" />} />
+          <MetricCard title="Total Leads" value={totals.leads.toLocaleString()} subtitle="All sources" icon={<Users className="h-4 w-4 text-[#B39262]" />} />
+          <MetricCard title="Quality Leads" value={totals.qualityLeads.toLocaleString()} subtitle="AI ≥ 50" icon={<Sparkles className="h-4 w-4 text-[#B39262]" />} />
+          <MetricCard title="Avg AI Score" value={totals.avgAi.toFixed(1)} subtitle="avg score" icon={<Gauge className="h-4 w-4 text-[#B39262]" />} />
+          <MetricCard
+            title="CAC"
+            value={formatCurrency(cacValue, 'EUR')}
+            subtitle={cacMode === 'deals' ? 'by deals' : 'by leads'}
+            icon={<Target className="h-4 w-4 text-[#B39262]" />}
+          />
+          <MetricCard
+            title="ROAS"
+            value={`${roasValue.toFixed(2)}x`}
+            subtitle="return on ad spend"
+            icon={<BarChart3 className="h-4 w-4 text-[#34a853]" />}
+            accent="#34a853"
+          />
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <Button variant={cacMode === 'leads' ? 'default' : 'outline'} size="sm" onClick={() => setCacMode('leads')}>
+            CAC by Leads
+          </Button>
+          <Button variant={cacMode === 'deals' ? 'default' : 'outline'} size="sm" onClick={() => setCacMode('deals')}>
+            CAC by Deals
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <ChannelCard
+            title="Facebook Ads"
+            icon={<span className="text-[#1877F2]">ⓕ</span>}
+            metrics={[
+              { label: 'Spend', value: formatCurrency(channelFb.spend, 'EUR') },
+              { label: 'Leads', value: channelFb.leads.toLocaleString() },
+              { label: 'Quality Leads', value: `${channelFb.quality.toLocaleString()} (${channelFb.qRate}%)` },
+              { label: 'CPQL', value: formatCurrency(channelFb.cpql, 'EUR') },
+              { label: 'Bookings', value: channelFb.bookings.toString() },
+              { label: 'Revenue', value: formatCurrency(channelFb.revenue, 'EUR') },
+              { label: 'ROAS', value: `${channelFb.roas.toFixed(2)}x`, emphasis: true }
+            ]}
+          />
+          <ChannelCard
+            title="Google Ads"
+            icon={<span className="text-[#4285F4]">ⓖ</span>}
+            metrics={[
+              { label: 'Spend', value: formatCurrency(channelGoogle.spend, 'EUR') },
+              { label: 'Leads', value: channelGoogle.leads.toLocaleString() },
+              { label: 'Quality Leads', value: `${channelGoogle.quality.toLocaleString()} (${channelGoogle.qRate}%)` },
+              { label: 'CPQL', value: formatCurrency(channelGoogle.cpql, 'EUR') },
+              { label: 'Bookings', value: channelGoogle.bookings.toString() },
+              { label: 'Revenue', value: formatCurrency(channelGoogle.revenue, 'EUR') },
+              { label: 'ROAS', value: `${channelGoogle.roas.toFixed(2)}x`, emphasis: true }
+            ]}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <Card className="border-[#e1d8c7] bg-white shadow-sm">
+            <CardContent className="p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-semibold">Revenue by Source</p>
+                  <p className="text-xs text-muted-foreground">FB Landing, FB Lead, Google</p>
+                </div>
+                <PieIcon className="h-4 w-4 text-[#B39262]" />
+              </div>
+              <div className="h-64">
+                <ResponsiveContainer>
+                  <PieChart>
+                    <Pie data={revenueBySource} dataKey="value" nameKey="name" outerRadius={80} innerRadius={40} paddingAngle={3}>
+                      {revenueBySource.map((_, idx) => (
+                        <Cell key={idx} fill={[gold, '#D4B896', emerald][idx % 3]} />
+                      ))}
+                    </Pie>
+                    <Legend />
+                    <Tooltip formatter={(val: any) => formatCurrency(Number(val), 'EUR')} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="space-y-2 text-sm text-gray-700">
+                {revenueBySource.length === 0 && (
+                  <p className="text-muted-foreground text-sm">No revenue data in range.</p>
+                )}
+                {revenueBySource.map((item) => (
+                  <div key={item.name} className="flex items-center justify-between">
+                    <span>{item.name}</span>
+                    <span>
+                      {formatCurrency(item.value, 'EUR')} ({item.pct}%)
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-[#e1d8c7] bg-white shadow-sm">
+            <CardContent className="p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-semibold">Top Markets</p>
+                  <p className="text-xs text-muted-foreground">Funnel by country</p>
+                </div>
+              </div>
+              <div className="space-y-3">
+                {topMarkets.map((m) => (
+                  <div key={m.country} className="space-y-1">
+                    <div className="grid grid-cols-4 items-center text-sm gap-2">
+                      <span>{m.country}</span>
+                      <span className="text-gray-900 font-medium">{m.qualityLeads.toLocaleString()} QL</span>
+                      <span className="text-gray-900 font-medium">{m.bookings} bookings</span>
+                      <span className="text-gray-900 font-medium">{formatCurrency(m.revenue, 'EUR')}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>Close Rate</span>
+                      <span>{m.closeRate.toFixed(1)}%</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-full rounded bg-[#f2ede3]">
+                        <div
+                          className="h-2 rounded bg-[#B39262]"
+                          style={{
+                            width: `${Math.min(100, (m.revenue / (topMarkets[0]?.revenue || 1)) * 100)}%`
+                          }}
+                        />
+                      </div>
+                      <span className="text-sm font-semibold">{formatCurrency(m.revenue, 'EUR')}</span>
+                    </div>
+                  </div>
+                ))}
+                {topMarkets.length === 0 && <p className="text-muted-foreground text-sm">No bookings in range.</p>}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card className="border-[#e1d8c7] bg-white shadow-sm">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold">Conversion Funnel</p>
+                <p className="text-xs text-muted-foreground">LP Views → Leads → Quality Leads → Bookings → Revenue</p>
+              </div>
+            </div>
+            <div className="mt-6 flex items-center justify-between gap-2 overflow-x-auto flex-nowrap">
+              <div className="flex-1 min-w-[140px] bg-white rounded-lg shadow-sm border border-[#e1d8c7] p-4 text-center">
+                <div className="text-2xl font-bold text-gray-900">{totals.lpViews.toLocaleString()}</div>
+                <div className="text-sm text-gray-500">LP Views</div>
+              </div>
+              <div className="flex flex-col items-center px-2">
+                <span className="text-gray-400">→</span>
+                <span className="text-xs text-gray-500">
+                  {calcRate(totals.leads, totals.lpViews)}
+                </span>
+                <span className="text-[11px] text-gray-500">LP→Leads</span>
+              </div>
+              <div className="flex-1 min-w-[140px] bg-white rounded-lg shadow-sm border border-[#e1d8c7] p-4 text-center">
+                <div className="text-2xl font-bold text-gray-900">{totals.leads.toLocaleString()}</div>
+                <div className="text-sm text-gray-500">Leads</div>
+              </div>
+              <div className="flex flex-col items-center px-2">
+                <span className="text-gray-400">→</span>
+                <span className="text-xs text-gray-500">
+                  {calcRate(totals.qualityLeads, totals.leads)}
+                </span>
+                <span className="text-[11px] text-gray-500">Leads→Quality</span>
+              </div>
+              <div className="flex-1 min-w-[140px] bg-white rounded-lg shadow-sm border border-[#e1d8c7] p-4 text-center">
+                <div className="text-2xl font-bold text-gray-900">{totals.qualityLeads.toLocaleString()}</div>
+                <div className="text-sm text-gray-500">Quality Leads</div>
+              </div>
+              <div className="flex flex-col items-center px-2">
+                <span className="text-gray-400">→</span>
+                <span className="text-xs text-gray-500">
+                  {calcRate(totals.bookings, totals.qualityLeads)}
+                </span>
+                <span className="text-[11px] text-gray-500">Quality→Bookings</span>
+              </div>
+              <div className="flex-1 min-w-[140px] bg-white rounded-lg shadow-sm border border-[#e1d8c7] p-4 text-center">
+                <div className="text-2xl font-bold text-gray-900">{totals.bookings.toLocaleString()}</div>
+                <div className="text-sm text-gray-500">Bookings</div>
+              </div>
+              <div className="flex flex-col items-center px-2">
+                <span className="text-gray-400">→</span>
+              </div>
+              <div className="flex-1 min-w-[140px] bg-white rounded-lg shadow-sm border border-[#e1d8c7] p-4 text-center">
+                <div className="text-2xl font-bold text-[#B39262]">{formatCurrencyNoCents(totals.revenue, 'EUR')}</div>
+                <div className="text-sm text-gray-500">Revenue</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-[#e1d8c7] bg-white shadow-sm">
+          <CardContent className="p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold">Lead Quality Trend</p>
+                <p className="text-xs text-muted-foreground">Total Leads, Quality Leads, Avg AI Score</p>
+              </div>
+            </div>
+            <div className="h-72">
+              {leadTrend.length === 0 ? (
+                <div className="flex h-full items-center justify-center text-sm text-muted-foreground">No lead data in range.</div>
+              ) : (
+                <ResponsiveContainer>
+                  <ComposedChart data={leadTrend}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="label" />
+                    <YAxis yAxisId="left" />
+                    <YAxis yAxisId="right" orientation="right" domain={[0, 100]} />
+                    <Tooltip />
+                    <Legend />
+                    <Bar yAxisId="left" dataKey="totalLeads" name="Total Leads" fill={grayBar} />
+                    <Bar yAxisId="left" dataKey="qualityLeads" name="Quality Leads" fill={gold} />
+                    <Line yAxisId="right" type="monotone" dataKey="avgAiScore" name="Avg AI Score" stroke={darkGold} strokeWidth={2} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-[#e1d8c7] bg-white shadow-sm">
+          <CardContent className="p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold">AI Marketing Assistant</p>
+                <p className="text-xs text-muted-foreground">Ask about your marketing performance</p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {['Which campaign has best ROI?', 'How can I reduce CAC?', 'Where are we wasting spend?', 'Which market drives quality leads?'].map((qp) => (
+                <Button
+                  key={qp}
+                  variant="outline"
+                  size="sm"
+                  className="border-[#e1d8c7] bg-white text-gray-700 hover:bg-[#f2ede3]"
+                  onClick={() => setPrefill(qp)}
+                >
+                  {qp}
+                </Button>
+              ))}
+            </div>
+            <AiAsk onAsk={handleAsk} prefill={prefill} />
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+}
+
+function mapDailyRows(headers: string[], rows: any[][]): DailyRow[] {
+  if (!headers?.length || !rows?.length) return []
+  const norm = (s: any) => String(s || '').trim().toLowerCase()
+  const col = (name: string) => headers.findIndex((h) => norm(h) === name)
+  const idx = {
+    date: col('date') !== -1 ? col('date') : col('day'),
+    cost: col('cost'),
+    clicks: col('clicks'),
+    conv: col('conv'),
+    value: col('value')
+  }
+  return rows.map((r) => ({
+    date: String(r[idx.date] || ''),
+    cost: Number(r[idx.cost]) || 0,
+    clicks: Number(r[idx.clicks]) || 0,
+    conv: Number(r[idx.conv]) || 0,
+    value: Number(r[idx.value]) || 0
+  }))
+}
+
+function weekKey(d: Date) {
+  const copy = new Date(d)
+  const day = copy.getDay()
+  const diff = copy.getDate() - day + (day === 0 ? -6 : 1)
+  copy.setDate(diff)
+  copy.setHours(0, 0, 0, 0)
+  return copy.toISOString().slice(0, 10)
+}
+
+function weekLabel(d: Date) {
+  const start = new Date(weekKey(d))
+  const end = new Date(start)
+  end.setDate(end.getDate() + 6)
+  return `${start.toLocaleDateString()}`
+}
+
+function getMonthsInRange(range: '7d' | '30d' | '60d' | '90d'): string[] {
+  const now = new Date()
+  const months: string[] = []
+  let numMonths = 1
+  if (range === '30d') numMonths = 2
+  if (range === '60d') numMonths = 3
+  if (range === '90d') numMonths = 4
+
+  for (let i = 0; i < numMonths; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    months.push(monthStr)
+  }
+  return months
+}
+
+function calcRate(numerator: number, denominator: number) {
+  if (!denominator || denominator <= 0) return '—'
+  const pct = (numerator / denominator) * 100
+  return `${pct.toFixed(1)}%`
+}
+
+function formatCurrencyNoCents(value: number, currency: 'EUR' | 'USD' = 'EUR') {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency,
+    maximumFractionDigits: 0,
+    minimumFractionDigits: 0
+  }).format(value || 0)
+}
+
+function normalizeCountry(country: string) {
+  const c = (country || '').trim().toLowerCase()
+  if (!c) return 'Unknown'
+  if (['us', 'usa', 'united states', 'united states of america'].includes(c)) return 'USA'
+  if (['uk', 'united kingdom', 'great britain', 'england'].includes(c)) return 'UK'
+  if (['uae', 'united arab emirates'].includes(c)) return 'UAE'
+  if (c === 'canada' || c === 'ca') return 'Canada'
+  if (c === 'australia' || c === 'au') return 'Australia'
+  return country.toUpperCase()
+}
+
+function MetricCard({ title, value, subtitle, icon, accent }: MetricCardProps) {
+  return (
+    <Card className="border-[#e1d8c7] bg-white shadow-sm">
+      <CardContent className="p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{title}</div>
+          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[#fbf9f4]" style={{ color: accent || gold }}>
+            {icon}
+          </div>
+        </div>
+        <div className="text-2xl font-semibold text-gray-900">{value}</div>
+        {subtitle ? <div className="text-xs text-muted-foreground">{subtitle}</div> : null}
+      </CardContent>
+    </Card>
+  )
+}
+
+function ChannelCard({ title, icon, metrics }: ChannelCardProps) {
+  return (
+    <Card className="border-[#e1d8c7] bg-white shadow-sm">
+      <CardContent className="p-6 space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#fbf9f4] text-lg">{icon}</div>
+          <div>
+            <p className="text-sm font-semibold">{title}</p>
+            <p className="text-xs text-muted-foreground">Performance overview</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {metrics.map((metric) => (
+            <div key={metric.label} className="rounded-lg border border-[#e1d8c7] bg-[#fbf9f4] p-3">
+              <div className="text-xs text-muted-foreground">{metric.label}</div>
+              <div className={`text-sm font-semibold ${metric.emphasis ? 'text-[#1d7a3d]' : 'text-gray-900'}`}>{metric.value}</div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+

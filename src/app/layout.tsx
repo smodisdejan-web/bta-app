@@ -17,7 +17,7 @@ export default function RootLayout({
       <body className={inter.className}>
         <SettingsProvider>
           <Navigation />
-          <main className="min-h-screen bg-gray-50">
+          <main className="min-h-screen bg-gray-50 pt-20 md:pt-24">
             {children}
           </main>
           <Toaster />
