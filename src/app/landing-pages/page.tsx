@@ -279,24 +279,8 @@ export default function LandingPagesPage() {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 pt-16">
-        <div className="container mx-auto px-6 py-8">
-          <div className="text-center">
-            <div className="relative">
-              <div className="animate-spin rounded-full h-16 w-16 border-4 border-gray-200 border-t-primary mx-auto"></div>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <BarChart3 className="h-6 w-6 text-primary animate-pulse" />
-              </div>
-            </div>
-            <p className="mt-6 text-lg text-gray-600 font-medium">Loading landing pages analytics...</p>
-            <p className="mt-2 text-sm text-gray-500">Fetching latest performance data</p>
-          </div>
-        </div>
-      </div>
-    )
-  }
+  // NEVER block rendering - always show the page immediately
+  // Data will load in the background and appear when ready
 
   if (error) {
     return (

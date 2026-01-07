@@ -28,14 +28,17 @@ export default function SettingsPage() {
     setError(undefined)
 
     try {
+      console.log('[Settings] Refreshing data...')
       await refreshData()
-      router.push('/')
+      console.log('[Settings] Data refresh complete, redirecting...')
+      // Use window.location for more reliable navigation
+      window.location.href = '/'
     } catch (err) {
       console.error('Error updating data:', err)
       setError('Failed to update data. Please check your Sheet URL or network connection.')
-    } finally {
       setIsLoading(false)
     }
+    // Don't set isLoading to false here - we're navigating away
   }
 
   return (

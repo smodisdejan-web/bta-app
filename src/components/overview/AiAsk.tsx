@@ -5,19 +5,60 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Copy, Sparkles } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useToast } from '@/hooks/use-toast'
 import { AIAskResponse } from '@/lib/overview-types'
 
 interface AiAskProps {
   onAsk: (prompt: string) => Promise<AIAskResponse>
+  prefill?: string
 }
 
-export function AiAsk({ onAsk }: AiAskProps) {
+function normalizeBullets(raw: any): string[] {
+  let bullets: string[] = []
+
+  try {
+    let data: any = raw
+    if (typeof data === 'string') {
+      data = JSON.parse(data)
+    }
+    if (data && Array.isArray(data.bullets)) {
+      bullets = data.bullets
+    } else if (Array.isArray(data)) {
+      bullets = data
+    }
+  } catch (e) {
+    console.error('Failed to parse AI response:', e)
+    bullets = []
+  }
+
+  return bullets
+    .map((b) => b.replace(/\*\*/g, '').trim())
+    .filter(Boolean)
+}
+
+function renderBullet(text: string, key: number) {
+  const html = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+  return (
+    <p
+      key={key}
+      className="text-sm leading-relaxed text-[#1a1a1a]"
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  )
+}
+
+export function AiAsk({ onAsk, prefill }: AiAskProps) {
   const [prompt, setPrompt] = useState('')
   const [loading, setLoading] = useState(false)
-  const [response, setResponse] = useState<string[]>([])
+  const [bullets, setBullets] = useState<string[]>([])
   const { toast } = useToast()
+  
+  useEffect(() => {
+    if (prefill) {
+      setPrompt(prefill)
+    }
+  }, [prefill])
   
   const handleSubmit = async () => {
     if (!prompt.trim()) return
@@ -25,7 +66,8 @@ export function AiAsk({ onAsk }: AiAskProps) {
     setLoading(true)
     try {
       const result = await onAsk(prompt)
-      setResponse(result.bullets)
+      let bullets = normalizeBullets(result)
+      setBullets(bullets)
     } catch (error) {
       toast({
         title: 'Error',
@@ -38,7 +80,7 @@ export function AiAsk({ onAsk }: AiAskProps) {
   }
   
   const handleCopy = () => {
-    const text = response.join('\n')
+    const text = bullets.join('\n')
     navigator.clipboard.writeText(text)
     toast({
       title: 'Copied',
@@ -69,8 +111,8 @@ export function AiAsk({ onAsk }: AiAskProps) {
           {loading ? 'Generating...' : 'Generate AI Insights'}
         </Button>
         
-        {response.length > 0 && (
-          <div className="space-y-2">
+        {bullets.length > 0 && (
+          <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h4 className="text-sm font-semibold">Insights:</h4>
               <Button
@@ -82,14 +124,13 @@ export function AiAsk({ onAsk }: AiAskProps) {
                 Copy
               </Button>
             </div>
-            <ul className="space-y-2 bg-muted p-4 rounded-lg">
-              {response.map((bullet, idx) => (
-                <li key={idx} className="flex items-start gap-2 text-sm">
-                  <span className="text-primary mt-1">•</span>
-                  <span>{bullet}</span>
-                </li>
+            <div className="space-y-3 bg-muted p-4 rounded-lg">
+              {bullets.map((bullet, idx) => (
+                <p key={idx} className="text-sm leading-relaxed text-[#1a1a1a] whitespace-pre-wrap mb-2">
+                  {bullet}
+                </p>
               ))}
-            </ul>
+            </div>
           </div>
         )}
       </CardContent>

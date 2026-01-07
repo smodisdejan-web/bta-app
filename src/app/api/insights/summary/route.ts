@@ -1,14 +1,21 @@
 // src/app/api/insights/summary/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import OpenAI from 'openai'
-import { getOverviewMetrics, getDateRange, isDateInRange } from '@/lib/overview-data'
+import { getOpenAI, hasOpenAIKey } from '@/lib/ai'
+import { getDateRangeSync as getDateRange } from '@/lib/overview-data'
 import { OverviewFilters } from '@/lib/overview-types'
-import { fetchFbEnriched, fetchSheet, totalsFb } from '@/lib/sheetsData'
+import {
+  fetchFbEnriched,
+  fetchSheet,
+  totalsFb,
+  fetchBookings,
+  calculateBookingMetrics,
+  fetchStreakLeads,
+  fetchStreakLeadsGoogle
+} from '@/lib/sheetsData'
+import { loadFbDashboard } from '@/lib/loaders/fb-dashboard'
+import { loadGoogleTraffic } from '@/lib/sheetsData'
 
 export const runtime = 'nodejs'
-
-const hasOpenAI = !!process.env.OPENAI_API_KEY
-const openai = hasOpenAI ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY! }) : null
 
 export async function POST(req: NextRequest) {
   try {
@@ -18,138 +25,266 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing filters' }, { status: 400 })
     }
     
-    // Get metrics
-    const metrics = await getOverviewMetrics(filters as OverviewFilters, sheetUrl)
-    
-    // Get enriched FB totals for context
-    const enrichedRows = await fetchFbEnriched(fetchSheet, sheetUrl)
+    const days = filters.dateRange === '7d' ? 7 : filters.dateRange === '30d' ? 30 : filters.dateRange === '60d' ? 60 : 90
     const { start, end } = getDateRange(filters.dateRange, filters.customStart, filters.customEnd)
-    const prevStart = new Date(start)
-    const prevEnd = new Date(end)
-    const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
-    prevStart.setDate(prevStart.getDate() - daysDiff)
-    prevEnd.setDate(prevEnd.getDate() - daysDiff)
-    
-    const currentEnriched = enrichedRows.filter(row => {
-      const dateStr = row.date_iso || row.date_start
-      return isDateInRange(dateStr, start, end)
+    const sheets = sheetUrl || process.env.NEXT_PUBLIC_SHEETS_URL || ''
+
+    // Bookings & revenue
+    const bookings = await fetchBookings(fetchSheet, sheets)
+    const startISO = start.toISOString().slice(0, 10)
+    const endISO = end.toISOString().slice(0, 10)
+    const bookingMetrics = calculateBookingMetrics(bookings, startISO, endISO, 'all')
+    const fbBookingMetrics = calculateBookingMetrics(bookings, startISO, endISO, 'fb')
+    const googleBookingMetrics = calculateBookingMetrics(bookings, startISO, endISO, 'google')
+
+    // Streak leads (fb + google)
+    const streakFb = await fetchStreakLeads(fetchSheet, sheets)
+    const streakGoogle = await fetchStreakLeadsGoogle(fetchSheet, sheets)
+    const allLeads = [...streakFb, ...streakGoogle].filter((l) => {
+      if (!l.inquiry_date) return false
+      const d = new Date(l.inquiry_date)
+      return d >= start && d <= end
     })
-    const prevEnriched = filters.comparePrevious ? enrichedRows.filter(row => {
-      const dateStr = row.date_iso || row.date_start
-      return isDateInRange(dateStr, prevStart, prevEnd)
-    }) : []
-    
-    const fb = totalsFb(currentEnriched)
-    const prevFb = totalsFb(prevEnriched)
-    
-    // Build context for AI
-    const context = `
-Marketing Performance Metrics (${filters.dateRange}):
+    const fbLeadsFiltered = streakFb.filter((l) => {
+      if (!l.inquiry_date) return false
+      const d = new Date(l.inquiry_date)
+      return d >= start && d <= end
+    })
+    const googleLeadsFiltered = streakGoogle.filter((l) => {
+      if (!l.inquiry_date) return false
+      const d = new Date(l.inquiry_date)
+      return d >= start && d <= end
+    })
+    const totalLeads = allLeads.length
+    const qualityLeads = allLeads.filter((l) => l.ai_score >= 50).length
+    const avgAiScore =
+      allLeads.length > 0
+        ? Math.round(
+            (allLeads.reduce((sum, l) => sum + (l.ai_score || 0), 0) / allLeads.length) * 10
+          ) / 10
+        : 0
+    const fbQualityLeads = fbLeadsFiltered.filter((l) => l.ai_score >= 50).length
+    const googleQualityLeads = googleLeadsFiltered.filter((l) => l.ai_score >= 50).length
 
-Business Metrics:
-- Revenue Won: €${metrics.revenueWon.value.toFixed(2)} ${metrics.revenueWon.deltaPct !== null ? `(${metrics.revenueWon.deltaPct > 0 ? '+' : ''}${metrics.revenueWon.deltaPct.toFixed(1)}% vs previous)` : ''}
-- Won Deals: ${metrics.wonDeals.value} ${metrics.wonDeals.deltaPct !== null ? `(${metrics.wonDeals.deltaPct > 0 ? '+' : ''}${metrics.wonDeals.deltaPct.toFixed(1)}% vs previous)` : ''}
-- Win Rate: ${metrics.winRate.value.toFixed(1)}% ${metrics.winRate.deltaPct !== null ? `(${metrics.winRate.deltaPct > 0 ? '+' : ''}${metrics.winRate.deltaPct.toFixed(1)}pp vs previous)` : ''}
-- Avg Deal Size: €${metrics.avgDealSize.value.toFixed(2)} ${metrics.avgDealSize.deltaPct !== null ? `(${metrics.avgDealSize.deltaPct > 0 ? '+' : ''}${metrics.avgDealSize.deltaPct.toFixed(1)}% vs previous)` : ''}
+    // FB / Google spend & leads
+    const fbDashboard = await loadFbDashboard().catch(() => null)
+    const fbSpend = fbDashboard?.spend ?? 0
+    const fbLeadsSummary = fbDashboard?.leads ?? 0
+    const googleTraffic = await loadGoogleTraffic(sheets)
+    const gaSpend = Object.entries(googleTraffic.gaSpendByDate || {}).reduce((sum, [k, v]) => {
+      return k >= startISO && k <= endISO ? sum + (v || 0) : sum
+    }, 0)
+    const gaLeads = Object.entries(googleTraffic.gaConvByDate || {}).reduce((sum, [k, v]) => {
+      return k >= startISO && k <= endISO ? sum + (v || 0) : sum
+    }, 0)
 
-Acquisition Metrics:
-- Spend: €${metrics.spend.value.toFixed(2)} ${metrics.spend.deltaPct !== null ? `(${metrics.spend.deltaPct > 0 ? '+' : ''}${metrics.spend.deltaPct.toFixed(1)}% vs previous)` : ''}
-- Leads: ${metrics.leads.value} ${metrics.leads.deltaPct !== null ? `(${metrics.leads.deltaPct > 0 ? '+' : ''}${metrics.leads.deltaPct.toFixed(1)}% vs previous)` : ''}
-- CAC: €${metrics.cac.value.toFixed(2)} ${metrics.cac.deltaPct !== null ? `(${metrics.cac.deltaPct > 0 ? '+' : ''}${metrics.cac.deltaPct.toFixed(1)}% vs previous)` : ''}
-- ROAS: ${metrics.roas.toFixed(2)}x ${metrics.roas.deltaPct !== null ? `(${metrics.roas.deltaPct > 0 ? '+' : ''}${metrics.roas.deltaPct.toFixed(1)}% vs previous)` : ''}
+    // Top markets by close rate
+    const normalizeCountry = (country: string | null | undefined) => {
+      if (!country) return 'Unknown'
+      const normalized = country.toString().trim().toUpperCase()
+      const countryMap: Record<string, string> = {
+        'US': 'USA',
+        'UNITED STATES': 'USA',
+        'AMERICA': 'USA',
+        'U.S.': 'USA',
+        'U.S.A.': 'USA',
+        'GB': 'UK',
+        'UNITED KINGDOM': 'UK',
+        'GREAT BRITAIN': 'UK',
+        'ENGLAND': 'UK',
+        'BR': 'BRAZIL',
+        'BRASIL': 'BRAZIL',
+        'CA': 'CANADA',
+        'AU': 'AUSTRALIA',
+        'ES': 'SPAIN',
+        'ESPAÑA': 'SPAIN',
+        'FR': 'FRANCE',
+        'MX': 'MEXICO',
+        'MÉXICO': 'MEXICO',
+        'DE': 'GERMANY',
+        'DEUTSCHLAND': 'GERMANY',
+        'AR': 'ARGENTINA',
+        'PT': 'PORTUGAL',
+        'ANTIQUA': 'ANTIGUA'
+      }
+      return countryMap[normalized] || normalized
+    }
 
-Facebook summary context: spend: €${fb.spend.toFixed(2)}, clicks: ${fb.clicks}, LP views: ${fb.lp_views}, FB form leads: ${fb.fb_form_leads}, landing leads: ${fb.landing_leads}. ${prevFb.spend > 0 ? `Previous period: spend: €${prevFb.spend.toFixed(2)}, clicks: ${prevFb.clicks}, LP views: ${prevFb.lp_views}, FB form leads: ${prevFb.fb_form_leads}, landing leads: ${prevFb.landing_leads}.` : ''} Compare to previous period deltas if available. Call out notable changes ≥ ±10%.
+    const leadsByCountry: Record<string, { leads: number; ql: number }> = {}
+    allLeads.forEach((l) => {
+      const c = normalizeCountry((l as any).country)
+      if (c === 'Unknown') return
+      if (!leadsByCountry[c]) leadsByCountry[c] = { leads: 0, ql: 0 }
+      leadsByCountry[c].leads += 1
+      if ((l as any).ai_score >= 50) leadsByCountry[c].ql += 1
+    })
+    const bookingsByCountry: Record<string, { bookings: number; revenue: number }> = {}
+    bookings.forEach((b) => {
+      const c = normalizeCountry((b as any).client_country)
+      if (c === 'Unknown') return
+      if (!bookingsByCountry[c]) bookingsByCountry[c] = { bookings: 0, revenue: 0 }
+      bookingsByCountry[c].bookings += 1
+      bookingsByCountry[c].revenue += b.rvc || 0
+    })
+    const topMarkets = Array.from(
+      new Set([...Object.keys(leadsByCountry), ...Object.keys(bookingsByCountry)])
+    )
+      .map((c) => {
+        const leads = leadsByCountry[c]?.leads || 0
+        const ql = leadsByCountry[c]?.ql || 0
+        const bookingsCount = bookingsByCountry[c]?.bookings || 0
+        const revenue = bookingsByCountry[c]?.revenue || 0
+        const closeRate = ql > 0 ? (bookingsCount / ql) * 100 : 0
+        return { country: c, leads, ql, bookings: bookingsCount, revenue, closeRate }
+      })
+      .filter((c) => c.country !== 'Unknown')
+      .sort((a, b) => b.closeRate - a.closeRate)
+      .slice(0, 6)
 
-Funnel:
-- LP Views: ${metrics.lpViews.toLocaleString()}
-- Leads: ${metrics.leadsCount.toLocaleString()} (${metrics.lpToLeadRate.toFixed(1)}% conversion)
-- SQL: ${metrics.sqlCount.toLocaleString()} (${metrics.leadToSqlRate.toFixed(1)}% conversion)
-- Deals: ${metrics.dealsCount.toLocaleString()} (${metrics.sqlToDealRate.toFixed(1)}% conversion)
-- Revenue: €${metrics.revenueTotal.toFixed(2)}
-`
-    
-    // Generate summary using AI or fallback to rule-based
-    if (openai) {
-      try {
-        const completion = await openai.chat.completions.create({
-          model: 'gpt-4o-mini',
-          temperature: 0.3,
-          messages: [
-            {
-              role: 'system',
-              content: 'You are a marketing analyst. Generate exactly 5 concise bullet points highlighting the most important changes and insights from the marketing performance data. Focus on notable increases/decreases, trends, and actionable insights. Each bullet should be one sentence. Ensure at least one bullet mentions Landing Leads vs FB Form Leads, LP→Lead conversion, or spend efficiency.'
-            },
-            {
-              role: 'user',
-              content: `Analyze this marketing performance data and provide 5 key insights:\n\n${context}`
-            }
-          ]
-        })
-        
-        const text = completion.choices?.[0]?.message?.content?.trim() || ''
-        const bullets = text
-          .split('\n')
-          .map(line => line.replace(/^[-•*]\s*/, '').trim())
-          .filter(line => line.length > 0)
-          .slice(0, 5)
-        
-        return NextResponse.json({ bullets })
-      } catch (aiError) {
-        console.error('AI generation failed, using fallback:', aiError)
-        // Fall through to rule-based
+    // Weekly trend (last 4-13 weeks depending on range)
+    const isDaily = days === 7
+    const startOfWeek = (d: Date) => {
+      const copy = new Date(d)
+      const day = copy.getDay()
+      const diff = (day + 6) % 7
+      copy.setDate(copy.getDate() - diff)
+      copy.setHours(0, 0, 0, 0)
+      return copy
+    }
+    const labelForDate = (d: Date) =>
+      d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    const buckets = new Map<
+      string,
+      { total: number; ql: number; aiSum: number; aiCount: number; start: Date }
+    >()
+    if (isDaily) {
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        const key = labelForDate(d)
+        buckets.set(key, { total: 0, ql: 0, aiSum: 0, aiCount: 0, start: new Date(d) })
+      }
+    } else {
+      for (let d = startOfWeek(start); d <= end; d.setDate(d.getDate() + 7)) {
+        const key = labelForDate(d)
+        buckets.set(key, { total: 0, ql: 0, aiSum: 0, aiCount: 0, start: new Date(d) })
       }
     }
-    
-    // Rule-based fallback
-    const bullets: string[] = []
-    
-    if (metrics.revenueWon.deltaPct !== null && Math.abs(metrics.revenueWon.deltaPct) > 5) {
-      bullets.push(
-        `Revenue ${metrics.revenueWon.deltaPct > 0 ? 'increased' : 'decreased'} by ${Math.abs(metrics.revenueWon.deltaPct).toFixed(1)}% to €${metrics.revenueWon.value.toFixed(2)}`
-      )
-    }
-    
-    if (metrics.cac.deltaPct !== null && Math.abs(metrics.cac.deltaPct) > 10) {
-      bullets.push(
-        `CAC ${metrics.cac.deltaPct > 0 ? 'increased' : 'decreased'} by ${Math.abs(metrics.cac.deltaPct).toFixed(1)}% to €${metrics.cac.value.toFixed(2)}`
-      )
-    }
-    
-    if (metrics.roas.deltaPct !== null && Math.abs(metrics.roas.deltaPct) > 10) {
-      bullets.push(
-        `ROAS ${metrics.roas.deltaPct > 0 ? 'improved' : 'declined'} by ${Math.abs(metrics.roas.deltaPct).toFixed(1)}% to ${metrics.roas.value.toFixed(2)}x`
-      )
-    }
-    
-    if (metrics.winRate.deltaPct !== null && Math.abs(metrics.winRate.deltaPct) > 2) {
-      bullets.push(
-        `Win Rate ${metrics.winRate.deltaPct > 0 ? 'improved' : 'declined'} by ${Math.abs(metrics.winRate.deltaPct).toFixed(1)} percentage points to ${metrics.winRate.value.toFixed(1)}%`
-      )
-    }
-    
-    if (metrics.spend.deltaPct !== null && Math.abs(metrics.spend.deltaPct) > 10) {
-      bullets.push(
-        `Spend ${metrics.spend.deltaPct > 0 ? 'increased' : 'decreased'} by ${Math.abs(metrics.spend.deltaPct).toFixed(1)}% to €${metrics.spend.value.toFixed(2)}`
-      )
-    }
-    
-    // Fill remaining slots with general insights
-    while (bullets.length < 5) {
-      if (bullets.length === 0) {
-        bullets.push(`Total revenue: €${metrics.revenueWon.value.toFixed(2)} from ${metrics.wonDeals.value} won deals`)
-      } else if (bullets.length === 1) {
-        bullets.push(`Generated ${metrics.leads.value} leads with a CAC of €${metrics.cac.value.toFixed(2)}`)
-      } else if (bullets.length === 2) {
-        bullets.push(`ROAS of ${metrics.roas.toFixed(2)}x indicates ${metrics.roas > 3 ? 'strong' : metrics.roas > 2 ? 'moderate' : 'weak'} return on ad spend`)
-      } else if (bullets.length === 3) {
-        bullets.push(`Funnel conversion: ${metrics.lpToLeadRate.toFixed(1)}% LP→Lead, ${metrics.leadToSqlRate.toFixed(1)}% Lead→SQL`)
-      } else {
-        bullets.push(`Average deal size: €${metrics.avgDealSize.value.toFixed(2)}`)
-        break
+    allLeads.forEach((l) => {
+      if (!l.inquiry_date) return
+      const d = new Date(l.inquiry_date)
+      if (d < start || d > end) return
+      const bucketDate = isDaily ? d : startOfWeek(d)
+      const key = labelForDate(bucketDate)
+      if (!buckets.has(key)) {
+        buckets.set(key, { total: 0, ql: 0, aiSum: 0, aiCount: 0, start: bucketDate })
       }
+      const b = buckets.get(key)!
+      b.total += 1
+      if (l.ai_score >= 50) b.ql += 1
+      if (l.ai_score > 0) {
+        b.aiSum += l.ai_score
+        b.aiCount += 1
+      }
+    })
+    const weeklyTrend = Array.from(buckets.values())
+      .sort((a, b) => a.start.getTime() - b.start.getTime())
+      .map((b) => ({
+        week: labelForDate(b.start),
+        totalLeads: b.total,
+        qlRate: b.total > 0 ? Math.round(((b.ql / b.total) * 100) * 10) / 10 : 0,
+        avgAiScore: b.aiCount > 0 ? Math.round((b.aiSum / b.aiCount) * 10) / 10 : 0
+      }))
+
+    const aiContext = {
+      dateRange: `${days} days`,
+      totalSpend: fbSpend + gaSpend,
+      totalRevenue: bookingMetrics.totalRevenue,
+      totalBookings: bookingMetrics.bookingCount,
+      avgDealValue: bookingMetrics.avgDealValue,
+      overallROAS: (fbSpend + gaSpend) > 0 ? bookingMetrics.totalRevenue / (fbSpend + gaSpend) : 0,
+      facebook: {
+        spend: fbSpend,
+        leads: fbLeadsSummary || fbLeadsFiltered.length,
+        qualityLeads: fbQualityLeads,
+        qlRate: fbLeadsFiltered.length > 0 ? (fbQualityLeads / fbLeadsFiltered.length) * 100 : 0,
+        bookings: fbBookingMetrics.bookingCount,
+        revenue: fbBookingMetrics.totalRevenue,
+        roas: fbSpend > 0 ? fbBookingMetrics.totalRevenue / fbSpend : 0,
+        cpql: fbQualityLeads > 0 ? fbSpend / fbQualityLeads : 0
+      },
+      google: {
+        spend: gaSpend,
+        leads: gaLeads,
+        qualityLeads: googleQualityLeads,
+        qlRate: gaLeads > 0 ? (googleQualityLeads / gaLeads) * 100 : 0,
+        bookings: googleBookingMetrics.bookingCount,
+        revenue: googleBookingMetrics.totalRevenue,
+        roas: gaSpend > 0 ? googleBookingMetrics.totalRevenue / gaSpend : 0,
+        cpql: googleQualityLeads > 0 ? gaSpend / googleQualityLeads : 0
+      },
+      weeklyTrend,
+      topMarkets
     }
-    
-    return NextResponse.json({ bullets: bullets.slice(0, 5) })
+
+    const systemPrompt = `You are a senior marketing analyst for Goolets, a luxury yacht charter company. 
+Analyze the marketing performance data and provide 3-5 bullet point insights.
+
+Focus on:
+1. Revenue and booking performance - what's working, what's not
+2. Channel efficiency - Facebook vs Google, where to invest more
+3. Lead quality trends - is quality improving or declining
+4. Market opportunities - which countries show best potential
+5. Cost efficiency - CAC/CPQL changes, budget optimization
+
+Rules:
+- Be specific with numbers (e.g., "3.23x vs 1.64x" not "significantly higher")
+- Be actionable (e.g., "consider shifting 20% budget to Google" not "Google is performing well")
+- Prioritize insights by business impact
+- Keep each bullet to 1-2 sentences
+- Use € for currency
+- This is a luxury business with 3-6 month sales cycles - context matters`
+
+    const userPrompt = `Here is the marketing data for the last ${aiContext.dateRange}:
+
+${JSON.stringify(aiContext, null, 2)}
+
+Provide 3-5 key insights as bullet points. Start each with an emoji that matches the sentiment (📈 positive, 📉 negative, 💡 opportunity, ⚠️ warning).`
+
+    if (!hasOpenAIKey()) {
+      return NextResponse.json({
+        bullets: [
+          'AI insights require OPENAI_API_KEY to be configured.',
+          'Please set OPENAI_API_KEY in your environment variables.',
+          'Alternatively, review spend, ROAS, and quality lead trends manually.'
+        ]
+      })
+    }
+
+    try {
+      const openai = getOpenAI()
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        temperature: 0.3,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ]
+      })
+      const text = completion.choices?.[0]?.message?.content?.trim() || ''
+      const bullets = text
+        .split('\n')
+        .map(line => line.replace(/^[-•*]\s*/, '').trim())
+        .filter(line => line.length > 0)
+        .slice(0, 5)
+      return NextResponse.json({ bullets, context: aiContext })
+    } catch (err) {
+      console.error('[insights/summary] AI call failed', err)
+      return NextResponse.json({
+        bullets: [
+          'Unable to generate insights. Please try again.',
+          'If the issue persists, verify OPENAI_API_KEY and network access.'
+        ]
+      })
+    }
   } catch (err: any) {
     console.error('[insights/summary] error', err)
     return NextResponse.json(

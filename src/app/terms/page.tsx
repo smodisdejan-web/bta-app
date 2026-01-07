@@ -290,16 +290,8 @@ export default function TermsPage() {
         )
     }
 
-    if (isDataLoading) {
-        return (
-            <div className="container mx-auto px-4 py-12 mt-16">
-                <div className="flex items-center justify-center py-20">
-                    <RefreshCw className="h-8 w-8 animate-spin text-primary mr-3" />
-                    <p className="text-muted-foreground">Loading search terms...</p>
-                </div>
-            </div>
-        )
-    }
+    // NEVER block rendering - always show the page immediately
+    // Data will load in the background and appear when ready
 
     const SortButton = ({ field, children }: { field: SortField, children: React.ReactNode }) => (
         <Button

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react'
 import { useSettings } from '@/lib/contexts/SettingsContext'
-import { fetchFacebookAds, aggregateByCampaign, calculateTotals, type FacebookAdRecord } from '@/lib/facebook-ads'
+import { fetchFacebookAds, aggregateByCampaign, calculateTotals, addAiMetrics, type FacebookAdRecord } from '@/lib/facebook-ads'
 import { formatCurrency } from '@/lib/utils'
 import { COLORS } from '@/lib/config'
 import { 
@@ -22,7 +22,10 @@ import {
   Calendar,
   BarChart3,
   Sparkles,
-  Zap
+  Zap,
+  Trophy,
+  Star,
+  Target
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -39,6 +42,7 @@ import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { AiAsk } from '@/components/overview/AiAsk'
 
 // Enhanced Metric Card Component
 const MetricCard = ({ 
@@ -109,6 +113,36 @@ export default function FacebookAdsPage() {
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
   const [dateRange, setDateRange] = useState<'7d' | '30d' | '90d' | 'custom'>('30d')
   const [customDateRange, setCustomDateRange] = useState<[Date, Date] | null>(null)
+  const [aiBullets, setAiBullets] = useState<string[]>([])
+  const [aiLoading, setAiLoading] = useState(false)
+  const generateAiSummary = async () => {
+    if (!settings.sheetUrl) return
+    setAiLoading(true)
+    try {
+      const res = await fetch('/api/insights/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: 'Provide 3-5 concise insights to optimize Facebook Ads for Goolets. Focus on campaign efficiency, creative performance, audience targeting, lead form vs landing page comparison, and CPQL optimization.',
+          filters: { dateRange, channel: 'facebook', comparePrevious: true },
+          sheetUrl: settings.sheetUrl
+        })
+      })
+      if (!res.ok) {
+        console.error('AI FB summary failed:', res.status, await res.text())
+        setAiBullets([])
+        return
+      }
+      const data = await res.json()
+      const parsed = Array.isArray(data?.bullets) ? data.bullets : []
+      setAiBullets(parsed.map((b: string) => b.replace(/\*\*/g, '')))
+    } catch (e) {
+      console.error('AI FB summary error:', e)
+      setAiBullets([])
+    } finally {
+      setAiLoading(false)
+    }
+  }
 
   useEffect(() => {
     const loadData = async () => {
@@ -134,6 +168,10 @@ export default function FacebookAdsPage() {
 
     loadData()
   }, [settings.sheetUrl])
+
+  useEffect(() => {
+    generateAiSummary()
+  }, [settings.sheetUrl, dateRange])
 
   // Get date range boundaries (defined early for use in JSX)
   const getDateRangeBounds = useMemo(() => {
@@ -199,11 +237,16 @@ export default function FacebookAdsPage() {
   // Process data based on view mode and filters
   const processedData = useMemo(() => {
     // First filter by date range
+    const { startDate, endDate } = getDateRangeBounds()
     let filtered = filterByDateRange(data)
     
     // Then aggregate if needed
     let processed = viewMode === 'campaign' 
-      ? aggregateByCampaign(filtered)
+      ? addAiMetrics(
+          aggregateByCampaign(filtered),
+          startDate?.toISOString().split('T')[0],
+          endDate?.toISOString().split('T')[0]
+        )
       : filtered
 
     // Apply search filter
@@ -216,8 +259,24 @@ export default function FacebookAdsPage() {
 
     // Sort
     processed = [...processed].sort((a, b) => {
-      const aVal = a[sortField] as number
-      const bVal = b[sortField] as number
+      const av = a[sortField] as number | undefined
+      const bv = b[sortField] as number | undefined
+
+      if (sortField === 'cpql') {
+        // Lower CPQL is better
+        const aVal = av ?? Infinity
+        const bVal = bv ?? Infinity
+        return sortDirection === 'desc' ? aVal - bVal : bVal - aVal
+      }
+
+      if (sortField === 'qualityRate') {
+        const aVal = av ?? 0
+        const bVal = bv ?? 0
+        return sortDirection === 'desc' ? bVal - aVal : aVal - bVal
+      }
+
+      const aVal = av ?? 0
+      const bVal = bv ?? 0
       return sortDirection === 'asc' ? aVal - bVal : bVal - aVal
     })
 
@@ -236,6 +295,19 @@ export default function FacebookAdsPage() {
     })
     return result
   }, [filteredDataForTotals])
+
+  // Calculate AI metrics totals from processed campaign data
+  const aiTotals = useMemo(() => {
+    if (viewMode !== 'campaign') return null
+    const campaigns = processedData as FacebookAdRecord[]
+    const totalQuality = campaigns.reduce((sum, c) => sum + (c.qualityLeads || 0), 0)
+    const totalExcellent = campaigns.reduce((sum, c) => sum + (c.excellentLeads || 0), 0)
+    const totalLeadsWithAi = campaigns.reduce((sum, c) => sum + (c.totalLeads || 0), 0)
+    const totalSpend = campaigns.reduce((sum, c) => sum + c.spend, 0)
+    const avgQualityRate = totalLeadsWithAi > 0 ? Math.round((totalQuality / totalLeadsWithAi) * 100) : 0
+    const avgCpql = totalQuality > 0 ? Math.round((totalSpend / totalQuality) * 100) / 100 : 0
+    return { totalQuality, totalExcellent, totalLeadsWithAi, avgQualityRate, avgCpql }
+  }, [processedData, viewMode])
 
   // Format currency
   const fmtEUR = (n: number) => formatCurrency(n, '€')
@@ -281,6 +353,34 @@ export default function FacebookAdsPage() {
     return Array.from(dailyMap.values())
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
   }, [data, viewMode, dateRange, customDateRange])
+
+  // Quality highlights from processed campaign data
+  const qualityHighlights = useMemo(() => {
+    if (viewMode !== 'campaign' || !processedData.length) return null
+    const campaigns = processedData as FacebookAdRecord[]
+    const withQuality = campaigns.filter(c => (c.qualityLeads || 0) > 0)
+    const withTracked = campaigns.filter(c => (c.totalLeads || 0) > 0)
+
+    const bestCpql = withQuality.length > 0
+      ? withQuality.reduce((best, c) =>
+          (c.cpql || Infinity) < (best.cpql || Infinity) ? c : best
+        )
+      : null
+
+    const highestQRate = withTracked.length > 0
+      ? withTracked.reduce((best, c) =>
+          (c.qualityRate || 0) > (best.qualityRate || 0) ? c : best
+        )
+      : null
+
+    const mostQuality = withQuality.length > 0
+      ? withQuality.reduce((best, c) =>
+          (c.qualityLeads || 0) > (best.qualityLeads || 0) ? c : best
+        )
+      : null
+
+    return { bestCpql, highestQRate, mostQuality }
+  }, [processedData, viewMode])
 
   // Handle sort
   const handleSort = (field: keyof FacebookAdRecord) => {
@@ -377,6 +477,44 @@ export default function FacebookAdsPage() {
           </Card>
         )}
 
+        {/* AI Executive Summary */}
+        <div className="bg-[#fdf8f3] rounded-3xl p-6 shadow-sm border border-[#e8d5b0]/50">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[#b48e49]/10 flex items-center justify-center">
+                <Sparkles className="w-5 h-5 text-[#b48e49]" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-[#1a1a1a]">AI Executive Summary</h3>
+                <p className="text-xs text-[#6b7280]">Facebook Ads insights</p>
+              </div>
+            </div>
+            <button
+              onClick={generateAiSummary}
+              disabled={aiLoading}
+              className="text-sm text-[#b48e49] hover:text-[#96743c] font-medium flex items-center gap-1 disabled:opacity-50"
+            >
+              <RefreshCw className={`w-4 h-4 ${aiLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+          </div>
+          <div className="space-y-3">
+            {aiLoading && <div className="text-sm text-[#6b7280]">Generating insights...</div>}
+            {!aiLoading && aiBullets.length === 0 && (
+              <div className="text-sm text-[#6b7280]">Click refresh to generate AI insights.</div>
+            )}
+            {!aiLoading && aiBullets.length > 0 && (
+              <div className="space-y-3">
+                {aiBullets.map((b, i) => (
+                  <p key={i} className="text-sm leading-relaxed text-[#1a1a1a] whitespace-pre-wrap">
+                    {b}
+                  </p>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* KPI Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <MetricCard
@@ -411,6 +549,85 @@ export default function FacebookAdsPage() {
             subtitle={`${data.length > 0 && totals.lpViews > 0 ? ((totals.landingLeads / totals.lpViews) * 100).toFixed(1) : 0}% conversion`}
           />
         </div>
+
+        {/* AI Quality Metrics Row */}
+        {aiTotals && aiTotals.totalLeadsWithAi > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            {/* CPQL Card */}
+            <Card className="bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="p-2 rounded-lg bg-amber-100">
+                        <Zap className="h-4 w-4 text-amber-600" />
+                      </div>
+                      <span className="text-sm font-medium text-amber-800">CPQL</span>
+                      <div className="group relative">
+                        <span className="text-amber-400 cursor-help text-xs">ⓘ</span>
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
+                          Cost Per Quality Lead (AI Score 50+)
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-3xl font-bold text-amber-900">€{aiTotals.avgCpql.toFixed(2)}</div>
+                    <div className="text-xs text-amber-600 mt-1">Lower is better</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Quality Leads Card */}
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="p-2 rounded-lg bg-green-100">
+                    <Users className="h-4 w-4 text-green-600" />
+                  </div>
+                  <span className="text-sm font-medium text-gray-600">Quality Leads</span>
+                  <div className="group relative">
+                    <span className="text-gray-400 cursor-help text-xs">ⓘ</span>
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
+                      Leads with AI Score ≥ 50
+                    </div>
+                  </div>
+                </div>
+                <div className="text-3xl font-bold text-gray-900">{aiTotals.totalQuality}</div>
+                <div className="text-xs text-gray-500 mt-1">
+                  <span className="text-green-600 font-medium">{aiTotals.totalExcellent}</span> excellent (70+)
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Quality Rate Card */}
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="p-2 rounded-lg bg-blue-100">
+                    <TrendingUp className="h-4 w-4 text-blue-600" />
+                  </div>
+                  <span className="text-sm font-medium text-gray-600">Quality Rate</span>
+                </div>
+                <div className="text-3xl font-bold text-gray-900">{aiTotals.avgQualityRate}%</div>
+                <div className="text-xs text-gray-500 mt-1">of leads are quality</div>
+              </CardContent>
+            </Card>
+
+            {/* Tracked Leads Card */}
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="p-2 rounded-lg bg-purple-100">
+                    <BarChart3 className="h-4 w-4 text-purple-600" />
+                  </div>
+                  <span className="text-sm font-medium text-gray-600">Tracked Leads</span>
+                </div>
+                <div className="text-3xl font-bold text-gray-900">{aiTotals.totalLeadsWithAi}</div>
+                <div className="text-xs text-gray-500 mt-1">with AI score</div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         {/* Filters and Controls */}
         <Card>
@@ -509,67 +726,78 @@ export default function FacebookAdsPage() {
           </CardContent>
         </Card>
 
-        {/* Top Campaigns Summary */}
-        {viewMode === 'campaign' && processedData.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                  <Zap className="h-4 w-4 text-primary" />
-                  Top Spender
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {(() => {
-                  const top = [...processedData].sort((a, b) => b.spend - a.spend)[0]
-                  return (
-                    <div>
-                      <div className="text-lg font-bold text-gray-900">{top.campaign}</div>
-                      <div className="text-sm text-gray-600 mt-1">{fmtEUR(top.spend)}</div>
+        {/* Quality Highlight Cards */}
+        {qualityHighlights && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            {/* Best CPQL */}
+            <Card className="bg-gradient-to-br from-amber-50 to-yellow-50 border-amber-200/50">
+              <CardContent className="p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="p-1.5 rounded-md bg-amber-100">
+                    <Trophy className="h-4 w-4 text-amber-600" />
+                  </div>
+                  <span className="text-sm font-medium text-amber-700">Best CPQL</span>
+                </div>
+                {qualityHighlights.bestCpql ? (
+                  <>
+                    <div className="font-semibold text-gray-900 truncate mb-1">
+                      {qualityHighlights.bestCpql.campaign}
                     </div>
-                  )
-                })()}
+                    <div className="text-lg font-bold text-amber-700">
+                      €{qualityHighlights.bestCpql.cpql?.toFixed(2)} per quality lead
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-gray-400 text-sm">No data</div>
+                )}
               </CardContent>
             </Card>
 
-            <Card className="bg-gradient-to-br from-green-50 to-green-100/50 border-green-200/50">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-green-600" />
-                  Most Clicks
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {(() => {
-                  const top = [...processedData].sort((a, b) => b.clicks - a.clicks)[0]
-                  return (
-                    <div>
-                      <div className="text-lg font-bold text-gray-900">{top.campaign}</div>
-                      <div className="text-sm text-gray-600 mt-1">{top.clicks.toLocaleString()} clicks</div>
+            {/* Highest Quality Rate */}
+            <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-green-200/50">
+              <CardContent className="p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="p-1.5 rounded-md bg-green-100">
+                    <Star className="h-4 w-4 text-green-600" />
+                  </div>
+                  <span className="text-sm font-medium text-green-700">Highest Quality Rate</span>
+                </div>
+                {qualityHighlights.highestQRate ? (
+                  <>
+                    <div className="font-semibold text-gray-900 truncate mb-1">
+                      {qualityHighlights.highestQRate.campaign}
                     </div>
-                  )
-                })()}
+                    <div className="text-lg font-bold text-green-700">
+                      {qualityHighlights.highestQRate.qualityRate}% quality rate
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-gray-400 text-sm">No data</div>
+                )}
               </CardContent>
             </Card>
 
-            <Card className="bg-gradient-to-br from-blue-50 to-blue-100/50 border-blue-200/50">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                  <Users className="h-4 w-4 text-blue-600" />
-                  Most Leads
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {(() => {
-                  const top = [...processedData].sort((a, b) => (b.fbFormLeads + b.landingLeads) - (a.fbFormLeads + a.landingLeads))[0]
-                  const totalLeads = top.fbFormLeads + top.landingLeads
-                  return (
-                    <div>
-                      <div className="text-lg font-bold text-gray-900">{top.campaign}</div>
-                      <div className="text-sm text-gray-600 mt-1">{totalLeads.toLocaleString()} total leads</div>
+            {/* Most Quality Leads */}
+            <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200/50">
+              <CardContent className="p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="p-1.5 rounded-md bg-blue-100">
+                    <Target className="h-4 w-4 text-blue-600" />
+                  </div>
+                  <span className="text-sm font-medium text-blue-700">Most Quality Leads</span>
+                </div>
+                {qualityHighlights.mostQuality ? (
+                  <>
+                    <div className="font-semibold text-gray-900 truncate mb-1">
+                      {qualityHighlights.mostQuality.campaign}
                     </div>
-                  )
-                })()}
+                    <div className="text-lg font-bold text-blue-700">
+                      {qualityHighlights.mostQuality.qualityLeads} quality leads
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-gray-400 text-sm">No data</div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -772,12 +1000,42 @@ export default function FacebookAdsPage() {
                         Landing Leads
                       </div>
                     </TableHead>
+                    <TableHead className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        Quality
+                        <div className="group relative">
+                          <span className="text-gray-400 cursor-help text-xs">ⓘ</span>
+                          <div className="absolute bottom-full right-0 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
+                            Quality (Excellent) - AI Score 50+ (70+)
+                          </div>
+                        </div>
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="text-right cursor-pointer hover:bg-gray-50"
+                      onClick={() => handleSort('qualityRate')}
+                    >
+                      <div className="flex items-center justify-end">
+                        Q.Rate
+                        <SortIndicator field="qualityRate" />
+                      </div>
+                    </TableHead>
+                    <TableHead className="text-right">Avg AI</TableHead>
+                    <TableHead 
+                      className="text-right cursor-pointer hover:bg-gray-50"
+                      onClick={() => handleSort('cpql')}
+                    >
+                      <div className="flex items-center justify-end">
+                        CPQL
+                        <SortIndicator field="cpql" />
+                      </div>
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {processedData.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={viewMode === 'daily' ? 7 : 6} className="text-center py-8 text-gray-500">
+                      <TableCell colSpan={viewMode === 'daily' ? 11 : 10} className="text-center py-8 text-gray-500">
                         No data found
                       </TableCell>
                     </TableRow>
@@ -814,6 +1072,49 @@ export default function FacebookAdsPage() {
                             {row.landingLeads.toLocaleString()}
                           </Badge>
                         </TableCell>
+                        <TableCell className="text-right">
+                          {row.qualityLeads !== undefined ? (
+                            <span>
+                              {row.qualityLeads}
+                              {row.excellentLeads ? (
+                                <span className="text-green-600 text-xs ml-1">
+                                  ({row.excellentLeads})
+                                </span>
+                              ) : null}
+                            </span>
+                          ) : '-'}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {row.qualityRate !== undefined && row.qualityRate > 0 ? (
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                              row.qualityRate >= 50 
+                                ? 'bg-green-100 text-green-800 ring-1 ring-green-600/20' 
+                                : row.qualityRate >= 30 
+                                ? 'bg-yellow-100 text-yellow-800 ring-1 ring-yellow-600/20' 
+                                : 'bg-red-100 text-red-800 ring-1 ring-red-600/20'
+                            }`}>
+                              {row.qualityRate}%
+                            </span>
+                          ) : (
+                            <span className="text-gray-300">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {row.avgAiScore !== undefined ? row.avgAiScore : '-'}
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-sm">
+                          {row.cpql && row.cpql > 0 ? (
+                            <span className={`${
+                              row.cpql < 50 ? 'text-green-600 font-semibold' :
+                              row.cpql < 100 ? 'text-yellow-600' :
+                              'text-red-600'
+                            }`}>
+                              €{row.cpql.toFixed(2)}
+                            </span>
+                          ) : (
+                            <span className="text-gray-300">-</span>
+                          )}
+                        </TableCell>
                       </TableRow>
                     ))
                   )}
@@ -822,6 +1123,30 @@ export default function FacebookAdsPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Legend */}
+        <div className="mt-4 pt-4 border-t border-gray-100">
+          <div className="flex flex-wrap gap-4 text-xs text-gray-500">
+            <div className="flex items-center gap-2">
+              <span className="font-medium">Quality:</span> AI Score 50+ (includes Excellent 70+)
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-medium">CPQL:</span> Cost Per Quality Lead = Spend ÷ Quality Leads
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="inline-block w-3 h-3 rounded-full bg-green-100 ring-1 ring-green-600/20"></span>
+              <span>Q.Rate ≥50%</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="inline-block w-3 h-3 rounded-full bg-yellow-100 ring-1 ring-yellow-600/20"></span>
+              <span>Q.Rate 30-49%</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="inline-block w-3 h-3 rounded-full bg-red-100 ring-1 ring-red-600/20"></span>
+              <span>Q.Rate &lt;30%</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )

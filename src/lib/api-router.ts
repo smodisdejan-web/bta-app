@@ -105,22 +105,20 @@ async function callGemini(prompt: string, context: string): Promise<LLMResponse>
  * Call OpenAI API
  */
 async function callOpenAI(prompt: string, context: string): Promise<LLMResponse> {
-  const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY
+  // This function should only be called from server-side code
+  // Import dynamically to avoid client bundle inclusion
+  const { getOpenAI, hasOpenAIKey } = await import('@/lib/ai')
   
-  if (!apiKey) {
+  if (!hasOpenAIKey()) {
     return {
       text: '',
-      error: 'OpenAI API key not configured.\n\n📝 Setup Instructions:\n1. Get your API key: https://platform.openai.com/api-keys\n2. Add to .env.local: NEXT_PUBLIC_OPENAI_API_KEY=your_key_here\n3. Restart your dev server\n\n💰 Note: OpenAI charges per token. Consider trying Gemini Pro (free tier) first!'
+      error: 'OpenAI API key not configured.\n\n📝 Setup Instructions:\n1. Get your API key: https://platform.openai.com/api-keys\n2. Add to .env.local: OPENAI_API_KEY=your_key_here\n3. Restart your dev server\n\n💰 Note: OpenAI charges per token. Consider trying Gemini Pro (free tier) first!'
     }
   }
 
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
+  try {
+    const openai = getOpenAI()
+    const completion = await openai.chat.completions.create({
       model: 'gpt-4',
       messages: [
         {
@@ -134,22 +132,21 @@ async function callOpenAI(prompt: string, context: string): Promise<LLMResponse>
       ],
       temperature: 0.7
     })
-  })
+    
+    const text = completion.choices?.[0]?.message?.content || ''
+    const tokenUsage = completion.usage ? {
+      inputTokens: completion.usage.prompt_tokens || 0,
+      outputTokens: completion.usage.completion_tokens || 0,
+      totalTokens: completion.usage.total_tokens || 0
+    } : undefined
 
-  if (!response.ok) {
-    throw new Error(`OpenAI API error: ${response.statusText}`)
+    return { text, tokenUsage }
+  } catch (error: any) {
+    return {
+      text: '',
+      error: error?.message || 'OpenAI API error occurred'
+    }
   }
-
-  const data = await response.json()
-  const text = data.choices?.[0]?.message?.content || ''
-  
-  const tokenUsage = data.usage ? {
-    inputTokens: data.usage.prompt_tokens || 0,
-    outputTokens: data.usage.completion_tokens || 0,
-    totalTokens: data.usage.total_tokens || 0
-  } : undefined
-
-  return { text, tokenUsage }
 }
 
 /**

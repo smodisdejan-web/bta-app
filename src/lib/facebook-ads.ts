@@ -1,6 +1,7 @@
 // src/lib/facebook-ads.ts
 import { DEFAULT_WEB_APP_URL } from './config'
-import { fetchFbEnriched, fetchSheet, FbEnrichedRow } from './sheetsData'
+import { fetchFbEnriched, fetchSheet, FbEnrichedRow, fetchStreakLeads, StreakLeadRow } from './sheetsData'
+import { matchLeadsToCampaigns } from './fuzzy-match'
 
 export interface FacebookAdRecord {
   date: string
@@ -11,8 +12,17 @@ export interface FacebookAdRecord {
   fbFormLeads: number
   landingLeads: number
   impressions?: number
+  totalLeads?: number
+  qualityLeads?: number
+  excellentLeads?: number
+  qualityRate?: number
+  avgAiScore?: number
+  cpql?: number
   [key: string]: any
 }
+
+// Cached Streak leads to reuse in page-level aggregation
+let cachedStreakLeads: StreakLeadRow[] | null = null
 
 // Map enriched rows to FacebookAdRecord format
 function mapEnrichedToRecord(row: FbEnrichedRow): FacebookAdRecord {
@@ -30,12 +40,24 @@ function mapEnrichedToRecord(row: FbEnrichedRow): FacebookAdRecord {
 
 export async function fetchFacebookAds(sheetUrl: string = DEFAULT_WEB_APP_URL): Promise<FacebookAdRecord[]> {
   try {
-    const enrichedRows = await fetchFbEnriched(fetchSheet)
+    const [enrichedRows, streakLeads] = await Promise.all([
+      fetchFbEnriched(fetchSheet),
+      fetchStreakLeads(fetchSheet)
+    ])
+
+    // Cache streak leads for later aggregation
+    cachedStreakLeads = streakLeads
+
+    // Return raw records with dates; page handles filtering/aggregation
     return enrichedRows.map(mapEnrichedToRecord)
   } catch (error) {
     console.error('Error fetching Facebook Ads:', error)
     return []
   }
+}
+
+export function getStreakLeads(): StreakLeadRow[] {
+  return cachedStreakLeads || []
 }
 
 export function aggregateByCampaign(records: FacebookAdRecord[]): FacebookAdRecord[] {
@@ -77,7 +99,7 @@ export function aggregateByCampaign(records: FacebookAdRecord[]): FacebookAdReco
     } else {
       // Create a fresh copy to avoid reference issues
       campaignMap.set(record.campaign, {
-        date: '', // No single date for aggregated campaign
+        date: record.date || '', // retain date if present
         campaign: record.campaign,
         spend: record.spend,
         clicks: record.clicks,
@@ -103,5 +125,66 @@ export function calculateTotals(records: FacebookAdRecord[]) {
     }),
     { spend: 0, clicks: 0, lpViews: 0, fbFormLeads: 0, landingLeads: 0 }
   )
+}
+
+// Attach AI metrics to campaigns using Streak leads (optionally filtered by date)
+export function addAiMetrics(
+  campaigns: FacebookAdRecord[],
+  startDate?: string,
+  endDate?: string
+): FacebookAdRecord[] {
+  let streakLeads = getStreakLeads()
+  if (streakLeads.length === 0) return campaigns
+
+  // Filter Streak leads by date range if provided
+  if (startDate && endDate) {
+    const start = new Date(startDate)
+    const end = new Date(endDate)
+    end.setHours(23, 59, 59, 999)
+    streakLeads = streakLeads.filter(lead => {
+      if (!lead.inquiry_date) return false
+      const d = new Date(lead.inquiry_date)
+      return d >= start && d <= end
+    })
+    console.log(`[AI Metrics] Filtered streak leads: ${streakLeads.length} in range ${startDate} to ${endDate}`)
+  }
+
+  const campaignNames = campaigns.map(c => c.campaign)
+  const mapping = matchLeadsToCampaigns(streakLeads, campaignNames)
+
+  const leadsByCampaign = new Map<string, StreakLeadRow[]>()
+  for (const lead of streakLeads) {
+    const campaign = mapping.get(lead.source_placement)
+    if (campaign) {
+      const arr = leadsByCampaign.get(campaign) || []
+      arr.push(lead)
+      leadsByCampaign.set(campaign, arr)
+    }
+  }
+
+  return campaigns.map(campaign => {
+    const leads = leadsByCampaign.get(campaign.campaign) || []
+    const leadsWithAi = leads.filter(l => l.ai_score > 0)
+    const totalLeads = leadsWithAi.length
+    const qualityLeads = leadsWithAi.filter(l => l.ai_score >= 50).length
+    const excellentLeads = leadsWithAi.filter(l => l.ai_score >= 70).length
+    const avgAiScore = totalLeads > 0
+      ? Math.round(leadsWithAi.reduce((sum, l) => sum + l.ai_score, 0) / totalLeads)
+      : 0
+    const qualityRate = totalLeads > 0
+      ? Math.round((qualityLeads / totalLeads) * 100)
+      : 0
+    const cpql = qualityLeads > 0 ? Math.round((campaign.spend / qualityLeads) * 100) / 100 : 0
+
+    return {
+      ...campaign,
+      totalLeads,
+      qualityLeads,
+      excellentLeads,
+      qualityRate,
+      avgAiScore,
+      cpql
+    }
+  })
 }
 

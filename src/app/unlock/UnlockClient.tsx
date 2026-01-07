@@ -1,9 +1,14 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
-type Props = { redirect: string };
+type Props = { redirect?: string };
 
-export default function UnlockClient({ redirect }: Props) {
+export default function UnlockClient({ redirect: redirectProp }: Props) {
+  const searchParams = useSearchParams();
+  // Decode the redirect URL in case it's URL-encoded
+  const rawRedirect = redirectProp || searchParams.get('redirect') || '/';
+  const redirect = decodeURIComponent(rawRedirect);
   const [pw, setPw] = useState("");
   const [show, setShow] = useState(false);
   const [caps, setCaps] = useState(false);
@@ -25,13 +30,18 @@ export default function UnlockClient({ redirect }: Props) {
         body: JSON.stringify({ password: pw, remember }),
       });
       const data = await res.json();
+      console.log('[Unlock] API response:', data);
       if (!res.ok) {
         setErr(data?.error || "Unable to unlock.");
         setLoading(false);
         return;
       }
-      // Use window.location for immediate redirect after cookie is set
-      window.location.href = redirect || "/";
+      // Use window.location.href for immediate redirect after cookie is set
+      // Small delay to ensure cookie is set before redirect
+      console.log('[Unlock] Success! Redirecting to:', redirect);
+      setTimeout(() => {
+        window.location.href = redirect || "/";
+      }, 100);
     } catch {
       setErr("Network error. Please try again.");
       setLoading(false);

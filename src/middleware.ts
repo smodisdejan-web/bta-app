@@ -17,6 +17,9 @@ export function middleware(request: NextRequest) {
   const PUBLIC_PATHS = [
     '/unlock',
     '/api/auth',
+    '/api/health',
+    '/api/openai-health',
+    '/api/sheets-probe',
     '/api/insights', // <= required
     '/api/models',
     '/api/diag',

@@ -1,14 +1,21 @@
 // src/app/api/insights/ask/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import OpenAI from 'openai'
-import { getOverviewMetrics, getCampaignPerformance, getDateRange, isDateInRange } from '@/lib/overview-data'
+import { getOpenAI, hasOpenAIKey } from '@/lib/ai'
+import { getDateRangeSync as getDateRange } from '@/lib/overview-data'
 import { OverviewFilters } from '@/lib/overview-types'
-import { fetchFbEnriched, fetchSheet, totalsFb } from '@/lib/sheetsData'
+import {
+  fetchSheet,
+  fetchBookings,
+  calculateBookingMetrics,
+  fetchStreakLeads,
+  fetchStreakLeadsGoogle,
+  fetchFbEnriched,
+  totalsFb
+} from '@/lib/sheetsData'
+import { loadFbDashboard } from '@/lib/loaders/fb-dashboard'
+import { loadGoogleTraffic } from '@/lib/sheetsData'
 
 export const runtime = 'nodejs'
-
-const hasOpenAI = !!process.env.OPENAI_API_KEY
-const openai = hasOpenAI ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY! }) : null
 
 export async function POST(req: NextRequest) {
   try {
@@ -22,82 +29,252 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing filters' }, { status: 400 })
     }
     
-    // Get metrics and campaign data
-    const [metrics, campaigns] = await Promise.all([
-      getOverviewMetrics(filters as OverviewFilters, sheetUrl),
-      getCampaignPerformance(filters as OverviewFilters, sheetUrl)
-    ])
-    
-    // Get enriched FB totals for context
-    const enrichedRows = await fetchFbEnriched(fetchSheet, sheetUrl)
+    const days = filters.dateRange === '7d' ? 7 : filters.dateRange === '30d' ? 30 : filters.dateRange === '60d' ? 60 : 90
     const { start, end } = getDateRange(filters.dateRange, filters.customStart, filters.customEnd)
-    
-    const currentEnriched = enrichedRows.filter(row => {
-      const dateStr = row.date_iso || row.date_start
-      return isDateInRange(dateStr, start, end)
+    const sheets = sheetUrl || process.env.NEXT_PUBLIC_SHEETS_URL || ''
+
+    // Bookings & revenue
+    const bookings = await fetchBookings(fetchSheet, sheets)
+    const startISO = start.toISOString().slice(0, 10)
+    const endISO = end.toISOString().slice(0, 10)
+    const bookingMetrics = calculateBookingMetrics(bookings, startISO, endISO, 'all')
+    const fbBookingMetrics = calculateBookingMetrics(bookings, startISO, endISO, 'fb')
+    const googleBookingMetrics = calculateBookingMetrics(bookings, startISO, endISO, 'google')
+
+    // Streak leads
+    const streakFb = await fetchStreakLeads(fetchSheet, sheets)
+    const streakGoogle = await fetchStreakLeadsGoogle(fetchSheet, sheets)
+    const allLeads = [...streakFb, ...streakGoogle].filter((l) => {
+      if (!l.inquiry_date) return false
+      const d = new Date(l.inquiry_date)
+      return d >= start && d <= end
     })
-    
-    const fb = totalsFb(currentEnriched)
-    
-    // Build context
-    const context = `
-Marketing Performance Data (${filters.dateRange}):
+    const fbLeadsFiltered = streakFb.filter((l) => {
+      if (!l.inquiry_date) return false
+      const d = new Date(l.inquiry_date)
+      return d >= start && d <= end
+    })
+    const googleLeadsFiltered = streakGoogle.filter((l) => {
+      if (!l.inquiry_date) return false
+      const d = new Date(l.inquiry_date)
+      return d >= start && d <= end
+    })
+    const totalLeads = allLeads.length
+    const qualityLeads = allLeads.filter((l) => l.ai_score >= 50).length
+    const avgAiScore =
+      allLeads.length > 0
+        ? Math.round(
+            (allLeads.reduce((sum, l) => sum + (l.ai_score || 0), 0) / allLeads.length) * 10
+          ) / 10
+        : 0
+    const fbQualityLeads = fbLeadsFiltered.filter((l) => l.ai_score >= 50).length
+    const googleQualityLeads = googleLeadsFiltered.filter((l) => l.ai_score >= 50).length
 
-Key Metrics:
-- Revenue: €${metrics.revenueWon.value.toFixed(2)}
-- Won Deals: ${metrics.wonDeals.value}
-- Win Rate: ${metrics.winRate.value.toFixed(1)}%
-- Spend: €${metrics.spend.value.toFixed(2)}
-- Leads: ${metrics.leads.value}
-- CAC: €${metrics.cac.value.toFixed(2)}
-- ROAS: ${metrics.roas.toFixed(2)}x
+    // FB / Google spend & leads
+    const fbDashboard = await loadFbDashboard().catch(() => null)
+    const fbSpend = fbDashboard?.spend ?? 0
+    const fbLeadsSummary = fbDashboard?.leads ?? 0
+    const googleTraffic = await loadGoogleTraffic(sheets)
+    const gaSpend = Object.entries(googleTraffic.gaSpendByDate || {}).reduce((sum, [k, v]) => {
+      return k >= startISO && k <= endISO ? sum + (v || 0) : sum
+    }, 0)
+    const gaLeads = Object.entries(googleTraffic.gaConvByDate || {}).reduce((sum, [k, v]) => {
+      return k >= startISO && k <= endISO ? sum + (v || 0) : sum
+    }, 0)
 
-Facebook enriched data: spend: €${fb.spend.toFixed(2)}, clicks: ${fb.clicks}, LP views: ${fb.lp_views}, FB form leads: ${fb.fb_form_leads}, landing leads: ${fb.landing_leads}. You can answer questions about the difference between landing leads and FB form leads, LP→Lead conversion rates, and spend efficiency.
+    // Top markets (close rate)
+    const normalizeCountry = (country: string | null | undefined) => {
+      if (!country) return 'Unknown'
+      const normalized = country.toString().trim().toUpperCase()
+      const countryMap: Record<string, string> = {
+        'US': 'USA',
+        'UNITED STATES': 'USA',
+        'AMERICA': 'USA',
+        'U.S.': 'USA',
+        'U.S.A.': 'USA',
+        'GB': 'UK',
+        'UNITED KINGDOM': 'UK',
+        'GREAT BRITAIN': 'UK',
+        'ENGLAND': 'UK',
+        'BR': 'BRAZIL',
+        'BRASIL': 'BRAZIL',
+        'CA': 'CANADA',
+        'AU': 'AUSTRALIA',
+        'ES': 'SPAIN',
+        'ESPAÑA': 'SPAIN',
+        'FR': 'FRANCE',
+        'MX': 'MEXICO',
+        'MÉXICO': 'MEXICO',
+        'DE': 'GERMANY',
+        'DEUTSCHLAND': 'GERMANY',
+        'AR': 'ARGENTINA',
+        'PT': 'PORTUGAL',
+        'ANTIQUA': 'ANTIGUA'
+      }
+      return countryMap[normalized] || normalized
+    }
+    const leadsByCountry: Record<string, { leads: number; ql: number }> = {}
+    allLeads.forEach((l) => {
+      const c = normalizeCountry((l as any).country)
+      if (c === 'Unknown') return
+      if (!leadsByCountry[c]) leadsByCountry[c] = { leads: 0, ql: 0 }
+      leadsByCountry[c].leads += 1
+      if ((l as any).ai_score >= 50) leadsByCountry[c].ql += 1
+    })
+    const bookingsByCountry: Record<string, { bookings: number; revenue: number }> = {}
+    bookings.forEach((b) => {
+      const c = normalizeCountry((b as any).client_country)
+      if (c === 'Unknown') return
+      if (!bookingsByCountry[c]) bookingsByCountry[c] = { bookings: 0, revenue: 0 }
+      bookingsByCountry[c].bookings += 1
+      bookingsByCountry[c].revenue += b.rvc || 0
+    })
+    const topMarkets = Array.from(
+      new Set([...Object.keys(leadsByCountry), ...Object.keys(bookingsByCountry)])
+    )
+      .map((c) => {
+        const leads = leadsByCountry[c]?.leads || 0
+        const ql = leadsByCountry[c]?.ql || 0
+        const bookingsCount = bookingsByCountry[c]?.bookings || 0
+        const revenue = bookingsByCountry[c]?.revenue || 0
+        const closeRate = ql > 0 ? (bookingsCount / ql) * 100 : 0
+        return { country: c, leads, ql, bookings: bookingsCount, revenue, closeRate }
+      })
+      .filter((c) => c.country !== 'Unknown')
+      .sort((a, b) => b.closeRate - a.closeRate)
+      .slice(0, 6)
 
-Top Campaigns by Revenue:
-${campaigns.slice(0, 10).map(c => `- ${c.campaign} (${c.channel}): €${c.revenue.toFixed(2)} revenue, €${c.spend.toFixed(2)} spend, ${c.leads} leads`).join('\n')}
-`
-    
-    // Generate answer using AI or fallback
-    if (openai) {
-      try {
-        const completion = await openai.chat.completions.create({
-          model: 'gpt-4o-mini',
-          temperature: 0.3,
-          messages: [
-            {
-              role: 'system',
-              content: 'You are a marketing analyst. Answer questions about marketing performance data with concise, actionable insights. Provide up to 5 bullet points. You have access to Facebook enriched data including landing leads vs FB form leads, LP views, clicks, and spend. Use this data to answer questions about lead sources, conversion rates, and spend efficiency.'
-            },
-            {
-              role: 'user',
-              content: `Context:\n${context}\n\nQuestion: ${prompt}\n\nProvide a concise answer with up to 5 bullet points.`
-            }
-          ]
-        })
-        
-        const text = completion.choices?.[0]?.message?.content?.trim() || ''
-        const bullets = text
-          .split('\n')
-          .map(line => line.replace(/^[-•*]\s*/, '').trim())
-          .filter(line => line.length > 0)
-          .slice(0, 5)
-        
-        return NextResponse.json({ bullets })
-      } catch (aiError) {
-        console.error('AI generation failed, using fallback:', aiError)
-        // Fall through to fallback
+    // Weekly trend
+    const isDaily = days === 7
+    const startOfWeek = (d: Date) => {
+      const copy = new Date(d)
+      const day = copy.getDay()
+      const diff = (day + 6) % 7
+      copy.setDate(copy.getDate() - diff)
+      copy.setHours(0, 0, 0, 0)
+      return copy
+    }
+    const labelForDate = (d: Date) =>
+      d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    const buckets = new Map<
+      string,
+      { total: number; ql: number; aiSum: number; aiCount: number; start: Date }
+    >()
+    if (isDaily) {
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        const key = labelForDate(d)
+        buckets.set(key, { total: 0, ql: 0, aiSum: 0, aiCount: 0, start: new Date(d) })
+      }
+    } else {
+      for (let d = startOfWeek(start); d <= end; d.setDate(d.getDate() + 7)) {
+        const key = labelForDate(d)
+        buckets.set(key, { total: 0, ql: 0, aiSum: 0, aiCount: 0, start: new Date(d) })
       }
     }
-    
-    // Fallback response
-    return NextResponse.json({
-      bullets: [
-        'AI insights require OPENAI_API_KEY to be configured.',
-        'Please set OPENAI_API_KEY in your environment variables.',
-        'Alternatively, check the metrics above for manual analysis.'
-      ]
+    allLeads.forEach((l) => {
+      if (!l.inquiry_date) return
+      const d = new Date(l.inquiry_date)
+      if (d < start || d > end) return
+      const bucketDate = isDaily ? d : startOfWeek(d)
+      const key = labelForDate(bucketDate)
+      if (!buckets.has(key)) {
+        buckets.set(key, { total: 0, ql: 0, aiSum: 0, aiCount: 0, start: bucketDate })
+      }
+      const b = buckets.get(key)!
+      b.total += 1
+      if (l.ai_score >= 50) b.ql += 1
+      if (l.ai_score > 0) {
+        b.aiSum += l.ai_score
+        b.aiCount += 1
+      }
     })
+    const weeklyTrend = Array.from(buckets.values())
+      .sort((a, b) => a.start.getTime() - b.start.getTime())
+      .map((b) => ({
+        week: labelForDate(b.start),
+        totalLeads: b.total,
+        qlRate: b.total > 0 ? Math.round(((b.ql / b.total) * 100) * 10) / 10 : 0,
+        avgAiScore: b.aiCount > 0 ? Math.round((b.aiSum / b.aiCount) * 10) / 10 : 0
+      }))
+
+    const aiContext = {
+      dateRange: `${days} days`,
+      totalSpend: fbSpend + gaSpend,
+      totalRevenue: bookingMetrics.totalRevenue,
+      totalBookings: bookingMetrics.bookingCount,
+      avgDealValue: bookingMetrics.avgDealValue,
+      overallROAS: (fbSpend + gaSpend) > 0 ? bookingMetrics.totalRevenue / (fbSpend + gaSpend) : 0,
+      facebook: {
+        spend: fbSpend,
+        leads: fbLeadsSummary || fbLeadsFiltered.length,
+        qualityLeads: fbQualityLeads,
+        qlRate: fbLeadsFiltered.length > 0 ? (fbQualityLeads / fbLeadsFiltered.length) * 100 : 0,
+        bookings: fbBookingMetrics.bookingCount,
+        revenue: fbBookingMetrics.totalRevenue,
+        roas: fbSpend > 0 ? fbBookingMetrics.totalRevenue / fbSpend : 0,
+        cpql: fbQualityLeads > 0 ? fbSpend / fbQualityLeads : 0
+      },
+      google: {
+        spend: gaSpend,
+        leads: gaLeads,
+        qualityLeads: googleQualityLeads,
+        qlRate: gaLeads > 0 ? (googleQualityLeads / gaLeads) * 100 : 0,
+        bookings: googleBookingMetrics.bookingCount,
+        revenue: googleBookingMetrics.totalRevenue,
+        roas: gaSpend > 0 ? googleBookingMetrics.totalRevenue / gaSpend : 0,
+        cpql: googleQualityLeads > 0 ? gaSpend / googleQualityLeads : 0
+      },
+      weeklyTrend,
+      topMarkets
+    }
+
+    const systemPrompt = `You are a senior marketing analyst for Goolets, a luxury yacht charter company. 
+Answer the user's question with concise, actionable insights based on the provided data.
+Focus on revenue/bookings, channel efficiency, lead quality trends, market opportunities, and cost efficiency (CAC/CPQL).
+Keep each bullet to 1-2 sentences, use € for currency, and consider 3-6 month sales cycles.`
+
+    const userPrompt = `Here is the marketing data for the last ${aiContext.dateRange}:
+
+${JSON.stringify(aiContext, null, 2)}
+
+Question: ${prompt}
+
+Provide up to 5 key insights as bullet points. Start each with an emoji matching sentiment (📈 positive, 📉 negative, 💡 opportunity, ⚠️ warning).`
+
+    if (!hasOpenAIKey()) {
+      return NextResponse.json({
+        error: 'Missing OPENAI_API_KEY',
+        bullets: [
+          'AI insights require OPENAI_API_KEY to be configured.',
+          'Please set OPENAI_API_KEY in your environment variables.'
+        ]
+      }, { status: 500 })
+    }
+
+    try {
+      const openai = getOpenAI()
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        temperature: 0.3,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ]
+      })
+      const text = completion.choices?.[0]?.message?.content?.trim() || ''
+      const bullets = text
+        .split('\n')
+        .map(line => line.replace(/^[-•*]\s*/, '').trim())
+        .filter(line => line.length > 0)
+        .slice(0, 5)
+      return NextResponse.json({ bullets, context: aiContext })
+    } catch (aiError) {
+      console.error('[insights/ask] AI generation failed:', aiError)
+      return NextResponse.json(
+        { error: 'Failed to generate insights via OpenAI', details: `${aiError}` },
+        { status: 500 }
+      )
+    }
   } catch (err: any) {
     console.error('[insights/ask] error', err)
     return NextResponse.json(

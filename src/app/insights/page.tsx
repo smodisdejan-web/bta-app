@@ -123,18 +123,18 @@ export default function DataInsightsPage() {
     }
   }, [])
 
-  // Timeout for loading state - if loading takes more than 15 seconds, show error
+  // Timeout for loading state - show page after 500ms even if still loading
   useEffect(() => {
-    if (isDataLoading) {
+    if (isDataLoading && !fetchedData) {
       const timeout = setTimeout(() => {
         setLoadingTimeout(true)
-      }, 15000) // 15 seconds
+      }, 500) // 500ms - ultra-aggressive, render page almost immediately
       
       return () => clearTimeout(timeout)
     } else {
       setLoadingTimeout(false)
     }
-  }, [isDataLoading])
+  }, [isDataLoading, fetchedData])
 
   // Note: History tracking removed as InsightsGenerator is now a standalone component
 
@@ -248,90 +248,8 @@ export default function DataInsightsPage() {
     }
   }
 
-  if (isDataLoading && !loadingTimeout) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
-        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-        <p className="text-muted-foreground">Loading your data...</p>
-        <p className="text-xs text-muted-foreground mt-2">This is taking longer than usual...</p>
-      </div>
-    )
-  }
-
-  // If loading is taking too long, show timeout error
-  if (isDataLoading && loadingTimeout) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-background via-background to-primary/5 p-6">
-        <div className="max-w-2xl w-full">
-          <div className="text-center mb-6">
-            <div className="text-6xl mb-4">⏱️</div>
-            <h1 className="text-3xl font-bold mb-2">Loading Timeout</h1>
-            <p className="text-muted-foreground text-lg">
-              Your data is taking unusually long to load
-            </p>
-          </div>
-          
-          <div className="bg-amber-500/10 border-2 border-amber-500 rounded-lg p-6 mb-6">
-            <p className="font-semibold mb-2">⚠️ Possible Issues:</p>
-            <ul className="space-y-2 text-sm">
-              <li>• Your Google Sheets URL might be incorrect or inaccessible</li>
-              <li>• The Google Apps Script might not be responding</li>
-              <li>• Your internet connection might be slow</li>
-              <li>• The sheet might contain too much data</li>
-            </ul>
-          </div>
-
-          <div className="bg-muted/50 rounded-lg p-6 space-y-4 mb-6">
-            <h3 className="font-semibold text-lg">💡 Quick Fixes:</h3>
-            <ol className="space-y-3 list-decimal list-inside text-sm">
-              <li>
-                <strong>Verify your Sheet URL in Settings</strong>
-                <p className="ml-6 text-muted-foreground">Make sure it's the Apps Script web app URL</p>
-              </li>
-              <li>
-                <strong>Test the URL directly</strong>
-                <p className="ml-6 text-muted-foreground">Try opening the URL in a new browser tab</p>
-              </li>
-              <li>
-                <strong>Check your network</strong>
-                <p className="ml-6 text-muted-foreground">Ensure you have a stable internet connection</p>
-              </li>
-              <li>
-                <strong>Try refreshing the page</strong>
-                <p className="ml-6 text-muted-foreground">Sometimes a simple refresh fixes the issue</p>
-              </li>
-            </ol>
-          </div>
-
-          <div className="flex gap-3 justify-center">
-            <Button 
-              onClick={() => {
-                if (typeof window !== 'undefined') {
-                  window.location.href = '/settings'
-                }
-              }}
-              className="gap-2"
-            >
-              <span>⚙️</span>
-              Check Settings
-            </Button>
-            <Button 
-              onClick={() => {
-                if (typeof window !== 'undefined') {
-                  window.location.reload()
-                }
-              }}
-              variant="outline"
-              className="gap-2"
-            >
-              <span>🔄</span>
-              Retry
-            </Button>
-          </div>
-        </div>
-      </div>
-    )
-  }
+  // NEVER block rendering - always show the page immediately
+  // Data will load in the background and appear when ready
 
   if (dataError) {
     return (
@@ -474,6 +392,24 @@ export default function DataInsightsPage() {
 
   return (
     <div className="container mx-auto p-6 space-y-6 pb-20">
+      {/* Show loading banner if data is still loading */}
+      {isDataLoading && !dataError && (
+        <div className="bg-amber-50 border-b border-amber-200 px-4 py-3 rounded-lg mb-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-amber-800 text-sm">⚠️ Data is loading slowly. Showing available data.</span>
+            </div>
+            <Button 
+              onClick={() => window.location.reload()} 
+              variant="outline" 
+              size="sm"
+            >
+              <Loader2 className="h-4 w-4 mr-2" />
+              Retry
+            </Button>
+          </div>
+        </div>
+      )}
       {/* Header with gradient */}
       <div className="relative overflow-hidden rounded-lg bg-gradient-to-r from-primary/10 via-primary/5 to-background p-8 border">
         <div className="relative z-10">

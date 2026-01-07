@@ -1,657 +1,550 @@
 // src/lib/overview-data.ts
-// Data fetching and aggregation for Overview page
+// Overview data aggregator - combines all data sources for the /overview page
+// All KPI totals are computed STRICTLY from the date-filtered trendPoints series
+//
+// Data sources:
+// - Google spend: daily tab (cost column)
+// - Facebook spend: fb_ads_raw tab (data.spend column)
+// - LP Views: Google clicks (daily) + Facebook LP views (fb_ads_enriched)
 
-import { FacebookAdRecord, HubSpotDeal, HubSpotContact, MarketingFunnelRecord, OverviewFilters, OverviewMetrics, DailyMetric, CampaignPerformance } from './overview-types'
-import { useSettings } from './contexts/SettingsContext'
-import { fetchFbEnriched, fetchSheet, FbEnrichedRow, totalsFb } from './sheetsData'
+import {
+  loadGoogleTraffic,
+  loadFbTraffic,
+  loadFbSpendFromRaw,
+  loadContacts,
+  loadDeals,
+  fetchStreakLeads,
+  fetchStreakLeadsGoogle,
+  mapFbEnriched,
+  fetchSheet,
+  DateRange,
+  GoogleTrafficResult,
+  FbTrafficResult,
+  FbSpendResult,
+  ContactsResult,
+  DealsResult,
+  StreakLeadRow
+} from './sheetsData';
+import { getSheetsUrl } from './config';
+import { computeFacebookSummary, FacebookSummary } from './metrics/facebook';
+import { fetchTab } from './sheetsData';
+import { loadFbDashboard, FbDashboardData } from './loaders/fb-dashboard';
 
-const DEFAULT_SHEET_URL = 'https://script.google.com/macros/s/AKfycby4WR2b5WyZ7qKcJvNUtYjGQPPVpJzFWAnF5SyJntvtNGwGaob-hCu4hAdECHmnRVfn/exec'
+export type CACMode = 'leads' | 'deals';
 
-// Map enriched row to FacebookAdRecord for compatibility
-function mapEnrichedToRecord(row: FbEnrichedRow): FacebookAdRecord {
-  return {
-    date: row.date_iso || row.date_start, // Prefer date_iso for filtering
-    campaign: row.campaign_name,
-    spend: row.spend,
-    clicks: row.clicks,
-    landing_page_view: row.lp_views,
-    landing_page_view_unique: row.lp_views,
-    impressions: 0, // Not in enriched data
-  }
+export type { DateRange };
+
+export interface TrendPoint {
+  date: string;
+  spend: number;
+  revenue: number;
+  lpViews: number;
 }
 
-// Fetch Facebook Ads data using enriched sheet
-export async function fetchFacebookAds(sheetUrl: string = DEFAULT_SHEET_URL): Promise<FacebookAdRecord[]> {
-  try {
-    if (!sheetUrl) {
-      console.warn('No sheet URL provided for Facebook Ads')
-      return []
-    }
-    
-    const enrichedRows = await fetchFbEnriched(fetchSheet)
-    return enrichedRows.map(mapEnrichedToRecord)
-  } catch (error) {
-    console.error('Error fetching Facebook Ads:', error)
-    return []
-  }
+export interface OverviewKpis {
+  revenueWon: number;
+  wonDeals: number;
+  winRate: number;
+  avgDealSize: number;
+  spend: number;
+  leads: number;
+  sql: number;
+  cac: number;
+  roas: number;
+  lpViews: number;
 }
 
-// Fetch HubSpot Deals
-export async function fetchHubSpotDeals(sheetUrl: string = DEFAULT_SHEET_URL): Promise<HubSpotDeal[]> {
-  try {
-    if (!sheetUrl) {
-      console.warn('No sheet URL provided for HubSpot Deals')
-      return []
-    }
-    const url = `${sheetUrl}?tab=hubspot_deals_raw`
-    const response = await fetch(url, { 
-      cache: 'no-store'
-    })
-    if (!response.ok) {
-      console.warn(`Failed to fetch hubspot_deals_raw (${response.status}): ${response.statusText}`)
-      return []
-    }
-    const data = await response.json()
-    if (!Array.isArray(data)) {
-      console.warn('HubSpot Deals data is not an array')
-      return []
-    }
-    
-    return data.map((row: any) => ({
-      dealId: String(row['dealId'] || row['deal_id'] || row['hs_object_id'] || ''),
-      dealname: String(row['dealname'] || row['deal_name'] || ''),
-      amount: Number(row['amount'] || row['deal_amount'] || 0),
-      closedate: String(row['closedate'] || row['close_date'] || ''),
-      dealstage: String(row['dealstage'] || row['deal_stage'] || ''),
-      createdate: String(row['createdate'] || row['create_date'] || ''),
-      utm_source: row['utm_source'] || undefined,
-      utm_medium: row['utm_medium'] || undefined,
-      utm_campaign: row['utm_campaign'] || undefined,
-      ...row
-    }))
-  } catch (error) {
-    console.error('Error fetching HubSpot Deals:', error)
-    return []
-  }
+export interface OverviewDebug {
+  range: DateRange;
+  contacts: ContactsResult['__debug'];
+  deals: DealsResult['__debug'];
+  traffic: {
+    google: {
+      ok: boolean;
+      tab: 'daily';
+      found: GoogleTrafficResult['found'];
+      dateRange?: GoogleTrafficResult['dateRange'];
+      rows: number;
+      windowSpend: number;
+      error?: string;
+    };
+    facebook: {
+      ok: boolean;
+      tab: 'fb_ads_raw';
+      found: FbSpendResult['found'];
+      dateRange?: FbSpendResult['dateRange'];
+      rows: number;
+      windowSpend: number;
+      error?: string;
+    };
+    fbLpViews?: {
+      ok: boolean;
+      rows: number;
+      windowLpViews: number;
+    };
+  };
+  // KPI totals computed from the date-filtered trendPoints series
+  totalsFromSeries: {
+    spendTotal: number;
+    lpViewsTotal: number;
+    revenueTotal: number;
+    gaSpendInWindow: number;
+    fbSpendInWindow: number;
+    gaClicksInWindow: number;
+    fbLpViewsInWindow: number;
+  };
+  totals: {
+    spend: number;
+    revenue: number;
+    lpViews: number;
+    leads: number;
+    sql: number;
+    wonDeals: number;
+  };
 }
 
-// Fetch HubSpot Contacts (prefer 90d, fallback to raw)
-export async function fetchHubSpotContacts(sheetUrl: string = DEFAULT_SHEET_URL): Promise<HubSpotContact[]> {
-  try {
-    if (!sheetUrl) {
-      console.warn('No sheet URL provided for HubSpot Contacts')
-      return []
-    }
-    // Try 90d first
-    let url = `${sheetUrl}?tab=hubspot_contacts_90d`
-    let response = await fetch(url, { 
-      cache: 'no-store'
-    })
-    
-    if (!response.ok) {
-      // Fallback to raw
-      url = `${sheetUrl}?tab=hubspot_contacts_raw`
-      response = await fetch(url, { 
-        cache: 'no-store'
-      })
-    }
-    
-    if (!response.ok) {
-      console.warn(`Failed to fetch HubSpot contacts (${response.status}): ${response.statusText}`)
-      return []
-    }
-    
-    const data = await response.json()
-    if (!Array.isArray(data)) {
-      console.warn('HubSpot Contacts data is not an array')
-      return []
-    }
-    
-    return data.map((row: any) => ({
-      contactId: String(row['contactId'] || row['contact_id'] || row['hs_object_id'] || ''),
-      email: String(row['email'] || ''),
-      createdate: String(row['createdate'] || row['create_date'] || ''),
-      utm_source: row['utm_source'] || undefined,
-      utm_medium: row['utm_medium'] || undefined,
-      utm_campaign: row['utm_campaign'] || undefined,
-      ...row
-    }))
-  } catch (error) {
-    console.error('Error fetching HubSpot Contacts:', error)
-    return []
-  }
+export interface OverviewDataResult {
+  kpis: OverviewKpis;
+  range: DateRange;
+  trendPoints: TrendPoint[];
+  facebookSummary?: FacebookSummary | FbDashboardData;
+  googleSummary?: {
+    spend: number;
+    clicks: number;
+    leads: number;
+    cpl: number;
+  };
+  previousPeriod?: {
+    totalSpend: number;
+    fbSpend: number;
+    googleSpend: number;
+    totalLeads: number;
+    fbLeads: number;
+    googleLeads: number;
+    qualityLeads: number;
+    fbQualityLeads: number;
+    googleQualityLeads: number;
+    avgAiScore: number;
+  } | null;
+  __debug: OverviewDebug;
 }
 
-// Fetch Marketing Funnel (try named range first, then tab)
-export async function fetchMarketingFunnel(sheetUrl: string = DEFAULT_SHEET_URL): Promise<MarketingFunnelRecord[]> {
-  try {
-    // Try named range first
-    let url = `${sheetUrl}?tab=MARKETING_FUNNEL`
-    let response = await fetch(url)
-    
-    if (!response.ok) {
-      // Fallback to tab
-      url = `${sheetUrl}?tab=marketing_funnel`
-      response = await fetch(url)
-    }
-    
-    if (!response.ok) {
-      console.warn('Marketing funnel not found, returning empty array')
-      return []
-    }
-    
-    const data = await response.json()
-    if (!Array.isArray(data)) return []
-    
-    return data.map((row: any) => ({
-      date: String(row['date'] || row['Date'] || ''),
-      lp_views: Number(row['lp_views'] || row['LP Views'] || 0),
-      leads: Number(row['leads'] || row['Leads'] || 0),
-      sql: Number(row['sql'] || row['SQL'] || 0),
-      deals: Number(row['deals'] || row['Deals'] || 0),
-      revenue: Number(row['revenue'] || row['Revenue'] || 0),
-      ...row
-    }))
-  } catch (error) {
-    console.error('Error fetching Marketing Funnel:', error)
-    return []
-  }
+/**
+ * Calculate date range from now - days to now (in UTC)
+ */
+export async function getDateRange(days = 30): Promise<DateRange> {
+  const now = new Date();
+  const to = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const from = new Date(to.getTime() - (days - 1) * 86400_000);
+  const ymd = (d: Date) => d.toISOString().slice(0, 10);
+  return { from: ymd(from), to: ymd(to) };
 }
 
-// Helper to get date range
-export function getDateRange(range: '30d' | '60d' | '90d' | 'custom', customStart?: string, customEnd?: string): { start: Date; end: Date } {
-  const end = new Date()
-  end.setHours(23, 59, 59, 999)
-  
-  if (range === 'custom' && customStart && customEnd) {
-    return {
-      start: new Date(customStart),
-      end: new Date(customEnd)
-    }
+/**
+ * Generate array of all days between from and to (inclusive)
+ */
+function getAllDays(from: string, to: string): string[] {
+  const days: string[] = [];
+  const fromDate = new Date(from + 'T00:00:00Z');
+  const toDate = new Date(to + 'T00:00:00Z');
+
+  for (let d = new Date(fromDate); d <= toDate; d.setUTCDate(d.getUTCDate() + 1)) {
+    days.push(d.toISOString().slice(0, 10));
   }
-  
-  const days = range === '30d' ? 30 : range === '60d' ? 60 : 90
-  const start = new Date(end)
-  start.setDate(start.getDate() - days)
-  start.setHours(0, 0, 0, 0)
-  
-  return { start, end }
+
+  return days;
 }
 
-// Helper to check if date is in range
-export function isDateInRange(dateStr: string, start: Date, end: Date): boolean {
-  const date = new Date(dateStr)
-  return date >= start && date <= end
+// Legacy function for API routes compatibility (synchronous version)
+export function getDateRangeSync(filters: { dateRange: string; customStart?: string; customEnd?: string }): { start: Date; end: Date } {
+  const end = new Date();
+  end.setHours(23, 59, 59, 999);
+  if (filters.dateRange === 'custom' && filters.customStart && filters.customEnd) {
+    return { start: new Date(filters.customStart), end: new Date(filters.customEnd) };
+  }
+  const days = filters.dateRange === '30d' ? 30 : filters.dateRange === '60d' ? 60 : 90;
+  const start = new Date(end);
+  start.setDate(start.getDate() - days);
+  start.setHours(0, 0, 0, 0);
+  return { start, end };
 }
 
-// Check if contact came from paid channel
-export function isPaidContact(contact: HubSpotContact): boolean {
-  const source = (contact.utm_source || '').toLowerCase()
-  const medium = (contact.utm_medium || '').toLowerCase()
-  
-  const paidSources = ['google', 'facebook', 'meta', 'cpc', 'paid', 'adwords', 'fb']
-  const paidMediums = ['cpc', 'paid', 'social', 'display']
-  
-  return paidSources.includes(source) || paidMediums.includes(medium)
+export function isDateInRange(dateStr: string | null | undefined, start: Date | string, end: Date | string): boolean {
+  if (!dateStr) return false;
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return false;
+  const startDate = typeof start === 'string' ? new Date(start) : start;
+  const endDate = typeof end === 'string' ? new Date(end) : end;
+  return date >= startDate && date <= endDate;
 }
 
-// Aggregate metrics for date range
-export async function getOverviewMetrics(
-  filters: OverviewFilters,
-  sheetUrl: string = DEFAULT_SHEET_URL
-): Promise<OverviewMetrics> {
-  const { start, end } = getDateRange(filters.dateRange, filters.customStart, filters.customEnd)
-  const prevStart = new Date(start)
-  const prevEnd = new Date(end)
-  const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
-  prevStart.setDate(prevStart.getDate() - daysDiff)
-  prevEnd.setDate(prevEnd.getDate() - daysDiff)
-  
-  // Fetch all data with safe defaults
-  let fbAds: FacebookAdRecord[] = []
-  let deals: HubSpotDeal[] = []
-  let contacts: HubSpotContact[] = []
-  let funnel: MarketingFunnelRecord[] = []
-  
-  try {
-    const results = await Promise.allSettled([
-      fetchFacebookAds(sheetUrl),
-      fetchHubSpotDeals(sheetUrl),
-      fetchHubSpotContacts(sheetUrl),
-      fetchMarketingFunnel(sheetUrl)
-    ])
-    
-    fbAds = results[0].status === 'fulfilled' ? (results[0].value || []) : []
-    deals = results[1].status === 'fulfilled' ? (results[1].value || []) : []
-    contacts = results[2].status === 'fulfilled' ? (results[2].value || []) : []
-    funnel = results[3].status === 'fulfilled' ? (results[3].value || []) : []
-  } catch (error) {
-    console.error('Error fetching overview data:', error)
-    // All arrays already default to []
-  }
-  
-  // Ensure arrays are always defined
-  fbAds = Array.isArray(fbAds) ? fbAds : []
-  deals = Array.isArray(deals) ? deals : []
-  contacts = Array.isArray(contacts) ? contacts : []
-  funnel = Array.isArray(funnel) ? funnel : []
-  
-  // Filter by date range
-  const currentFbAds = (fbAds || []).filter(ad => isDateInRange(ad.date, start, end))
-  const currentDeals = (deals || []).filter(deal => {
-    const closeDate = deal.closedate || deal.createdate
-    return isDateInRange(closeDate, start, end)
-  })
-  const currentContacts = (contacts || []).filter(contact => isDateInRange(contact.createdate, start, end))
-  
-  // Previous period
-  const prevFbAds = filters.comparePrevious ? (fbAds || []).filter(ad => isDateInRange(ad.date, prevStart, prevEnd)) : []
-  const prevDeals = filters.comparePrevious ? (deals || []).filter(deal => {
-    const closeDate = deal.closedate || deal.createdate
-    return isDateInRange(closeDate, prevStart, prevEnd)
-  }) : []
-  const prevContacts = filters.comparePrevious ? (contacts || []).filter(contact => isDateInRange(contact.createdate, prevStart, prevEnd)) : []
-  
-  // Calculate metrics
-  const wonDeals = currentDeals.filter(d => {
-    const stage = (d.dealstage || '').toLowerCase()
-    return stage.includes('won') || stage.includes('closed won') || stage === 'closedwon'
-  })
-  const revenueWon = wonDeals.reduce((sum, d) => sum + (d.amount || 0), 0)
-  
-  const prevWonDeals = filters.comparePrevious ? prevDeals.filter(d => {
-    const stage = (d.dealstage || '').toLowerCase()
-    return stage.includes('won') || stage.includes('closed won') || stage === 'closedwon'
-  }) : []
-  const prevRevenueWon = prevWonDeals.reduce((sum, d) => sum + (d.amount || 0), 0)
-  
-  const paidContacts = currentContacts.filter(isPaidContact)
-  const prevPaidContacts = prevContacts.filter(isPaidContact)
-  
-  // Get enriched FB data and filter by date
-  const allEnriched = await fetchFbEnriched(fetchSheet, sheetUrl)
-  const currentEnrichedFiltered = allEnriched.filter(row => {
-    const dateStr = row.date_iso || row.date_start
-    return isDateInRange(dateStr, start, end)
-  })
-  const currentFbTotals = totalsFb(currentEnrichedFiltered)
-  
-  // Get enriched FB totals for previous period
-  const prevEnrichedFiltered = filters.comparePrevious 
-    ? allEnriched.filter(row => {
-        const dateStr = row.date_iso || row.date_start
-        return isDateInRange(dateStr, prevStart, prevEnd)
-      })
-    : []
-  const prevFbTotals = totalsFb(prevEnrichedFiltered)
-  
-  const spend = currentFbTotals.spend
-  const prevSpend = prevFbTotals.spend
-  
-  const lpViews = currentFbTotals.lp_views
-  
-  const sqlCount = currentDeals.filter(d => {
-    const stage = (d.dealstage || '').toLowerCase()
-    return stage.includes('sql') || stage.includes('sales qualified') || stage.includes('qualified')
-  }).length
-  
-  const dealsCreated = currentDeals.length
-  
-  const winRate = dealsCreated > 0 ? (wonDeals.length / dealsCreated) * 100 : 0
-  const prevDealsCreated = prevDeals.length
-  const prevWinRate = prevDealsCreated > 0 ? (prevWonDeals.length / prevDealsCreated) * 100 : 0
-  
-  const cacByLeads = paidContacts.length > 0 ? spend / paidContacts.length : 0
-  const cacByDeals = wonDeals.length > 0 ? spend / wonDeals.length : 0
-  const roas = spend > 0 ? revenueWon / spend : 0
-  
-  const prevCacByLeads = prevPaidContacts.length > 0 ? prevSpend / prevPaidContacts.length : 0
-  const prevCacByDeals = prevWonDeals.length > 0 ? prevSpend / prevWonDeals.length : 0
-  const prevRoas = prevSpend > 0 ? prevRevenueWon / prevSpend : 0
-  
-  const avgDealSize = wonDeals.length > 0 ? revenueWon / wonDeals.length : 0
-  const prevAvgDealSize = prevWonDeals.length > 0 ? prevRevenueWon / prevWonDeals.length : 0
-  
-  // Funnel metrics
-  const leadsCount = paidContacts.length
-  const dealsCount = dealsCreated
-  const revenueTotal = revenueWon
-  
-  // Conversion rates
-  const lpToLeadRate = lpViews > 0 ? (leadsCount / lpViews) * 100 : 0
-  const leadToSqlRate = leadsCount > 0 ? (sqlCount / leadsCount) * 100 : 0
-  const sqlToDealRate = sqlCount > 0 ? (dealsCount / sqlCount) * 100 : 0
-  const dealToRevenueRate = dealsCount > 0 ? (revenueTotal / dealsCount) : 0
-  
-  // Previous period deltas
-  const prevLpViews = prevFbTotals.lp_views
-  const prevLeadsCount = prevPaidContacts.length
-  const prevSqlCount = filters.comparePrevious ? prevDeals.filter(d => {
-    const stage = (d.dealstage || '').toLowerCase()
-    return stage.includes('sql') || stage.includes('sales qualified') || stage.includes('qualified')
-  }).length : 0
-  const prevDealsCount = prevDeals.length
-  
-  return {
-    revenueWon: {
-      value: revenueWon,
-      deltaPct: prevRevenueWon > 0 ? ((revenueWon - prevRevenueWon) / prevRevenueWon) * 100 : null,
-      previousValue: filters.comparePrevious ? prevRevenueWon : null
-    },
-    wonDeals: {
-      value: wonDeals.length,
-      deltaPct: prevWonDeals.length > 0 ? ((wonDeals.length - prevWonDeals.length) / prevWonDeals.length) * 100 : null,
-      previousValue: filters.comparePrevious ? prevWonDeals.length : null
-    },
-    winRate: {
-      value: winRate,
-      deltaPct: prevWinRate > 0 ? winRate - prevWinRate : null,
-      previousValue: filters.comparePrevious ? prevWinRate : null
-    },
-    avgDealSize: {
-      value: avgDealSize,
-      deltaPct: prevAvgDealSize > 0 ? ((avgDealSize - prevAvgDealSize) / prevAvgDealSize) * 100 : null,
-      previousValue: filters.comparePrevious ? prevAvgDealSize : null
-    },
-    spend: {
-      value: spend,
-      deltaPct: prevSpend > 0 ? ((spend - prevSpend) / prevSpend) * 100 : null,
-      previousValue: filters.comparePrevious ? prevSpend : null
-    },
-    leads: {
-      value: leadsCount,
-      deltaPct: prevLeadsCount > 0 ? ((leadsCount - prevLeadsCount) / prevLeadsCount) * 100 : null,
-      previousValue: filters.comparePrevious ? prevLeadsCount : null
-    },
-    cac: {
-      value: cacByLeads, // Default to leads-based
-      deltaPct: prevCacByLeads > 0 ? ((cacByLeads - prevCacByLeads) / prevCacByLeads) * 100 : null,
-      previousValue: filters.comparePrevious ? prevCacByLeads : null
-    },
-    roas: {
-      value: roas,
-      deltaPct: prevRoas > 0 ? ((roas - prevRoas) / prevRoas) * 100 : null,
-      previousValue: filters.comparePrevious ? prevRoas : null
-    },
-    lpViews,
-    leadsCount,
-    sqlCount,
-    dealsCount,
-    revenueTotal,
-    lpToLeadRate,
-    leadToSqlRate,
-    sqlToDealRate,
-    dealToRevenueRate,
-    lpViewsDelta: prevLpViews > 0 ? lpViews - prevLpViews : null,
-    leadsDelta: prevLeadsCount > 0 ? leadsCount - prevLeadsCount : null,
-    sqlDelta: prevSqlCount > 0 ? sqlCount - prevSqlCount : null,
-    dealsDelta: prevDealsCount > 0 ? dealsCount - prevDealsCount : null
-  }
+// Stub implementations for API routes (to be implemented properly later)
+export async function getOverviewMetrics(_filters: any, _sheetUrl?: string): Promise<any> {
+  console.warn('getOverviewMetrics: stub implementation');
+  return { spend: 0, leads: 0, revenue: 0, cac: 0, roas: 0 };
 }
 
-// Get daily metrics for charts
-export async function getDailyMetrics(
-  filters: OverviewFilters,
-  sheetUrl: string = DEFAULT_SHEET_URL
-): Promise<DailyMetric[]> {
-  const { start, end } = getDateRange(filters.dateRange, filters.customStart, filters.customEnd)
-  
-  // Fetch with safe defaults
-  let fbAds: FacebookAdRecord[] = []
-  let deals: HubSpotDeal[] = []
-  let contacts: HubSpotContact[] = []
-  
-  try {
-    const results = await Promise.allSettled([
-      fetchFacebookAds(sheetUrl),
-      fetchHubSpotDeals(sheetUrl),
-      fetchHubSpotContacts(sheetUrl)
-    ])
-    
-    fbAds = results[0].status === 'fulfilled' ? (results[0].value || []) : []
-    deals = results[1].status === 'fulfilled' ? (results[1].value || []) : []
-    contacts = results[2].status === 'fulfilled' ? (results[2].value || []) : []
-  } catch (error) {
-    console.error('Error fetching daily metrics data:', error)
-    // All arrays already default to []
-  }
-  
-  // Ensure arrays are always defined
-  fbAds = Array.isArray(fbAds) ? fbAds : []
-  deals = Array.isArray(deals) ? deals : []
-  contacts = Array.isArray(contacts) ? contacts : []
-  
-  const dailyMap = new Map<string, DailyMetric>()
-  
-  // Initialize all days in range
-  const current = new Date(start)
-  while (current <= end) {
-    const dateStr = current.toISOString().split('T')[0]
-    dailyMap.set(dateStr, {
-      date: dateStr,
-      revenue: 0,
-      spend: 0,
-      winRate: 0,
-      cac: 0,
-      roas: 0
-    })
-    current.setDate(current.getDate() + 1)
-  }
-  
-  // Aggregate FB ads
-  fbAds.forEach(ad => {
-    if (isDateInRange(ad.date, start, end)) {
-      const metric = dailyMap.get(ad.date) || {
-        date: ad.date,
-        revenue: 0,
-        spend: 0,
-        winRate: 0,
-        cac: 0,
-        roas: 0
-      }
-      metric.spend += ad.spend || 0
-      dailyMap.set(ad.date, metric)
-    }
-  })
-  
-  // Aggregate deals
-  deals.forEach(deal => {
-    const closeDate = deal.closedate || deal.createdate
-    if (isDateInRange(closeDate, start, end)) {
-      const dateStr = closeDate.split('T')[0]
-      const metric = dailyMap.get(dateStr) || {
-        date: dateStr,
-        revenue: 0,
-        spend: 0,
-        winRate: 0,
-        cac: 0,
-        roas: 0
-      }
-      
-      const stage = (deal.dealstage || '').toLowerCase()
-      const isWon = stage.includes('won') || stage.includes('closed won') || stage === 'closedwon'
-      if (isWon) {
-        metric.revenue += deal.amount || 0
-      }
-      dailyMap.set(dateStr, metric)
-    }
-  })
-  
-  // Calculate derived metrics per day
-  const dailyDealsMap = new Map<string, { total: number; won: number }>()
-  const dailyContactsMap = new Map<string, number>()
-  
-  deals.forEach(deal => {
-    const closeDate = deal.closedate || deal.createdate
-    if (isDateInRange(closeDate, start, end)) {
-      const dateStr = closeDate.split('T')[0]
-      const existing = dailyDealsMap.get(dateStr) || { total: 0, won: 0 }
-      existing.total += 1
-      const stage = (deal.dealstage || '').toLowerCase()
-      const isWon = stage.includes('won') || stage.includes('closed won') || stage === 'closedwon'
-      if (isWon) {
-        existing.won += 1
-      }
-      dailyDealsMap.set(dateStr, existing)
-    }
-  })
-  
-  (contacts || []).forEach(contact => {
-    if (isDateInRange(contact.createdate, start, end) && isPaidContact(contact)) {
-      const dateStr = contact.createdate.split('T')[0]
-      dailyContactsMap.set(dateStr, (dailyContactsMap.get(dateStr) || 0) + 1)
-    }
-  })
-  
-  Array.from(dailyMap.values()).forEach(metric => {
-    const dealsData = dailyDealsMap.get(metric.date) || { total: 0, won: 0 }
-    const leads = dailyContactsMap.get(metric.date) || 0
-    
-    metric.winRate = dealsData.total > 0 ? (dealsData.won / dealsData.total) * 100 : 0
-    metric.cac = leads > 0 ? metric.spend / leads : 0
-    metric.roas = metric.spend > 0 ? metric.revenue / metric.spend : 0
-  })
-  
-  return Array.from(dailyMap.values()).sort((a, b) => 
-    a.date.localeCompare(b.date)
-  )
+export async function getCampaignPerformance(_filters: any, _sheetUrl?: string): Promise<any[]> {
+  console.warn('getCampaignPerformance: stub implementation');
+  return [];
 }
 
-// Get campaign performance for Top Movers
-export async function getCampaignPerformance(
-  filters: OverviewFilters,
-  sheetUrl: string = DEFAULT_SHEET_URL
-): Promise<CampaignPerformance[]> {
-  const { start, end } = getDateRange(filters.dateRange, filters.customStart, filters.customEnd)
-  const prevStart = new Date(start)
-  const prevEnd = new Date(end)
-  const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
-  prevStart.setDate(prevStart.getDate() - daysDiff)
-  prevEnd.setDate(prevEnd.getDate() - daysDiff)
-  
-  // Fetch with safe defaults
-  let fbAds: FacebookAdRecord[] = []
-  let deals: HubSpotDeal[] = []
-  let contacts: HubSpotContact[] = []
-  
-  try {
-    const results = await Promise.allSettled([
-      fetchFacebookAds(sheetUrl),
-      fetchHubSpotDeals(sheetUrl),
-      fetchHubSpotContacts(sheetUrl)
-    ])
-    
-    fbAds = results[0].status === 'fulfilled' ? (results[0].value || []) : []
-    deals = results[1].status === 'fulfilled' ? (results[1].value || []) : []
-    contacts = results[2].status === 'fulfilled' ? (results[2].value || []) : []
-  } catch (error) {
-    console.error('Error fetching campaign performance data:', error)
-    // All arrays already default to []
+/**
+ * Main overview data aggregator
+ * Loads all data sources in parallel and computes KPIs + chart data
+ * 
+ * Data sources:
+ * - Google spend: daily tab (cost column) - uses toNumberEUorUS for €/$ parsing
+ * - Facebook spend: fb_ads_raw tab (data.spend column) - NOT fb_ads_enriched
+ * - LP Views: Google clicks (daily) + Facebook LP views (fb_ads_enriched)
+ * 
+ * All KPI totals are computed STRICTLY from the date-filtered trendPoints series:
+ * - Spend = sum(trendPoints.map(p => p.spend))
+ * - LP Views = sum(trendPoints.map(p => p.lpViews))
+ * - Revenue = sum(trendPoints.map(p => p.revenue))
+ * - ROAS = revenueTotal / max(spendTotal, 1e-9)
+ * - CAC = spendTotal / max(leads or wonDeals, 1)
+ */
+export async function getOverviewData(days = 30, cacMode: CACMode = 'leads'): Promise<OverviewDataResult> {
+  console.log('[overview-data] Loading data for', days, 'days, CAC mode:', cacMode);
+
+  const range = await getDateRange(days);
+  console.log('[overview-data] Date range:', range);
+
+  const sheetsUrl = getSheetsUrl();
+
+  // Load all data sources in parallel
+  // - Google: daily tab for spend and clicks
+  // - Facebook summary from dashboard_fb tab (cell ranges)
+  const [googleTraffic, fbSpendRaw, fbTrafficEnriched, contacts, deals, fbRawTab, fbEnrichedTab, fbSheetSummary, streakFb, streakGoogle] = await Promise.all([
+    loadGoogleTraffic(sheetsUrl),
+    loadFbSpendFromRaw(sheetsUrl, 'fb_ads_raw'),
+    loadFbTraffic(sheetsUrl), // For LP views only
+    loadContacts(range),
+    loadDeals(range),
+    fetchTab('fb_ads_raw', sheetsUrl),
+    fetchTab('fb_ads_enriched', sheetsUrl),
+    loadFbDashboard().catch((err) => {
+      console.warn('[overview-data] loadFbDashboard failed', err);
+      return null;
+    }),
+    fetchStreakLeads(fetchSheet, sheetsUrl),
+    fetchStreakLeadsGoogle(fetchSheet, sheetsUrl)
+  ]);
+
+  console.log('[overview-data] Data loaded:', {
+    googleTraffic: { ok: googleTraffic.ok, tab: googleTraffic.tab, rows: googleTraffic.rows },
+    fbSpendRaw: { ok: fbSpendRaw.ok, rows: fbSpendRaw.rows, found: fbSpendRaw.found },
+    fbTrafficEnriched: { ok: fbTrafficEnriched.ok, rows: fbTrafficEnriched.rows },
+    contacts: { rows: contacts.__debug.rows, leads: contacts.leads, sql: contacts.sql },
+    deals: { rows: deals.__debug.rows, won: deals.wonDeals, revenue: deals.revenue }
+  });
+
+  // Build days array for the requested window (inclusive) - same list used for trend chart
+  const allDays = getAllDays(range.from, range.to);
+
+  // Sanity check: log the date window
+  console.debug('[overview-data] Window days:', allDays[0], 'to', allDays[allDays.length - 1], `(${allDays.length} days)`);
+
+  const fbSummaryData = (fbSheetSummary as FbDashboardData | null) || null;
+  const fromISO = range.from;
+  const toISO = range.to;
+  const hasFbSpendDaily = fbSpendRaw?.fbSpendByDate && Object.keys(fbSpendRaw.fbSpendByDate).length > 0;
+  const hasFbLpDaily = fbTrafficEnriched?.fbLpViewsByDate && Object.keys(fbTrafficEnriched.fbLpViewsByDate).length > 0;
+  const fbFallbackDailySpend = fbSummaryData && allDays.length ? fbSummaryData.spend / allDays.length : 0;
+  const fbFallbackDailyLpViews = fbSummaryData && allDays.length ? fbSummaryData.lpViews / allDays.length : 0;
+  const fbEnrichedRows = fbEnrichedTab?.headers?.length ? mapFbEnriched([fbEnrichedTab.headers, ...fbEnrichedTab.rows]) : [];
+  const fbLeadsByDate: Record<string, number> = {};
+  fbEnrichedRows.forEach((r) => {
+    const day = r.date_iso || r.date_start;
+    if (!day) return;
+    const leads = (r.fb_form_leads || 0) + (r.landing_leads || 0);
+    if (!Number.isFinite(leads)) return;
+    fbLeadsByDate[day] = (fbLeadsByDate[day] || 0) + leads;
+  });
+
+  // Build trendPoints and compute per-source totals within the window
+  const trendPoints: TrendPoint[] = [];
+  let gaSpendInWindow = 0;
+  let fbSpendInWindow = 0;
+  let gaClicksInWindow = 0;
+  let gaLeadsInWindow = 0;
+  let fbLpViewsInWindow = 0;
+
+  for (const day of allDays) {
+    // Read from sources (returns 0 if day not present)
+    // Google spend from daily tab
+    const gaSpend = googleTraffic.gaSpendByDate[day] ?? 0;
+    // Google leads will be summed separately from gaConvByDate
+    const fbSpend = hasFbSpendDaily
+      ? fbSpendRaw.fbSpendByDate[day] ?? 0
+      : fbFallbackDailySpend;
+    // Google clicks for LP views
+    const gaClicks = googleTraffic.gaClicksByDate[day] ?? 0;
+    // Facebook LP views from fb_ads_enriched; fallback to dashboard_fb average if missing
+    const fbLpViews = hasFbLpDaily
+      ? fbTrafficEnriched.fbLpViewsByDate[day] ?? 0
+      : fbFallbackDailyLpViews;
+    // Revenue from won deals
+    const dayRevenue = deals.revenueByDate[day] ?? 0;
+
+    // Compute day totals
+    const daySpend = gaSpend + fbSpend;
+    const dayLpViews = gaClicks + fbLpViews;
+
+    // Track per-source totals within window
+    gaSpendInWindow += gaSpend;
+    fbSpendInWindow += fbSpend;
+    gaClicksInWindow += gaClicks;
+    fbLpViewsInWindow += fbLpViews;
+
+    // Push to trend points
+    trendPoints.push({
+      date: day,
+      spend: daySpend,
+      revenue: dayRevenue,
+      lpViews: dayLpViews
+    });
   }
-  
-  // Ensure arrays are always defined
-  fbAds = Array.isArray(fbAds) ? fbAds : []
-  deals = Array.isArray(deals) ? deals : []
-  contacts = Array.isArray(contacts) ? contacts : []
-  
-  const currentFbAds = (fbAds || []).filter(ad => isDateInRange(ad.date, start, end))
-  const prevFbAds = (fbAds || []).filter(ad => isDateInRange(ad.date, prevStart, prevEnd))
-  
-  const campaignMap = new Map<string, CampaignPerformance>()
-  
-  // Process current period
-  currentFbAds.forEach(ad => {
-    const key = ad.campaign || 'Unknown'
-    if (!campaignMap.has(key)) {
-      campaignMap.set(key, {
-        campaign: key,
-        channel: 'facebook',
-        spend: 0,
-        leads: 0,
-        cac: 0,
-        deals: 0,
-        revenue: 0,
-        deltaPct: 0,
-        utmCampaign: undefined
-      })
-    }
-    const perf = campaignMap.get(key)!
-    perf.spend += ad.spend || 0
-  })
-  
-  // Match deals and contacts by utm_campaign
-  deals.forEach(deal => {
-    const closeDate = deal.closedate || deal.createdate
-    if (isDateInRange(closeDate, start, end)) {
-      const utmCampaign = deal.utm_campaign
-      if (utmCampaign) {
-        // Try to match to campaign
-        for (const [campaign, perf] of campaignMap.entries()) {
-          if (campaign.toLowerCase().includes(utmCampaign.toLowerCase()) || 
-              utmCampaign.toLowerCase().includes(campaign.toLowerCase())) {
-            perf.deals += 1
-            const stage = (deal.dealstage || '').toLowerCase()
-            const isWon = stage.includes('won') || stage.includes('closed won') || stage === 'closedwon'
-            if (isWon) {
-              perf.revenue += deal.amount || 0
-            }
-            break
-          }
+
+  // ---------------------------------------------------------------------------
+  // Google leads from daily conv column (gaConvByDate)
+  // ---------------------------------------------------------------------------
+  let gaLeadsDebugLogged = false;
+  if (googleTraffic?.gaConvByDate) {
+    console.log('[overview-data] Calculating Google leads from daily conv column');
+    console.log('[overview-data] gaConvByDate keys:', Object.keys(googleTraffic.gaConvByDate).slice(0, 10));
+
+    for (const [dateKey, convValue] of Object.entries(googleTraffic.gaConvByDate)) {
+      if (dateKey >= fromISO && dateKey <= toISO) {
+        const numValue = typeof convValue === 'number' ? convValue : 0;
+        gaLeadsInWindow += numValue;
+        if (numValue > 0) {
+          gaLeadsDebugLogged = true;
+          console.log(`[overview-data] Date ${dateKey}: ${numValue} conversions`);
         }
       }
     }
-  })
-  
-  (contacts || []).forEach(contact => {
-    if (isDateInRange(contact.createdate, start, end) && isPaidContact(contact)) {
-      const utmCampaign = contact.utm_campaign
-      if (utmCampaign) {
-        for (const [campaign, perf] of campaignMap.entries()) {
-          if (campaign.toLowerCase().includes(utmCampaign.toLowerCase()) || 
-              utmCampaign.toLowerCase().includes(campaign.toLowerCase())) {
-            perf.leads += 1
-            break
-          }
+  }
+  console.log(`[overview-data] Total Google leads in window: ${gaLeadsInWindow}`);
+
+  // Compute all KPI totals STRICTLY from the trendPoints series
+  const spendTotalSeries = trendPoints.reduce((sum, p) => sum + p.spend, 0);
+  const lpViewsTotal = trendPoints.reduce((sum, p) => sum + p.lpViews, 0);
+  const revenueTotal = trendPoints.reduce((sum, p) => sum + p.revenue, 0);
+
+  // Facebook spend: use dashboard_fb when available, but for 60d fallback to window spend
+  const fbSpendFinal = days === 60
+    ? fbSpendInWindow
+    : fbSummaryData?.spend ?? fbSpendInWindow;
+  const spendTotal = gaSpendInWindow + fbSpendFinal;
+  const fbLeadsWindow = allDays.reduce((sum, d) => sum + (fbLeadsByDate[d] || 0), 0);
+  const fbLeads = fbSummaryData?.leads ?? fbLeadsWindow;
+  const totalLeads = gaLeadsInWindow + fbLeads;
+
+  // Sanity check: log computed totals
+  console.debug('[overview-data] Totals:', {
+    gaSpendInWindow: gaSpendInWindow.toFixed(2),
+    fbSpendInWindow: fbSpendInWindow.toFixed(2),
+    fbSpendFinal: fbSpendFinal.toFixed(2),
+    spendTotalSeries: spendTotalSeries.toFixed(2),
+    spendTotalDashboard: spendTotal.toFixed(2),
+    message: `Google (daily) window spend: €${gaSpendInWindow.toFixed(2)} + Facebook (dashboard_fb): €${fbSpendFinal.toFixed(2)} = Total spend: €${spendTotal.toFixed(2)}`
+  });
+
+  // KPIs from contacts and deals (already filtered by range)
+  const { leads, sql } = contacts;
+  const { wonDeals, createdDeals, avgDealSize } = deals;
+
+  // Win Rate = wonDeals / max(createdDeals, 1)
+  const winRate = createdDeals > 0 ? wonDeals / createdDeals : 0;
+
+  // CAC = spendTotal / max(leads|wonDeals, 1) - computed from filtered totals
+  const cac = cacMode === 'leads'
+    ? spendTotal / Math.max(totalLeads, 1)
+    : spendTotal / Math.max(wonDeals, 1);
+
+  // ROAS = revenueTotal / max(spendTotal, 1e-9) - computed from filtered totals
+  const roas = revenueTotal / Math.max(spendTotal, 1e-9);
+
+  // ---------------------------------------------------------------------------
+  // Previous period calculations (only for 7d / 30d)
+  // ---------------------------------------------------------------------------
+  const shouldCalcPrev = days === 7 || days === 30;
+  let previousPeriod: OverviewDataResult['previousPeriod'] = null;
+
+  if (shouldCalcPrev) {
+    const prevEnd = new Date(fromISO);
+    prevEnd.setDate(prevEnd.getDate() - 1);
+    const prevStart = new Date(prevEnd);
+    prevStart.setDate(prevStart.getDate() - (days - 1));
+    const prevFromISO = prevStart.toISOString().slice(0, 10);
+    const prevToISO = prevEnd.toISOString().slice(0, 10);
+
+    const sumMapInRange = (map: Record<string, number>, start: string, end: string) => {
+      let total = 0;
+      for (const [k, v] of Object.entries(map || {})) {
+        if (k >= start && k <= end) total += typeof v === 'number' ? v : 0;
+      }
+      return total;
+    };
+
+    const gaSpendPrev = sumMapInRange(googleTraffic.gaSpendByDate || {}, prevFromISO, prevToISO);
+    const gaLeadsPrev = sumMapInRange(googleTraffic.gaConvByDate || {}, prevFromISO, prevToISO);
+    const fbSpendPrevRaw = sumMapInRange(fbSpendRaw.fbSpendByDate || {}, prevFromISO, prevToISO);
+    const fbSpendPrev = fbSpendPrevRaw > 0 ? fbSpendPrevRaw : (fbFallbackDailySpend * days);
+    const fbLeadsPrev = sumMapInRange(fbLeadsByDate, prevFromISO, prevToISO);
+
+    const streakFbLeads: StreakLeadRow[] = Array.isArray(streakFb) ? streakFb : [];
+    const streakGoogleLeads: StreakLeadRow[] = Array.isArray(streakGoogle) ? streakGoogle : [];
+
+    const filterLeads = (leads: StreakLeadRow[]) =>
+      leads.filter((l) => {
+        if (!l.inquiry_date) return false;
+        const d = new Date(l.inquiry_date);
+        return d >= prevStart && d <= prevEnd;
+      });
+
+    const fbPrevLeadsFiltered = filterLeads(streakFbLeads);
+    const googlePrevLeadsFiltered = filterLeads(streakGoogleLeads);
+    const allPrevLeads = [...fbPrevLeadsFiltered, ...googlePrevLeadsFiltered];
+
+    const fbQualityPrev = fbPrevLeadsFiltered.filter((l) => l.ai_score >= 50).length;
+    const googleQualityPrev = googlePrevLeadsFiltered.filter((l) => l.ai_score >= 50).length;
+    const qualityPrevTotal = fbQualityPrev + googleQualityPrev;
+    const aiScoresPrev = allPrevLeads.map((l) => l.ai_score).filter((s) => s > 0);
+    const avgAiPrev = aiScoresPrev.length
+      ? Math.round((aiScoresPrev.reduce((a, b) => a + b, 0) / aiScoresPrev.length) * 10) / 10
+      : 0;
+
+    previousPeriod = {
+      totalSpend: gaSpendPrev + fbSpendPrev,
+      fbSpend: fbSpendPrev,
+      googleSpend: gaSpendPrev,
+      totalLeads: gaLeadsPrev + fbLeadsPrev,
+      fbLeads: fbLeadsPrev,
+      googleLeads: gaLeadsPrev,
+      qualityLeads: qualityPrevTotal,
+      fbQualityLeads: fbQualityPrev,
+      googleQualityLeads: googleQualityPrev,
+      avgAiScore: avgAiPrev
+    };
+  }
+
+  const result: OverviewDataResult = {
+    kpis: {
+      revenueWon: revenueTotal,
+      wonDeals,
+      winRate,
+      avgDealSize,
+      spend: spendTotal,
+      leads: totalLeads,
+      sql,
+      cac,
+      roas,
+      lpViews: lpViewsTotal
+    },
+    range,
+    trendPoints,
+    facebookSummary: fbSummaryData || undefined,
+    googleSummary: {
+      spend: gaSpendInWindow,
+      clicks: gaClicksInWindow,
+      leads: gaLeadsInWindow,
+      cpl: gaLeadsInWindow > 0 ? gaSpendInWindow / gaLeadsInWindow : 0
+    },
+    previousPeriod,
+    __debug: {
+      range,
+      contacts: contacts.__debug,
+      deals: deals.__debug,
+      traffic: {
+        google: {
+          ok: googleTraffic.ok,
+          tab: googleTraffic.tab,
+          found: googleTraffic.found,
+          dateRange: googleTraffic.dateRange,
+          rows: googleTraffic.rows,
+          windowSpend: gaSpendInWindow,
+          error: googleTraffic.error
+        },
+        facebook: {
+          ok: fbSpendRaw.ok,
+          tab: 'fb_ads_raw',
+          found: fbSpendRaw.found,
+          dateRange: fbSpendRaw.dateRange,
+          rows: fbSpendRaw.rows,
+          windowSpend: fbSpendInWindow,
+          error: fbSpendRaw.error
+        },
+        fbLpViews: {
+          ok: fbTrafficEnriched.ok,
+          rows: fbTrafficEnriched.rows,
+          windowLpViews: fbLpViewsInWindow
         }
+      },
+      totalsFromSeries: {
+        spendTotal: spendTotalSeries,
+        lpViewsTotal,
+        revenueTotal,
+        gaSpendInWindow,
+        fbSpendInWindow,
+          gaLeadsInWindow,
+        gaClicksInWindow,
+        fbLpViewsInWindow
+      },
+      totals: {
+        spend: spendTotal,
+        revenue: revenueTotal,
+        lpViews: lpViewsTotal,
+        leads: totalLeads,
+        sql,
+        wonDeals
       }
     }
-  })
-  
-  // Calculate CAC
-  campaignMap.forEach(perf => {
-    perf.cac = perf.leads > 0 ? perf.spend / perf.leads : 0
-  })
-  
-  // Calculate previous period for deltas
-  const prevMap = new Map<string, CampaignPerformance>()
-  prevFbAds.forEach(ad => {
-    const key = ad.campaign || 'Unknown'
-    if (!prevMap.has(key)) {
-      prevMap.set(key, {
-        campaign: key,
-        channel: 'facebook',
-        spend: 0,
-        leads: 0,
-        cac: 0,
-        deals: 0,
-        revenue: 0,
-        deltaPct: 0
-      })
-    }
-    const perf = prevMap.get(key)!
-    perf.spend += ad.spend || 0
-  })
-  
-  // Calculate deltas
-  campaignMap.forEach((perf, key) => {
-    const prev = prevMap.get(key)
-    if (prev && prev.revenue > 0) {
-      perf.deltaPct = ((perf.revenue - prev.revenue) / prev.revenue) * 100
-    }
-  })
-  
-  return Array.from(campaignMap.values())
-    .filter(p => p.spend > 0 || p.revenue > 0)
-    .sort((a, b) => Math.abs(b.deltaPct) - Math.abs(a.deltaPct))
-}
+  };
 
+  console.log('previousPeriod:', previousPeriod);
+  console.log('DEBUG previousPeriod:', {
+    shouldCalcPrev,
+    days,
+    previousPeriod,
+    fbSpendByDate: Object.keys(fbSpendRaw.fbSpendByDate || {}).length,
+    gaSpendByDate: Object.keys(googleTraffic.gaSpendByDate || {}).length,
+    fbLeadsByDate: Object.keys(fbLeadsByDate || {}).length
+  });
+
+  // Compute Facebook summary (30d window anchored to max date in tabs)
+  const headerMap = (rows: any[][]) => {
+    if (!rows?.length) return [];
+    const [head, ...rest] = rows;
+    const keys = head.map((h) =>
+      String(h || '')
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, '_')
+        .replace(/[^\w]/g, '_'),
+    );
+    return rest.map((r) => {
+      const o: any = {};
+      keys.forEach((k, i) => (o[k] = r[i]));
+      return o;
+    });
+  };
+
+  if (!result.facebookSummary && fbRawTab.headers.length && fbEnrichedTab.headers.length) {
+    const rawRows = headerMap([fbRawTab.headers, ...fbRawTab.rows]);
+    const enrichedRows = headerMap([fbEnrichedTab.headers, ...fbEnrichedTab.rows]);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('fb_ads_raw first row:', rawRows[0]);
+      console.log('fb_ads_enriched first row:', enrichedRows[0]);
+    }
+    result.facebookSummary = computeFacebookSummary(rawRows as any, enrichedRows as any);
+  }
+
+  console.log('[overview-data] Result KPIs:', result.kpis);
+  console.log('[overview-data] Trend points:', trendPoints.length, 'days');
+  console.log(`[overview-data] SPEND BREAKDOWN: Google (daily): €${gaSpendInWindow.toFixed(2)} + Facebook (fb_ads_raw): €${fbSpendInWindow.toFixed(2)} = Total: €${spendTotal.toFixed(2)}`);
+
+  return result;
+}

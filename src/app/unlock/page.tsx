@@ -1,9 +1,12 @@
-// app/unlock/page.tsx
-import UnlockClient from "./UnlockClient";
+import { Suspense } from 'react';
+import UnlockClient from './UnlockClient';
 
 export const metadata = { title: "Unlock • Goolets AI Agent" };
 
-export default function Page({ searchParams }: { searchParams: { redirect?: string } }) {
-  const redirect = searchParams?.redirect || "/";
-  return <UnlockClient redirect={redirect} />;
+export default function UnlockPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <UnlockClient />
+    </Suspense>
+  );
 }

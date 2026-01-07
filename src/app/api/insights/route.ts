@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import OpenAI from 'openai'
+import { getOpenAI, hasOpenAIKey } from '@/lib/ai'
 
 export const runtime = 'nodejs'
-
-const hasOpenAI = !!process.env.OPENAI_API_KEY
-const openai = hasOpenAI ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY! }) : null
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,9 +10,11 @@ export async function POST(req: NextRequest) {
     if (!prompt || typeof prompt !== 'string') {
       return NextResponse.json({ error: 'Missing "prompt" (string).' }, { status: 400 })
     }
-    if (!openai) {
+    if (!hasOpenAIKey()) {
       return NextResponse.json({ error: 'OPENAI_API_KEY not configured on server.' }, { status: 400 })
     }
+    
+    const openai = getOpenAI()
 
     // Extract model ID from provider:model format or use as-is
     let modelId = 'gpt-4o-mini'

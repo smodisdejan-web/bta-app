@@ -211,13 +211,8 @@ export default function AdGroupsPage() {
         )
     }
 
-    if (isDataLoading) {
-        return (
-            <div className="container mx-auto px-4 py-12 mt-16">
-                <div className="text-center">Loading...</div>
-            </div>
-        )
-    }
+    // NEVER block rendering - always show the page immediately
+    // Data will load in the background and appear when ready
 
     const handleSort = (field: SortField) => {
         const isStringField = ['campaign', 'campaignId', 'adGroup', 'adGroupId'].includes(field)
