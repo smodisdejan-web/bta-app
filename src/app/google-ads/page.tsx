@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { useSettings } from '@/lib/contexts/SettingsContext'
 import { fetchGoogleAds, aggregateGoogleByCampaign, addGoogleAiMetrics, calculateGoogleTotals, type GoogleAdRecord } from '@/lib/google-ads'
+import { getSheetsUrl } from '@/lib/config'
 import { formatCurrency } from '@/lib/utils'
 import { 
   Search,
@@ -129,7 +130,7 @@ export default function GoogleAdsPage() {
       try {
         setLoading(true)
         setError(null)
-        const records = await fetchGoogleAds()
+        const records = await fetchGoogleAds(settings.sheetUrl || getSheetsUrl())
         setData(records)
         setLastRefresh(new Date())
       } catch (err: any) {

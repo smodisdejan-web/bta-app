@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import {
+import { 
   BarChart3,
   DollarSign,
   Gauge,
@@ -76,8 +76,21 @@ export default function HomePage() {
   const [streakGoogle, setStreakGoogle] = useState<StreakLeadRow[]>([])
   const [aiBullets, setAiBullets] = useState<string[]>([])
   const [prefill, setPrefill] = useState('')
+  const [apiTotals, setApiTotals] = useState<any>(null)
 
   const days = useMemo(() => Number(range.replace('d', '')), [range])
+
+  // Fetch combined totals from API when range changes
+  useEffect(() => {
+    const daysNum = range === '7d' ? 7 : range === '30d' ? 30 : range === '60d' ? 60 : 90
+    fetch(`/api/dashboard-totals?days=${daysNum}`)
+      .then((res) => res.json())
+      .then((data) => {
+        console.log('API totals:', data)
+        setApiTotals(data)
+      })
+      .catch((e) => console.error('API totals fetch failed', e))
+  }, [range])
 
   useEffect(() => {
     const load = async () => {
@@ -131,9 +144,36 @@ export default function HomePage() {
   const monthsInRange = useMemo(() => getMonthsInRange(range), [range])
 
   const filteredBookings = useMemo(() => {
-    console.log('Bookings:', bookings.map((b) => ({ booking_date: b.booking_date, rvc: b.rvc })))
+    // TEMPORARY DEBUG - remove after fixing
+    if (bookings.length > 0) {
+      console.log('=== BOOKINGS DEBUG ===')
+      console.log('monthsInRange:', JSON.stringify(monthsInRange))
+      console.log('First booking date:', bookings[0]?.booking_date)
+      console.log(
+        'Parsed month:',
+        (() => {
+          const dateStr = String(bookings[0]?.booking_date || '')
+          if (dateStr.includes('T')) {
+            const date = new Date(dateStr)
+            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+          }
+          return dateStr.substring(0, 7)
+        })()
+      )
+    }
+    // END DEBUG
+
     return bookings.filter((b) => {
-      const bookingMonth = String(b.booking_date || '').substring(0, 7)
+      const dateStr = String(b.booking_date || '')
+      let bookingMonth: string
+      if (dateStr.includes('T')) {
+        const date = new Date(dateStr)
+        const year = date.getFullYear()
+        const month = String(date.getMonth() + 1).padStart(2, '0')
+        bookingMonth = `${year}-${month}`
+      } else {
+        bookingMonth = dateStr.substring(0, 7)
+      }
       return monthsInRange.includes(bookingMonth)
     })
   }, [bookings, monthsInRange])
@@ -204,15 +244,15 @@ export default function HomePage() {
   )
 
   const totals: SummaryData = useMemo(() => {
-    const totalSpend = fbSpend + googleSpend
-    const totalLeads = leadsFiltered.length
+    const totalSpend = apiTotals?.combined?.spend ?? fbSpend + googleSpend
+    const totalLeads = apiTotals?.combined?.leads ?? leadsFiltered.length
     const totalQuality = qualityCount(leadsFiltered)
     const avgAi = avgAiScore(leadsFiltered)
     const bookingsCount = filteredBookings.length
     const revenue = revenueTotals.totalRevenue
     const lpViews = fbLpViews + googleClicks
     return { spend: totalSpend, leads: totalLeads, qualityLeads: totalQuality, avgAi, bookings: bookingsCount, revenue, lpViews }
-  }, [fbSpend, googleSpend, leadsFiltered, filteredBookings.length, revenueTotals.totalRevenue, fbLpViews, googleClicks])
+  }, [apiTotals, fbSpend, googleSpend, leadsFiltered, filteredBookings.length, revenueTotals.totalRevenue, fbLpViews, googleClicks])
 
   const cacValue = useMemo(() => {
     if (cacMode === 'deals') {
@@ -225,14 +265,15 @@ export default function HomePage() {
 
   const channelFb = useMemo(() => {
     const quality = qualityCount(leadsFbFiltered)
-    const leadsCount = leadsFbFiltered.length
+    const leadsCount = (apiTotals?.fb?.fbFormLeads || 0) + (apiTotals?.fb?.landingLeads || 0)
     const qRate = leadsCount > 0 ? Math.round((quality / leadsCount) * 100) : 0
     const bookingsFb = filteredBookings.filter((b) => b.source.startsWith('fb_'))
     const revenueFb = bookingsFb.reduce((s, b) => s + (b.rvc || 0), 0)
-    const roas = fbSpend > 0 ? revenueFb / fbSpend : 0
-    const cpql = quality > 0 ? fbSpend / quality : 0
+    const spend = apiTotals?.fb?.spend ?? fbSpend
+    const roas = spend > 0 ? revenueFb / spend : 0
+    const cpql = quality > 0 ? spend / quality : 0
     return {
-      spend: fbSpend,
+      spend,
       leads: leadsCount,
       quality,
       qRate,
@@ -241,18 +282,19 @@ export default function HomePage() {
       revenue: revenueFb,
       roas
     }
-  }, [leadsFbFiltered, filteredBookings, fbSpend])
+  }, [apiTotals, leadsFbFiltered, filteredBookings, fbSpend])
 
   const channelGoogle = useMemo(() => {
     const quality = qualityCount(leadsGoogleFiltered)
-    const leadsCount = leadsGoogleFiltered.length
+    const leadsCount = apiTotals?.google?.conversions ?? leadsGoogleFiltered.length
     const qRate = leadsCount > 0 ? Math.round((quality / leadsCount) * 100) : 0
     const bookingsGoogle = filteredBookings.filter((b) => b.source === 'google')
     const revenueGoogle = bookingsGoogle.reduce((s, b) => s + (b.rvc || 0), 0)
-    const roas = googleSpend > 0 ? revenueGoogle / googleSpend : 0
-    const cpql = quality > 0 ? googleSpend / quality : 0
+    const spend = apiTotals?.google?.spend ?? googleSpend
+    const roas = spend > 0 ? revenueGoogle / spend : 0
+    const cpql = quality > 0 ? spend / quality : 0
     return {
-      spend: googleSpend,
+      spend,
       leads: leadsCount,
       quality,
       qRate,
@@ -261,7 +303,7 @@ export default function HomePage() {
       revenue: revenueGoogle,
       roas
     }
-  }, [leadsGoogleFiltered, filteredBookings, googleSpend])
+  }, [apiTotals, leadsGoogleFiltered, filteredBookings, googleSpend])
 
   const revenueBySource = useMemo(() => {
     const map: Record<string, number> = { 'FB Landing': 0, 'FB Lead': 0, Google: 0 }
@@ -369,7 +411,7 @@ export default function HomePage() {
     return res.json()
   }
 
-  useEffect(() => {
+    useEffect(() => {
     const loadSummary = async () => {
       try {
         const res = await fetch('/api/insights/summary', {
@@ -393,7 +435,7 @@ export default function HomePage() {
         <div className="mx-auto max-w-7xl">
           <p className="text-muted-foreground">Loading Command Center...</p>
         </div>
-      </div>
+        </div>
     )
   }
 
@@ -420,7 +462,7 @@ export default function HomePage() {
                 }
               >
                 {option.replace('d', ' Days')}
-              </Button>
+                    </Button>
             ))}
             <Button
               variant="outline"
@@ -430,7 +472,7 @@ export default function HomePage() {
               onClick={() => setRange(range)}
             >
               <RefreshCw className="h-4 w-4" />
-            </Button>
+                    </Button>
           </div>
         </div>
 
@@ -453,19 +495,19 @@ export default function HomePage() {
                 <span className="h-4 w-px bg-gray-200" />
                 <span>Avg {formatCurrency(revenueTotals.avgDeal, 'EUR')} per deal</span>
               </div>
-            </CardContent>
-          </Card>
+                </CardContent>
+            </Card>
 
           <Card className="border-[#e1d8c7] bg-white shadow-sm">
             <CardContent className="p-6 space-y-4">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2">
                   <Sparkles className="h-5 w-5 text-[#B39262]" />
                   <div>
                     <p className="text-sm font-semibold">AI Executive Summary</p>
                     <p className="text-xs text-muted-foreground">Key insights for today</p>
                   </div>
-                </div>
+                            </div>
                 <Button
                   variant="outline"
                   size="sm"
@@ -473,8 +515,8 @@ export default function HomePage() {
                   onClick={() => setRange(range)}
                 >
                   Refresh
-                </Button>
-              </div>
+                                </Button>
+                            </div>
               <div className="space-y-2 text-sm text-gray-700">
                 {aiBullets.length === 0 ? (
                   <p className="text-muted-foreground">Insights will appear after data loads.</p>
@@ -485,9 +527,9 @@ export default function HomePage() {
                   })
                 )}
               </div>
-            </CardContent>
-          </Card>
-        </div>
+                        </CardContent>
+                    </Card>
+                </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
           <MetricCard title="Total Spend" value={formatCurrency(totals.spend, 'EUR')} subtitle="All channels" icon={<DollarSign className="h-4 w-4 text-[#B39262]" />} />
@@ -507,7 +549,7 @@ export default function HomePage() {
             icon={<BarChart3 className="h-4 w-4 text-[#34a853]" />}
             accent="#34a853"
           />
-        </div>
+            </div>
 
         <div className="flex flex-wrap gap-2">
           <Button variant={cacMode === 'leads' ? 'default' : 'outline'} size="sm" onClick={() => setCacMode('leads')}>
@@ -515,8 +557,8 @@ export default function HomePage() {
           </Button>
           <Button variant={cacMode === 'deals' ? 'default' : 'outline'} size="sm" onClick={() => setCacMode('deals')}>
             CAC by Deals
-          </Button>
-        </div>
+                            </Button>
+                        </div>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <ChannelCard
@@ -545,7 +587,7 @@ export default function HomePage() {
               { label: 'ROAS', value: `${channelGoogle.roas.toFixed(2)}x`, emphasis: true }
             ]}
           />
-        </div>
+                    </div>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <Card className="border-[#e1d8c7] bg-white shadow-sm">
@@ -589,11 +631,11 @@ export default function HomePage() {
           <Card className="border-[#e1d8c7] bg-white shadow-sm">
             <CardContent className="p-6 space-y-4">
               <div className="flex items-center justify-between">
-                <div>
+                            <div>
                   <p className="text-sm font-semibold">Top Markets</p>
                   <p className="text-xs text-muted-foreground">Funnel by country</p>
-                </div>
-              </div>
+                            </div>
+                        </div>
               <div className="space-y-3">
                 {topMarkets.map((m) => (
                   <div key={m.country} className="space-y-1">
@@ -602,7 +644,7 @@ export default function HomePage() {
                       <span className="text-gray-900 font-medium">{m.qualityLeads.toLocaleString()} QL</span>
                       <span className="text-gray-900 font-medium">{m.bookings} bookings</span>
                       <span className="text-gray-900 font-medium">{formatCurrency(m.revenue, 'EUR')}</span>
-                    </div>
+                        </div>
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
                       <span>Close Rate</span>
                       <span>{m.closeRate.toFixed(1)}%</span>
@@ -615,7 +657,7 @@ export default function HomePage() {
                             width: `${Math.min(100, (m.revenue / (topMarkets[0]?.revenue || 1)) * 100)}%`
                           }}
                         />
-                      </div>
+                    </div>
                       <span className="text-sm font-semibold">{formatCurrency(m.revenue, 'EUR')}</span>
                     </div>
                   </div>
@@ -624,12 +666,12 @@ export default function HomePage() {
               </div>
             </CardContent>
           </Card>
-        </div>
+                </div>
 
         <Card className="border-[#e1d8c7] bg-white shadow-sm">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
-              <div>
+                <div>
                 <p className="text-sm font-semibold">Conversion Funnel</p>
                 <p className="text-xs text-muted-foreground">LP Views → Leads → Quality Leads → Bookings → Revenue</p>
               </div>
@@ -685,12 +727,12 @@ export default function HomePage() {
 
         <Card className="border-[#e1d8c7] bg-white shadow-sm">
           <CardContent className="p-6 space-y-4">
-            <div className="flex items-center justify-between">
+                                            <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-semibold">Lead Quality Trend</p>
                 <p className="text-xs text-muted-foreground">Total Leads, Quality Leads, Avg AI Score</p>
-              </div>
-            </div>
+                                                </div>
+                                            </div>
             <div className="h-72">
               {leadTrend.length === 0 ? (
                 <div className="flex h-full items-center justify-center text-sm text-muted-foreground">No lead data in range.</div>
@@ -733,12 +775,12 @@ export default function HomePage() {
                   {qp}
                 </Button>
               ))}
-            </div>
+                                                </div>
             <AiAsk onAsk={handleAsk} prefill={prefill} />
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+                                        </CardContent>
+                                    </Card>
+                    </div>
+                </div>
   )
 }
 
@@ -821,20 +863,20 @@ function normalizeCountry(country: string) {
 }
 
 function MetricCard({ title, value, subtitle, icon, accent }: MetricCardProps) {
-  return (
+                                return (
     <Card className="border-[#e1d8c7] bg-white shadow-sm">
       <CardContent className="p-4 space-y-3">
-        <div className="flex items-center justify-between">
+                                            <div className="flex items-center justify-between">
           <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{title}</div>
           <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[#fbf9f4]" style={{ color: accent || gold }}>
             {icon}
-          </div>
-        </div>
+                                                </div>
+                                            </div>
         <div className="text-2xl font-semibold text-gray-900">{value}</div>
         {subtitle ? <div className="text-xs text-muted-foreground">{subtitle}</div> : null}
-      </CardContent>
-    </Card>
-  )
+                                        </CardContent>
+                                    </Card>
+                                )
 }
 
 function ChannelCard({ title, icon, metrics }: ChannelCardProps) {
@@ -846,8 +888,8 @@ function ChannelCard({ title, icon, metrics }: ChannelCardProps) {
           <div>
             <p className="text-sm font-semibold">{title}</p>
             <p className="text-xs text-muted-foreground">Performance overview</p>
-          </div>
-        </div>
+                    </div>
+                </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {metrics.map((metric) => (
             <div key={metric.label} className="rounded-lg border border-[#e1d8c7] bg-[#fbf9f4] p-3">
@@ -858,6 +900,6 @@ function ChannelCard({ title, icon, metrics }: ChannelCardProps) {
         </div>
       </CardContent>
     </Card>
-  )
+    )
 }
 

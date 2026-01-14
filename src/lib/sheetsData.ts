@@ -1433,20 +1433,34 @@ export async function fetchBookings(
   fetchFn: typeof fetchSheet = fetchSheet
 ): Promise<BookingRecord[]> {
   try {
+    const url = DEFAULT_WEB_APP_URL
+    console.log('[fetchBookings] Fetching from URL:', url, 'tab:', SHEETS_TABS.BOOKINGS)
     const rawData = await fetchFn({
-      sheetUrl: DEFAULT_WEB_APP_URL,
+      sheetUrl: url,
       tab: SHEETS_TABS.BOOKINGS
     })
 
     if (!rawData || rawData.length < 2) return []
 
     const [header, ...rows] = rawData
+    console.log('[fetchBookings] Raw rows count:', rows.length)
+
     const colIndex = (name: string) =>
       header.findIndex((h: string) => String(h).toLowerCase() === name.toLowerCase())
 
-    return rows.map((row: any[]) => ({
+    const mapped = rows.map((row: any[]) => ({
       inquiry_date: String(row[colIndex('inquiry_date')] || ''),
-      booking_date: String(row[colIndex('booking_date')] || ''),
+      booking_date: (() => {
+        const raw = row[colIndex('booking_date')] ?? row['booking_date'] ?? ''
+        const str = String(raw)
+        if (str.includes('T')) {
+          const date = new Date(str)
+          const year = date.getFullYear()
+          const month = String(date.getMonth() + 1).padStart(2, '0')
+          return `${year}-${month}`
+        }
+        return str.substring(0, 7)
+      })(),
       source: String(row[colIndex('source')] || '') as BookingRecord['source'],
       campaign: String(row[colIndex('campaign')] || ''),
       status: String(row[colIndex('status')] || ''),
@@ -1458,6 +1472,8 @@ export async function fetchBookings(
       ai_score: Number(row[colIndex('ai_score')]) || 0,
       notes: String(row[colIndex('notes')] || ''),
     }))
+    console.log('[fetchBookings] All booking_date values:', mapped.map((m) => m.booking_date))
+    return mapped
   } catch (error) {
     console.error('Error fetching bookings:', error)
     return []

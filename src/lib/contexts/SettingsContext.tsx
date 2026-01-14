@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, useEffect, useMemo } from 'react'
 import useSWR, { mutate } from 'swr'
 import type { Campaign, Settings, TabData } from '../types'
-import { DEFAULT_WEB_APP_URL } from '../config'
+import { DEFAULT_WEB_APP_URL, getSheetsUrl } from '../config'
 import { fetchAllTabsData, getCampaigns } from '../sheetsData'
 
 export type SettingsContextType = {
@@ -20,7 +20,8 @@ export type SettingsContextType = {
 }
 
 const defaultSettings: Settings = {
-  sheetUrl: DEFAULT_WEB_APP_URL,
+  // Prefer env-based sheets URL; fall back to hardcoded default
+  sheetUrl: getSheetsUrl() || DEFAULT_WEB_APP_URL,
   currency: '€',
   selectedCampaign: undefined,
   activeTab: 'daily'

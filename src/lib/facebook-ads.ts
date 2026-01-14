@@ -1,5 +1,5 @@
 // src/lib/facebook-ads.ts
-import { DEFAULT_WEB_APP_URL } from './config'
+import { DEFAULT_WEB_APP_URL, getSheetsUrl } from './config'
 import { fetchFbEnriched, fetchSheet, FbEnrichedRow, fetchStreakLeads, StreakLeadRow } from './sheetsData'
 import { matchLeadsToCampaigns } from './fuzzy-match'
 
@@ -38,7 +38,7 @@ function mapEnrichedToRecord(row: FbEnrichedRow): FacebookAdRecord {
   }
 }
 
-export async function fetchFacebookAds(sheetUrl: string = DEFAULT_WEB_APP_URL): Promise<FacebookAdRecord[]> {
+export async function fetchFacebookAds(sheetUrl: string = getSheetsUrl() || DEFAULT_WEB_APP_URL): Promise<FacebookAdRecord[]> {
   try {
     const [enrichedRows, streakLeads] = await Promise.all([
       fetchFbEnriched(fetchSheet),

@@ -1,4 +1,4 @@
-import { DEFAULT_WEB_APP_URL, SHEETS_TABS } from './config'
+import { DEFAULT_WEB_APP_URL, SHEETS_TABS, getSheetsUrl } from './config'
 import { fetchSheet, fetchStreakLeadsGoogle, StreakLeadRow } from './sheetsData'
 
 export interface GoogleAdRecord {
@@ -32,10 +32,13 @@ export function getGoogleStreakLeads(): StreakLeadRow[] {
 }
 
 // Fetch Google Ads data from DAILY tab (includes all campaign types)
-export async function fetchGoogleAds(): Promise<GoogleAdRecord[]> {
+export async function fetchGoogleAds(sheetUrl?: string): Promise<GoogleAdRecord[]> {
   try {
     const [rawData, streakLeads] = await Promise.all([
-      fetchSheet({ sheetUrl: DEFAULT_WEB_APP_URL, tab: SHEETS_TABS.DAILY }),
+      fetchSheet({
+        sheetUrl: sheetUrl || getSheetsUrl() || DEFAULT_WEB_APP_URL,
+        tab: SHEETS_TABS.DAILY
+      }),
       fetchStreakLeadsGoogle(fetchSheet)
     ])
 
