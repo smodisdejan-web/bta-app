@@ -20,7 +20,8 @@ const navItems = [
       { label: 'Landing Pages', href: '/landing-pages' },
       { label: 'Data Insights', href: '/data-insights' }
     ]
-  }
+  },
+  { label: 'GA4 Landing Pages', href: '/ga4-landing-pages' }
 ] as const
 
 export function Navigation() {
