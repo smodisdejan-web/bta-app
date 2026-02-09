@@ -1,6 +1,6 @@
 // src/lib/facebook-ads.ts
 import { DEFAULT_WEB_APP_URL, getSheetsUrl } from './config'
-import { fetchFbEnriched, fetchSheet, FbEnrichedRow, fetchStreakLeads, StreakLeadRow } from './sheetsData'
+import { fetchFbEnriched, fetchSheet, FbEnrichedRow, fetchStreakSyncFb, StreakLeadRow } from './sheetsData'
 import { matchLeadsToCampaigns } from './fuzzy-match'
 
 export interface FacebookAdRecord {
@@ -42,7 +42,7 @@ export async function fetchFacebookAds(sheetUrl: string = getSheetsUrl() || DEFA
   try {
     const [enrichedRows, streakLeads] = await Promise.all([
       fetchFbEnriched(fetchSheet),
-      fetchStreakLeads(fetchSheet)
+      fetchStreakSyncFb(fetchSheet)
     ])
 
     // Cache streak leads for later aggregation

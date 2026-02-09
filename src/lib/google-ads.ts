@@ -1,5 +1,5 @@
 import { DEFAULT_WEB_APP_URL, SHEETS_TABS, getSheetsUrl } from './config'
-import { fetchSheet, fetchStreakLeadsGoogle, StreakLeadRow } from './sheetsData'
+import { fetchSheet, fetchStreakSyncGoogle, StreakLeadRow } from './sheetsData'
 
 export interface GoogleAdRecord {
   date: string
@@ -39,7 +39,7 @@ export async function fetchGoogleAds(sheetUrl?: string): Promise<GoogleAdRecord[
         sheetUrl: sheetUrl || getSheetsUrl() || DEFAULT_WEB_APP_URL,
         tab: SHEETS_TABS.DAILY
       }),
-      fetchStreakLeadsGoogle(fetchSheet)
+      fetchStreakSyncGoogle(fetchSheet)
     ])
 
     cachedGoogleStreakLeads = streakLeads

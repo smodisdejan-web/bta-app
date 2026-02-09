@@ -13,8 +13,8 @@ import {
   loadFbSpendFromRaw,
   loadContacts,
   loadDeals,
-  fetchStreakLeads,
-  fetchStreakLeadsGoogle,
+  fetchStreakSyncFb,
+  fetchStreakSyncGoogle,
   mapFbEnriched,
   fetchSheet,
   DateRange,
@@ -228,8 +228,8 @@ export async function getOverviewData(days = 30, cacMode: CACMode = 'leads'): Pr
       console.warn('[overview-data] loadFbDashboard failed', err);
       return null;
     }),
-    fetchStreakLeads(fetchSheet, sheetsUrl),
-    fetchStreakLeadsGoogle(fetchSheet, sheetsUrl)
+    fetchStreakSyncFb(fetchSheet, sheetsUrl),
+    fetchStreakSyncGoogle(fetchSheet, sheetsUrl)
   ]);
 
   console.log('[overview-data] Data loaded:', {

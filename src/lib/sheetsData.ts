@@ -1415,6 +1415,36 @@ export async function fetchStreakLeads(
   }
 }
 
+export async function fetchStreakSync(
+  fetchSheetFn: (args: { sheetUrl: string; tab: string }) => Promise<any[][]>,
+  sheetUrl?: string
+): Promise<StreakLeadRow[]> {
+  const url = sheetUrl || getSheetsUrl() || DEFAULT_WEB_APP_URL
+  try {
+    const raw = await fetchSheetFn({ sheetUrl: url, tab: SHEETS_TABS.STREAK_SYNC })
+    return mapStreakLeads(raw)
+  } catch (error) {
+    console.error('Error fetching streak_sync:', error)
+    return []
+  }
+}
+
+export async function fetchStreakSyncFb(
+  fetchSheetFn: (args: { sheetUrl: string; tab: string }) => Promise<any[][]>,
+  sheetUrl?: string
+): Promise<StreakLeadRow[]> {
+  const all = await fetchStreakSync(fetchSheetFn, sheetUrl)
+  return all.filter(l => l.platform === 'facebook')
+}
+
+export async function fetchStreakSyncGoogle(
+  fetchSheetFn: (args: { sheetUrl: string; tab: string }) => Promise<any[][]>,
+  sheetUrl?: string
+): Promise<StreakLeadRow[]> {
+  const all = await fetchStreakSync(fetchSheetFn, sheetUrl)
+  return all.filter(l => l.platform === 'google')
+}
+
 export async function fetchStreakLeadsGoogle(
   fetchSheetFn: (args: { sheetUrl: string; tab: string }) => Promise<any[][]>,
   sheetUrl?: string
