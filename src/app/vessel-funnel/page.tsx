@@ -10,6 +10,7 @@ import {
   XAxis,
   YAxis,
   Legend,
+  Cell,
 } from 'recharts'
 import { VESSEL_PROFILES } from '@/lib/vessel-profiles'
 import type { VesselFunnelResult, VesselLead } from '@/lib/vessel-funnel'
@@ -262,7 +263,7 @@ export default function VesselFunnelPage() {
                       >
                         {whyNotData.map((entry, index) => {
                           const isUnknown = entry.isUnknown
-                          return <cell key={`cell-${index}`} fill={isUnknown ? '#D1D5DB' : ACCENT} />
+                          return <Cell key={`cell-${index}`} fill={isUnknown ? '#D1D5DB' : ACCENT} />
                         })}
                       </Bar>
                     </BarChart>
