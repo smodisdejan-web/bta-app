@@ -15,8 +15,7 @@ export type FunnelCounts = {
 export type FunnelRates = {
   leadToQl: number
   qlToVesselQl: number
-  vesselQlToAssigned: number
-  assignedToBooking: number
+  vesselQlToBooking: number
   revenuePerLead: number
 }
 
@@ -124,12 +123,10 @@ export async function loadVesselFunnel(vesselId: string, days: number): Promise<
   const revenue = bookingsForVessel.reduce((sum, b) => sum + (b.rvc || 0), 0)
 
   const whyNotMap = new Map<string, number>()
-  vesselQl
-    .filter((lead) => !vesselAssigned(lead, profile))
-    .forEach((lead) => {
-      const reason = lead.why_not_segment || 'Unknown'
-      whyNotMap.set(reason, (whyNotMap.get(reason) || 0) + 1)
-    })
+  leadsForVessel.forEach((lead) => {
+    const reason = lead.why_not_segment || 'Unknown'
+    whyNotMap.set(reason, (whyNotMap.get(reason) || 0) + 1)
+  })
 
   const leads: VesselLead[] = leadsForVessel.map((lead) => {
     const assignedFlag = vesselAssigned(lead, profile)
@@ -165,8 +162,7 @@ export async function loadVesselFunnel(vesselId: string, days: number): Promise<
   const rates: FunnelRates = {
     leadToQl: safeDiv(counts.ql, counts.leads),
     qlToVesselQl: safeDiv(counts.vesselQl, counts.ql),
-    vesselQlToAssigned: safeDiv(counts.assigned, counts.vesselQl),
-    assignedToBooking: safeDiv(counts.bookings, counts.assigned),
+    vesselQlToBooking: safeDiv(counts.bookings, counts.vesselQl),
     revenuePerLead: counts.leads > 0 ? revenue / counts.leads : 0,
   }
 
@@ -174,7 +170,6 @@ export async function loadVesselFunnel(vesselId: string, days: number): Promise<
     { label: 'Leads', value: counts.leads },
     { label: 'QL', value: counts.ql },
     { label: 'Vessel QL', value: counts.vesselQl },
-    { label: 'Assigned', value: counts.assigned },
     { label: 'Bookings', value: counts.bookings },
   ]
 
