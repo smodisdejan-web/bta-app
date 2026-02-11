@@ -1209,6 +1209,12 @@ export type StreakLeadRow = {
   source_detail: string
   budget_range: string
   platform: string
+  name?: string
+  size_of_group?: number
+  destination?: string
+  when?: string
+  vessel?: string
+  why_not_segment?: string
 }
 
 // Booking record
@@ -1273,19 +1279,33 @@ export function mapStreakLeads(rows: any[][]): StreakLeadRow[] {
     source_detail: col('source_detail'),
     budget_range: col('budget_range'),
     platform: col('platform'),
+    name: col('name'),
+    size_of_group: col('size_of_group'),
+    destination: col('destination'),
+    when: col('when'),
+    vessel: col('vessel'),
+    why_not_segment: col('why_not_segment'),
   }
 
-  return data.map(r => ({
-    inquiry_date: String(r[I.inquiry_date] ?? ''),
-    source_placement: String(r[I.source_placement] ?? '').toLowerCase(),
-    ai_score: toNumber(r[I.ai_score]),
-    country: String(r[I.country] ?? ''),
-    stage: String(r[I.stage] ?? ''),
-    source_category: String(r[I.source_category] ?? ''),
-    source_detail: String(r[I.source_detail] ?? ''),
-    budget_range: String(r[I.budget_range] ?? ''),
-    platform: String(r[I.platform] ?? ''),
-  })).filter(row => row.ai_score > 0)
+  return data
+    .map(r => ({
+      inquiry_date: String(r[I.inquiry_date] ?? ''),
+      source_placement: String(r[I.source_placement] ?? '').toLowerCase(),
+      ai_score: toNumber(r[I.ai_score]),
+      country: String(r[I.country] ?? ''),
+      stage: String(r[I.stage] ?? ''),
+      source_category: String(r[I.source_category] ?? ''),
+      source_detail: String(r[I.source_detail] ?? ''),
+      budget_range: String(r[I.budget_range] ?? ''),
+      platform: String(r[I.platform] ?? ''),
+      name: I.name !== -1 ? String(r[I.name] ?? '') : undefined,
+      size_of_group: I.size_of_group !== -1 ? Number(r[I.size_of_group] ?? 0) : undefined,
+      destination: I.destination !== -1 ? String(r[I.destination] ?? '') : undefined,
+      when: I.when !== -1 ? String(r[I.when] ?? '') : undefined,
+      vessel: I.vessel !== -1 ? String(r[I.vessel] ?? '') : undefined,
+      why_not_segment: I.why_not_segment !== -1 ? String(r[I.why_not_segment] ?? '') : undefined,
+    }))
+    .filter(row => !!row.inquiry_date)
 }
 
 // Generic fetchSheet helper

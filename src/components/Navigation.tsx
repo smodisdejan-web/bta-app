@@ -21,7 +21,8 @@ const navItems = [
       { label: 'Data Insights', href: '/data-insights' }
     ]
   },
-  { label: 'GA4 Landing Pages', href: '/ga4-landing-pages' }
+  { label: 'GA4 Landing Pages', href: '/ga4-landing-pages' },
+  { label: 'Vessel Funnel', href: '/vessel-funnel' }
 ] as const
 
 export function Navigation() {
