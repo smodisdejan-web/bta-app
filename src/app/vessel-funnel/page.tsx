@@ -258,6 +258,7 @@ export default function VesselFunnelPage() {
                       <Bar
                         dataKey="count"
                         name="Count"
+                        fill={ACCENT}
                         radius={[4, 4, 4, 4]}
                         label={{ position: 'right', formatter: (v: any) => Number(v).toLocaleString() }}
                       >
