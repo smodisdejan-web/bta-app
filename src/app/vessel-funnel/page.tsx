@@ -85,7 +85,21 @@ export default function VesselFunnelPage() {
   }, [vesselId, days])
 
   const funnelData = useMemo(() => data?.funnelSteps || [], [data])
-  const whyNotData = useMemo(() => data?.whyNot || [], [data])
+  const whyNotData = useMemo(() => {
+    return (
+      data?.whyNot.map((item) => {
+        const shortLabel = item.reason === 'Unknown'
+          ? 'Not yet determined'
+          : item.reason.replace(/\s*\(.*$/, '').trim();
+        return {
+          reasonShort: shortLabel,
+          reasonFull: item.reason === 'Unknown' ? 'Not yet determined' : item.reason,
+          count: item.count,
+          isUnknown: shortLabel === 'Not yet determined',
+        }
+      }) || []
+    )
+  }, [data])
   const leads = useMemo(() => data?.leads || [], [data])
 
   return (
@@ -225,24 +239,30 @@ export default function VesselFunnelPage() {
                   </div>
                   <AlertCircle className="h-4 w-4 text-amber-500" />
                 </div>
-                <div className="h-72">
+                <div className="h-96">
                   <ResponsiveContainer>
-                    <BarChart data={whyNotData} layout="vertical" margin={{ left: 60 }}>
+                    <BarChart data={whyNotData} layout="vertical" margin={{ left: 80 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
                       <XAxis type="number" allowDecimals={false} />
-                      <YAxis dataKey="reason" type="category" width={160} />
-                      <Tooltip formatter={(v: any) => Number(v).toLocaleString()} />
+                      <YAxis dataKey="reasonShort" type="category" width={180} />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: '#1A1A2E', border: 'none', borderRadius: '8px', color: 'white' }}
+                        formatter={(value: any, _name: any, props: any) => {
+                          const full = props?.payload?.reasonFull || ''
+                          return [Number(value).toLocaleString(), full]
+                        }}
+                        labelFormatter={() => ''}
+                      />
                       <Legend />
                       <Bar
                         dataKey="count"
                         name="Count"
-                        fill={ACCENT}
                         radius={[4, 4, 4, 4]}
                         label={{ position: 'right', formatter: (v: any) => Number(v).toLocaleString() }}
                       >
                         {whyNotData.map((entry, index) => {
-                          const isUnknown = entry.reason === 'Unknown'
-                          return <cell key={`cell-${index}`} fill={isUnknown ? '#9CA3AF' : ACCENT} />
+                          const isUnknown = entry.isUnknown
+                          return <cell key={`cell-${index}`} fill={isUnknown ? '#D1D5DB' : ACCENT} />
                         })}
                       </Bar>
                     </BarChart>
