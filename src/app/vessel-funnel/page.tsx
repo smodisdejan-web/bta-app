@@ -248,6 +248,8 @@ export default function VesselFunnelPage() {
                       <YAxis dataKey="reasonShort" type="category" width={180} />
                       <Tooltip
                         contentStyle={{ backgroundColor: '#1A1A2E', border: 'none', borderRadius: '8px', color: 'white' }}
+                        itemStyle={{ color: 'white' }}
+                        labelStyle={{ color: 'white' }}
                         formatter={(value: any, _name: any, props: any) => {
                           const full = props?.payload?.reasonFull || ''
                           return [Number(value).toLocaleString(), full]
