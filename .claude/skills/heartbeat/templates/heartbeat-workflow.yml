@@ -1,0 +1,46 @@
+# Brain Heartbeat - Overnight Check
+# This workflow runs on a schedule to check your world while you sleep.
+# Customize the cron schedule, timezone, and checks below.
+
+name: Brain Heartbeat
+
+on:
+  schedule:
+    # Runs at 5:30 AM Melbourne time (UTC+11 = 18:30 UTC previous day)
+    # Adjust for your timezone: https://crontab.guru/
+    - cron: '30 18 * * *'
+  workflow_dispatch: # Allow manual triggers for testing
+
+env:
+  ANTHROPIC_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
+  GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_ADS_CLIENT_ID }}
+  GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_ADS_CLIENT_SECRET }}
+  GOOGLE_OAUTH_REFRESH_TOKEN: ${{ secrets.GMAIL_TOKEN }}
+
+jobs:
+  heartbeat:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout brain
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install anthropic google-auth google-auth-oauthlib google-api-python-client
+
+      - name: Run heartbeat
+        run: python .claude/skills/heartbeat/scripts/overnight-heartbeat.py
+
+      - name: Commit heartbeat summary
+        run: |
+          git config user.name "Brain Heartbeat"
+          git config user.email "heartbeat@brain.local"
+          git add briefing/heartbeat-*.md
+          git diff --cached --quiet || git commit -m "heartbeat: overnight check $(date +%Y-%m-%d)"
+          git push

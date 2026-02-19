@@ -1,0 +1,19 @@
+{
+  "checks": ["todos", "inbox"],
+  "actions": ["summarize"],
+  "overnight": {
+    "schedule": "30 18 * * *",
+    "timezone_note": "This cron is in UTC. 18:30 UTC = 5:30 AM AEDT (Melbourne). Adjust for your timezone.",
+    "model": "claude-haiku-4-5-20251001",
+    "max_tokens_per_run": 4000
+  },
+  "daytime": {
+    "enabled": false,
+    "interval_minutes": 30,
+    "use_claude_code": true
+  },
+  "budget": {
+    "monthly_limit_usd": 5,
+    "alert_at_percent": 80
+  }
+}
