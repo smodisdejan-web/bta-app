@@ -16,7 +16,7 @@ import {
   ChevronRight
 } from 'lucide-react'
 import { Pie, PieChart, ResponsiveContainer, Cell, Tooltip, Legend, ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid } from 'recharts'
-import { fetchFbEnriched, fetchStreakLeads, fetchStreakLeadsGoogle, fetchTab, fetchBookings, BookingRecord, StreakLeadRow } from '@/lib/sheetsData'
+import { fetchFbEnriched, fetchStreakSync, fetchTab, fetchBookings, BookingRecord, StreakLeadRow } from '@/lib/sheetsData'
 import { getSheetsUrl } from '@/lib/config'
 import { formatCurrency } from '@/lib/utils'
 import { AiAsk } from '@/components/overview/AiAsk'
@@ -86,14 +86,16 @@ export default function OverviewPage() {
       setError(null)
       try {
         const sheetUrl = getSheetsUrl()
-        const [{ headers: dailyHeaders, rows: dailyRows }, fbRows, fbLeads, googleLeads, bookingRows] =
+        const [{ headers: dailyHeaders, rows: dailyRows }, fbRows, streakAll, bookingRows] =
           await Promise.all([
             fetchTab('daily', sheetUrl),
             fetchFbEnriched(fetchFbEnrichedSheet, sheetUrl),
-            fetchStreakLeads(fetchFbEnrichedSheet, sheetUrl),
-            fetchStreakLeadsGoogle(fetchFbEnrichedSheet, sheetUrl),
+            fetchStreakSync(fetchFbEnrichedSheet, sheetUrl),
             fetchBookings(fetchFbEnrichedSheet)
           ])
+
+        const fbLeads = (streakAll || []).filter((l) => (l as any).platform === 'facebook')
+        const googleLeads = (streakAll || []).filter((l) => (l as any).platform === 'google')
 
         setFbEnriched(fbRows || [])
         setStreakFb(fbLeads || [])

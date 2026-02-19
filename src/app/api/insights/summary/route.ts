@@ -9,8 +9,7 @@ import {
   totalsFb,
   fetchBookings,
   calculateBookingMetrics,
-  fetchStreakLeads,
-  fetchStreakLeadsGoogle
+  fetchStreakSync
 } from '@/lib/sheetsData'
 import { loadFbDashboard } from '@/lib/loaders/fb-dashboard'
 import { loadGoogleTraffic } from '@/lib/sheetsData'
@@ -38,9 +37,10 @@ export async function POST(req: NextRequest) {
     const googleBookingMetrics = calculateBookingMetrics(bookings, startISO, endISO, 'google')
 
     // Streak leads (fb + google)
-    const streakFb = await fetchStreakLeads(fetchSheet, sheets)
-    const streakGoogle = await fetchStreakLeadsGoogle(fetchSheet, sheets)
-    const allLeads = [...streakFb, ...streakGoogle].filter((l) => {
+    const streakAll = (await fetchStreakSync(fetchSheet, sheets)) || []
+    const streakFb = (streakAll || []).filter((l) => (l as any).platform === 'facebook')
+    const streakGoogle = (streakAll || []).filter((l) => (l as any).platform === 'google')
+    const allLeads = streakAll.filter((l) => {
       if (!l.inquiry_date) return false
       const d = new Date(l.inquiry_date)
       return d >= start && d <= end
