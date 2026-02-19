@@ -1,0 +1,45 @@
+# Brain Heartbeat - Overnight Check
+# Runs at 5:00 AM CET (4:00 AM UTC) daily
+# Checks: todos, inbox, Gmail, Google Calendar
+
+name: Brain Heartbeat
+
+on:
+  schedule:
+    # 5:00 AM CET = 4:00 AM UTC
+    - cron: '0 4 * * *'
+  workflow_dispatch: # Allow manual triggers for testing
+
+env:
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+  GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+  GOOGLE_OAUTH_REFRESH_TOKEN: ${{ secrets.GOOGLE_OAUTH_REFRESH_TOKEN }}
+
+jobs:
+  heartbeat:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout brain
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install anthropic google-auth google-auth-oauthlib google-api-python-client
+
+      - name: Run heartbeat
+        run: python .claude/skills/heartbeat/scripts/overnight-heartbeat.py
+
+      - name: Commit heartbeat summary
+        run: |
+          git config user.name "Brain Heartbeat"
+          git config user.email "heartbeat@brain.local"
+          git add briefing/heartbeat-*.md
+          git diff --cached --quiet || git commit -m "heartbeat: overnight check $(date +%Y-%m-%d)"
+          git push
