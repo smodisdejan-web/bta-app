@@ -330,24 +330,6 @@ export default function GoogleAdsPage() {
 
   const fmtEUR = (n: number) => formatCurrency(n, '€')
 
-  const tableData = useMemo(() => {
-    if (viewMode !== 'campaign') return processedData
-    return (processedData as GoogleAdRecord[]).map((row) => {
-      const conv = perCampaignConversions.get(row.campaign) || 0
-      const val = perCampaignValue.get(row.campaign) || 0
-      const spend = row.spend || 0
-      const cpa = conv > 0 ? spend / conv : 0
-      const roas = spend > 0 ? val / spend : 0
-      return {
-        ...row,
-        conversions: conv,
-        value: val,
-        cpa,
-        roas,
-      }
-    })
-  }, [processedData, viewMode, perCampaignConversions, perCampaignValue])
-
   const matchLeadToCampaign = (detail: string, campaigns: string[]): string | null => {
     const sd = (detail || '').toLowerCase().trim()
     const camps = campaigns.map((c) => c.toLowerCase())
@@ -412,6 +394,24 @@ export default function GoogleAdsPage() {
     })
     return map
   }, [bookingsInRange, campaignNames])
+
+  const tableData = useMemo(() => {
+    if (viewMode !== 'campaign') return processedData
+    return (processedData as GoogleAdRecord[]).map((row) => {
+      const conv = perCampaignConversions.get(row.campaign) || 0
+      const val = perCampaignValue.get(row.campaign) || 0
+      const spend = row.spend || 0
+      const cpa = conv > 0 ? spend / conv : 0
+      const roas = spend > 0 ? val / spend : 0
+      return {
+        ...row,
+        conversions: conv,
+        value: val,
+        cpa,
+        roas,
+      }
+    })
+  }, [processedData, viewMode, perCampaignConversions, perCampaignValue])
 
   const handleSort = (field: keyof GoogleAdRecord) => {
     if (sortField === field) {
