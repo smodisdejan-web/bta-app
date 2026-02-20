@@ -94,8 +94,6 @@ export default function GoogleAdsPage() {
   const [aiLoading, setAiLoading] = useState(false)
   const [googleLeadsState, setGoogleLeadsState] = useState<StreakLeadRow[]>([])
   const [bookingsState, setBookingsState] = useState<BookingRecord[]>([])
-  const [googleLeads, setGoogleLeads] = useState<StreakLeadRow[]>([])
-  const [bookings, setBookings] = useState<BookingRecord[]>([])
   const generateAiSummary = async () => {
     if (!settings.sheetUrl) return
     setAiLoading(true)
@@ -388,7 +386,7 @@ export default function GoogleAdsPage() {
   const bookingsInRange = useMemo(() => {
     const start = kpiStart
     const end = kpiEnd
-    return bookings.filter((b) => {
+    return bookingsState.filter((b) => {
       const rawDate = b.booking_date || b.inquiry_date
       if (!rawDate) return false
       const d = new Date(rawDate.length === 7 ? `${rawDate}-01` : rawDate)
@@ -396,7 +394,7 @@ export default function GoogleAdsPage() {
       d.setHours(0, 0, 0, 0)
       return d >= start && d <= end
     })
-  }, [bookings, kpiStart, kpiEnd])
+  }, [bookingsState, kpiStart, kpiEnd])
 
   const perCampaignValue = useMemo(() => {
     const map = new Map<string, number>()
