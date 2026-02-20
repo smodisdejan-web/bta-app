@@ -12,6 +12,13 @@ const normalize = (s: string) =>
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '');
 
+// Temporary debug logging for mapping issues
+function debugMatch(sourcePlacement: string, ruleName: string, matched: boolean) {
+  const srcNorm = normalize(sourcePlacement);
+  // Uncomment for deeper tracing:
+  // console.log('[match-debug]', { raw: sourcePlacement, norm: srcNorm, rule: ruleName, matched });
+}
+
 const findCampaign = (campaigns: string[], target: string): string | null => {
   const targetNorm = normalize(target);
   for (const campaign of campaigns) {
@@ -147,13 +154,26 @@ export function matchSourceToCampaign(
   _threshold: number = 70
 ): string | null {
   const src = sourcePlacement || '';
+  const normSrc = normalize(src);
+  const normalizedCampaigns = campaigns.map((c) => ({
+    raw: c,
+    norm: normalize(c),
+  }));
   for (const rule of RULES) {
-    if (rule.matches(src)) {
-      const campaign = findCampaign(campaigns, rule.campaignTarget);
-      if (campaign) return campaign;
+    const matched = rule.matches(src);
+    debugMatch(src, rule.campaignTarget, matched);
+    if (matched) {
+      const target = rule.campaignTarget;
+      const targetNorm = normalize(target);
+      const found = normalizedCampaigns.find(
+        (c) => c.norm.includes(targetNorm) || c.norm.startsWith(targetNorm)
+      );
+      if (found) return found.raw;
     }
   }
-  return null;
+  // Fallback: Unknown bucket
+  const unknown = normalizedCampaigns.find((c) => c.norm.includes('unknown'));
+  return unknown ? unknown.raw : 'Unknown Facebook';
 }
 
 export function matchLeadsToCampaigns(
