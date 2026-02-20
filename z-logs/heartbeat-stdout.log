@@ -1,0 +1,11 @@
+Done. Written to `briefing/heartbeat-today.md`. Key takeaways:
+
+- **Google auth is broken** for 2 days -- calendar/email checks can't run until you re-authenticate
+- **16 commits yesterday** all around FB campaign matching & whitespace normalization
+- You have a **modified debug route** and **untracked `z-logs/`** in your working tree
+- 2 stashes and 2 idle feature branches sitting around
+Done. Written to `briefing/heartbeat-today.md`. Key takeaways:
+
+- **Google auth still broken** — needs re-authentication (3+ days now)
+- **20 commits since Feb 19** — heavy work on FB/Google matching and normalization
+- **Cleanup opportunity** — google-matching debug endpoint still live, 2 stale stashes, idle feature branches
