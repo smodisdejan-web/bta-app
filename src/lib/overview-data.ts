@@ -11,8 +11,6 @@ import {
   loadGoogleTraffic,
   loadFbTraffic,
   loadFbSpendFromRaw,
-  loadContacts,
-  loadDeals,
   fetchStreakSyncFb,
   fetchStreakSyncGoogle,
   mapFbEnriched,
@@ -21,14 +19,13 @@ import {
   GoogleTrafficResult,
   FbTrafficResult,
   FbSpendResult,
-  ContactsResult,
-  DealsResult,
   StreakLeadRow
 } from './sheetsData';
 import { getSheetsUrl } from './config';
 import { computeFacebookSummary, FacebookSummary } from './metrics/facebook';
 import { fetchTab } from './sheetsData';
 import { loadFbDashboard, FbDashboardData } from './loaders/fb-dashboard';
+import { fetchBookings, fetchStreakSync, fetchStreakSyncFb, fetchStreakSyncGoogle } from './sheetsData';
 
 export type CACMode = 'leads' | 'deals';
 
@@ -56,8 +53,8 @@ export interface OverviewKpis {
 
 export interface OverviewDebug {
   range: DateRange;
-  contacts: ContactsResult['__debug'];
-  deals: DealsResult['__debug'];
+  contacts: any;
+  deals: any;
   traffic: {
     google: {
       ok: boolean;
@@ -216,28 +213,27 @@ export async function getOverviewData(days = 30, cacMode: CACMode = 'leads'): Pr
   // Load all data sources in parallel
   // - Google: daily tab for spend and clicks
   // - Facebook summary from dashboard_fb tab (cell ranges)
-  const [googleTraffic, fbSpendRaw, fbTrafficEnriched, contacts, deals, fbRawTab, fbEnrichedTab, fbSheetSummary, streakFb, streakGoogle] = await Promise.all([
+  const [googleTraffic, fbSpendRaw, fbTrafficEnriched, fbRawTab, fbEnrichedTab, fbSheetSummary, streakAll] = await Promise.all([
     loadGoogleTraffic(sheetsUrl),
     loadFbSpendFromRaw(sheetsUrl, 'fb_ads_raw'),
     loadFbTraffic(sheetsUrl), // For LP views only
-    loadContacts(range),
-    loadDeals(range),
     fetchTab('fb_ads_raw', sheetsUrl),
     fetchTab('fb_ads_enriched', sheetsUrl),
     loadFbDashboard().catch((err) => {
       console.warn('[overview-data] loadFbDashboard failed', err);
       return null;
     }),
-    fetchStreakSyncFb(fetchSheet, sheetsUrl),
-    fetchStreakSyncGoogle(fetchSheet, sheetsUrl)
+    fetchStreakSync(fetchSheet, sheetsUrl)
   ]);
+
+  const streakFb = (streakAll || []).filter((l) => (l as any).platform === 'facebook');
+  const streakGoogle = (streakAll || []).filter((l) => (l as any).platform === 'google');
 
   console.log('[overview-data] Data loaded:', {
     googleTraffic: { ok: googleTraffic.ok, tab: googleTraffic.tab, rows: googleTraffic.rows },
     fbSpendRaw: { ok: fbSpendRaw.ok, rows: fbSpendRaw.rows, found: fbSpendRaw.found },
     fbTrafficEnriched: { ok: fbTrafficEnriched.ok, rows: fbTrafficEnriched.rows },
-    contacts: { rows: contacts.__debug.rows, leads: contacts.leads, sql: contacts.sql },
-    deals: { rows: deals.__debug.rows, won: deals.wonDeals, revenue: deals.revenue }
+    streak: { fb: streakFb.length, google: streakGoogle.length },
   });
 
   // Build days array for the requested window (inclusive) - same list used for trend chart
@@ -352,16 +348,35 @@ export async function getOverviewData(days = 30, cacMode: CACMode = 'leads'): Pr
     message: `Google (daily) window spend: €${gaSpendInWindow.toFixed(2)} + Facebook (dashboard_fb): €${fbSpendFinal.toFixed(2)} = Total spend: €${spendTotal.toFixed(2)}`
   });
 
-  // KPIs from contacts and deals (already filtered by range)
-  const { leads, sql } = contacts;
-  const { wonDeals, createdDeals, avgDealSize } = deals;
+  // Leads & SQL from streak_sync (AI>=50 as proxy for SQL)
+  const allLeadsWindow = [...streakFb, ...streakGoogle].filter((l) => {
+    if (!l.inquiry_date) return false;
+    return l.inquiry_date >= fromISO && l.inquiry_date <= toISO;
+  });
+  const sqlLeadsWindow = allLeadsWindow.filter((l) => (l.ai_score || 0) >= 50);
+
+  // Deals/Revenue from bookings tab
+  const bookings = (await fetchBookings(fetchSheet, sheetsUrl || DEFAULT_WEB_APP_URL)) || [];
+  const bookingsInRange = bookings.filter((b) => {
+    const raw = b.booking_date || b.inquiry_date;
+    if (!raw) return false;
+    const d = new Date(raw.length === 7 ? `${raw}-01` : raw);
+    if (Number.isNaN(+d)) return false;
+    const iso = d.toISOString().slice(0, 10);
+    return iso >= fromISO && iso <= toISO;
+  });
+  const wonDeals = bookingsInRange.length;
+  const revenue = bookingsInRange.reduce((sum, b) => sum + (b.rvc || 0), 0);
+  const avgDealSize = wonDeals > 0 ? revenue / wonDeals : 0;
 
   // Win Rate = wonDeals / max(createdDeals, 1)
+  const createdDeals = wonDeals; // no separate created metric from bookings
   const winRate = createdDeals > 0 ? wonDeals / createdDeals : 0;
 
+  // Win Rate = wonDeals / max(createdDeals, 1)
   // CAC = spendTotal / max(leads|wonDeals, 1) - computed from filtered totals
   const cac = cacMode === 'leads'
-    ? spendTotal / Math.max(totalLeads, 1)
+    ? spendTotal / Math.max(allLeadsWindow.length, 1)
     : spendTotal / Math.max(wonDeals, 1);
 
   // ROAS = revenueTotal / max(spendTotal, 1e-9) - computed from filtered totals
@@ -438,8 +453,8 @@ export async function getOverviewData(days = 30, cacMode: CACMode = 'leads'): Pr
       winRate,
       avgDealSize,
       spend: spendTotal,
-      leads: totalLeads,
-      sql,
+      leads: allLeadsWindow.length,
+      sql: sqlLeadsWindow.length,
       cac,
       roas,
       lpViews: lpViewsTotal
@@ -456,8 +471,8 @@ export async function getOverviewData(days = 30, cacMode: CACMode = 'leads'): Pr
     previousPeriod,
     __debug: {
       range,
-      contacts: contacts.__debug,
-      deals: deals.__debug,
+      contacts: { source: 'streak_sync', rows: streakAll.length },
+      deals: { source: 'bookings', rows: bookingsInRange?.length },
       traffic: {
         google: {
           ok: googleTraffic.ok,
@@ -497,8 +512,8 @@ export async function getOverviewData(days = 30, cacMode: CACMode = 'leads'): Pr
         spend: spendTotal,
         revenue: revenueTotal,
         lpViews: lpViewsTotal,
-        leads: totalLeads,
-        sql,
+        leads: allLeadsWindow.length,
+        sql: sqlLeadsWindow.length,
         wonDeals
       }
     }
