@@ -144,6 +144,10 @@ export function addGoogleAiMetrics(
         c.campaign.toLowerCase().includes('croatia') &&
         c.campaign.toLowerCase().includes('en')
       )?.campaign || null
+    } else if (sourceDetail.includes('latam') || sourceDetail.includes('latm')) {
+      matchedCampaign = campaigns.find(c => c.campaign.toLowerCase().includes('latm'))?.campaign || null
+    } else if (sourceDetail.includes('demand gen')) {
+      matchedCampaign = campaigns.find(c => c.campaign.toLowerCase().includes('demand gen'))?.campaign || null
     }
 
     if (matchedCampaign) {

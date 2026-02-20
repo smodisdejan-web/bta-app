@@ -29,10 +29,10 @@ export async function GET() {
 
     const rawCampaigns = await fetchGoogleAds()
     const campaigns = aggregateGoogleByCampaign(rawCampaigns)
-    const campaigns30d = campaigns.filter((c) => inLast30Days(c.date))
     const campaignNames = [...new Set(campaigns.map((c) => c.campaign))]
 
-    const spend30d = campaigns
+    // Spend from raw daily rows to respect date range
+    const spend30d = rawCampaigns
       .filter((c) => inLast30Days(c.date))
       .reduce((sum, c) => sum + (c.spend || 0), 0)
 
