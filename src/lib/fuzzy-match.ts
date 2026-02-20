@@ -24,28 +24,56 @@ const findCampaign = (campaigns: string[], target: string): string | null => {
 };
 
 const RULES: Rule[] = [
+  // Most specific first
   {
-    campaignTarget: 'Dalmatinčki - SCALE - Tier 1 + Tier 2 - CBO 200',
-    matches: (s) => normalize(s).startsWith('dalmatincki_scale_tier1 tier2_cbo'),
+    campaignTarget: 'Belgin Sultan - Turkey - CBO',
+    matches: (s) => {
+      const src = normalize(s);
+      return src.startsWith('landing_turkey_belgin_sultan') || src.startsWith('belgin_sultan');
+    },
   },
   {
-    campaignTarget: 'BOFU - Landing Attainable Luxury - Objections crusher',
-    matches: (s) => normalize(s).startsWith('landing_attainable_luxury_warm'),
+    campaignTarget: 'Landing Turkey - Scaling - CBO',
+    matches: (s) => normalize(s).startsWith('landing_turkey'),
+  },
+  {
+    campaignTarget: 'Landing Attainable Luxury - Prospecting - Lead - CBO',
+    matches: (s) => {
+      const src = normalize(s);
+      return (
+        src.startsWith('landing_attainable-luxury') ||
+        src.startsWith('landing_attainable_luxury') ||
+        src.startsWith('landing_attainable-luxury_audience1') ||
+        src.startsWith('landing_attainable-luxury_lead') ||
+        src.startsWith('landing_attainable-luxury-audience1')
+      ) && !src.startsWith('landing_attainable_luxury_warm');
+    },
   },
   {
     campaignTarget: 'Landing Gulets - Scaling - CBO 150',
-    matches: (s) => normalize(s).startsWith('landing_gulet'),
+    matches: (s) => {
+      const src = normalize(s);
+      return src.startsWith('landing_gulet') || src.startsWith('landing_gulet_video');
+    },
   },
   {
     campaignTarget: 'Landing Luxury yacht charters - Scaling - CBO 150',
     matches: (s) => normalize(s).startsWith('landing_luxury_yacht'),
   },
   {
-    campaignTarget: 'Landing Attainable Luxury - Prospecting - Lead - CBO',
+    campaignTarget: 'Dalmatinčki - SCALE - Tier 1 + Tier 2 - CBO 200',
+    matches: (s) => normalize(s).startsWith('dalmatincki_scale_tier1 tier2_cbo'),
+  },
+  {
+    campaignTarget: 'Dalmatinčki - SCALE - Tier 2 - CBO',
     matches: (s) => {
       const src = normalize(s);
-      return src.startsWith('landing_attainable-luxury') && !src.startsWith('landing_attainable_luxury_warm');
+      return src.startsWith('dalmatincki_scale_tier2') || src === 'dalmatincki_scale_lookalike';
     },
+  },
+  {
+    campaignTarget: 'BOFU - Landing Attainable Luxury - Objections crusher',
+    matches: (s) => normalize(s).startsWith('landing_attainable_luxury_warm'),
   },
   {
     campaignTarget: 'Early Booking - Croatia 2027 - CBO',
@@ -53,10 +81,6 @@ const RULES: Rule[] = [
       const src = normalize(s);
       return src.startsWith('earlybook2027') || src.startsWith('early-booking') || src.includes('earlybook2027');
     },
-  },
-  {
-    campaignTarget: 'Landing Turkey - Scaling - CBO',
-    matches: (s) => normalize(s).startsWith('landing_turkey'),
   },
   {
     campaignTarget: 'Anima Maris + Maxita TEST - ABO',
@@ -94,16 +118,26 @@ const RULES: Rule[] = [
       );
     },
   },
+  // Broader fallbacks / new patterns
   {
-    campaignTarget: 'Belgin Sultan - Turkey - CBO',
-    matches: (s) => normalize(s).startsWith('belgin_sultan'),
+    campaignTarget: 'Landing Mega Yachts',
+    matches: (s) => normalize(s).startsWith('landing_mega-yachts'),
   },
   {
-    campaignTarget: 'Dalmatinčki - SCALE - Tier 2 - CBO',
-    matches: (s) => {
-      const src = normalize(s);
-      return src.startsWith('dalmatincki_scale_tier2') || src === 'dalmatincki_scale_lookalike';
-    },
+    campaignTarget: 'Individual Yachts',
+    matches: (s) => normalize(s).startsWith('lp_individual-yachts'),
+  },
+  {
+    campaignTarget: 'Lead Form - All - All Creatives - Scaling',
+    matches: (s) => normalize(s).includes('lead form - all - all creatives'),
+  },
+  {
+    campaignTarget: 'Instagram Stories',
+    matches: (s) => normalize(s).includes('instagram_stories') || normalize(s).includes('ig / instagram'),
+  },
+  {
+    campaignTarget: 'Unknown',
+    matches: (s) => !s || normalize(s).trim() === '',
   },
 ];
 
