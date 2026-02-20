@@ -3,20 +3,20 @@
 
 type Rule = {
   campaignTarget: string;
-  matches: (source: string) => boolean;
+  matches: (sourceNorm: string, sourceRaw: string) => boolean;
 };
 
 const normalize = (s: string) =>
   s
     .toLowerCase()
     .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '');
+    .replace(/\p{Diacritic}/gu, '')
+    .trim();
 
 // Temporary debug logging for mapping issues
 function debugMatch(sourcePlacement: string, ruleName: string, matched: boolean) {
   const srcNorm = normalize(sourcePlacement);
-  // Uncomment for deeper tracing:
-  // console.log('[match-debug]', { raw: sourcePlacement, norm: srcNorm, rule: ruleName, matched });
+  console.log('INPUT:', sourcePlacement, '→ NORMALIZED:', srcNorm, 'RULE:', ruleName, 'MATCH:', matched);
 }
 
 const findCampaign = (campaigns: string[], target: string): string | null => {
@@ -34,117 +34,95 @@ const RULES: Rule[] = [
   // Most specific first
   {
     campaignTarget: 'Belgin Sultan - Turkey - CBO',
-    matches: (s) => {
-      const src = normalize(s);
-      return src.startsWith('landing_turkey_belgin_sultan') || src.startsWith('belgin_sultan');
-    },
+    matches: (src) =>
+      src.startsWith('landing_turkey_belgin_sultan') || src.startsWith('belgin_sultan'),
   },
   {
     campaignTarget: 'Landing Turkey - Scaling - CBO',
-    matches: (s) => normalize(s).startsWith('landing_turkey'),
+    matches: (src) => src.startsWith('landing_turkey') && !src.includes('belgin_sultan'),
   },
   {
     campaignTarget: 'Landing Attainable Luxury - Prospecting - Lead - CBO',
-    matches: (s) => {
-      const src = normalize(s);
-      return (
-        src.startsWith('landing_attainable-luxury') ||
-        src.startsWith('landing_attainable_luxury') ||
-        src.startsWith('landing_attainable-luxury_audience1') ||
-        src.startsWith('landing_attainable-luxury_lead') ||
-        src.startsWith('landing_attainable-luxury-audience1')
-      ) && !src.startsWith('landing_attainable_luxury_warm');
-    },
+    matches: (src) =>
+      (src.startsWith('landing_attainable-luxury') ||
+        src.startsWith('landing_attainable_luxury')) &&
+      !src.includes('warm'),
   },
   {
     campaignTarget: 'Landing Gulets - Scaling - CBO 150',
-    matches: (s) => {
-      const src = normalize(s);
-      return src.startsWith('landing_gulet') || src.startsWith('landing_gulet_video');
-    },
+    matches: (src) => src.startsWith('landing_gulet'),
   },
   {
     campaignTarget: 'Landing Luxury yacht charters - Scaling - CBO 150',
-    matches: (s) => normalize(s).startsWith('landing_luxury_yacht'),
+    matches: (src) => src.startsWith('landing_luxury_yacht'),
   },
   {
     campaignTarget: 'Dalmatinčki - SCALE - Tier 1 + Tier 2 - CBO 200',
-    matches: (s) => normalize(s).startsWith('dalmatincki_scale_tier1 tier2_cbo'),
+    matches: (src) => src.startsWith('dalmatincki_scale_tier1 tier2_cbo'),
   },
   {
     campaignTarget: 'Dalmatinčki - SCALE - Tier 2 - CBO',
-    matches: (s) => {
-      const src = normalize(s);
-      return src.startsWith('dalmatincki_scale_tier2') || src === 'dalmatincki_scale_lookalike';
-    },
+    matches: (src) => src.startsWith('dalmatincki_scale_tier2') || src === 'dalmatincki_scale_lookalike',
   },
   {
     campaignTarget: 'BOFU - Landing Attainable Luxury - Objections crusher',
-    matches: (s) => normalize(s).startsWith('landing_attainable_luxury_warm'),
+    matches: (src) => src.startsWith('landing_attainable_luxury_warm'),
   },
   {
     campaignTarget: 'Early Booking - Croatia 2027 - CBO',
-    matches: (s) => {
-      const src = normalize(s);
-      return src.startsWith('earlybook2027') || src.startsWith('early-booking') || src.includes('earlybook2027');
-    },
+    matches: (src) => src.startsWith('earlybook2027') || src.startsWith('early-booking') || src.includes('earlybook2027'),
   },
   {
     campaignTarget: 'Anima Maris + Maxita TEST - ABO',
-    matches: (s) => {
-      const src = normalize(s);
-      return (src.startsWith('anima-maris') || src.startsWith('maxita')) && !src.includes('dalmatincki');
-    },
+    matches: (src) => (src.startsWith('anima-maris') || src.startsWith('maxita')) && !src.includes('dalmatincki'),
   },
   {
     campaignTarget: 'BOOST - 2026 - Engagement',
-    matches: (s) => {
-      const src = normalize(s);
-      return src === 'awareness_landing' || src === 'charter_a_dream_interior' || src === 'new_videos';
-    },
+    matches: (src) => src === 'awareness_landing' || src === 'charter_a_dream_interior' || src === 'new_videos',
   },
   {
     campaignTarget: 'Last Minute - Croatia 2026 - CBO',
-    matches: (s) => {
-      const src = normalize(s);
-      return src.startsWith('lastminute2026') || src.startsWith('landing_last-minute');
-    },
+    matches: (src) => src.startsWith('lastminute2026') || src.startsWith('landing_last-minute'),
   },
   {
     campaignTarget: 'Dalmatinčki - TEST Angle - Tier1 - LP',
-    matches: (s) => normalize(s).startsWith('dalmatincki_test_tier1'),
+    matches: (src) => src.startsWith('dalmatincki_test_tier1') || src.includes('dalmatincki_mofu'),
   },
   {
     campaignTarget: 'Dalmatinčki - TEST Angle - Tier1 - Lead Form',
-    matches: (s) => {
-      const src = normalize(s);
-      return (
-        src.includes('dalmatincki - test angle - tier1 - lead form') ||
-        src.startsWith('test - lead form dalmatincki') ||
-        src.startsWith('test - dalmatincki - test angle')
-      );
-    },
+    matches: (src) =>
+      src.includes('dalmatincki - test angle - tier1 - lead form') ||
+      src.startsWith('test - lead form dalmatincki') ||
+      src.startsWith('test - dalmatincki - test angle') ||
+      src.includes('dalmatincki - test angle - tier2 - lead form'),
   },
   // Broader fallbacks / new patterns
   {
     campaignTarget: 'Landing Mega Yachts',
-    matches: (s) => normalize(s).startsWith('landing_mega-yachts'),
+    matches: (src) => src.startsWith('landing_mega-yachts'),
   },
   {
     campaignTarget: 'Individual Yachts',
-    matches: (s) => normalize(s).startsWith('lp_individual-yachts'),
+    matches: (src) => src.startsWith('lp_individual-yachts'),
   },
   {
     campaignTarget: 'Lead Form - All - All Creatives - Scaling',
-    matches: (s) => normalize(s).includes('lead form - all - all creatives'),
+    matches: (src) => src.includes('lead form - all - all creatives'),
   },
   {
     campaignTarget: 'Instagram Stories',
-    matches: (s) => normalize(s).includes('instagram_stories') || normalize(s).includes('ig / instagram'),
+    matches: (src) => src.includes('instagram_stories') || src.includes('ig / instagram'),
   },
   {
     campaignTarget: 'Unknown',
-    matches: (s) => !s || normalize(s).trim() === '',
+    matches: (src, raw) =>
+      !raw ||
+      src.trim() === '' ||
+      src === 'landing_b' ||
+      src.includes('lead form - all - higher intent - retargeting') ||
+      src.includes('launch campaign - bofu - lead form - cbo') ||
+      src === 'paid / facebook' ||
+      src === 'facebook',
   },
 ];
 
