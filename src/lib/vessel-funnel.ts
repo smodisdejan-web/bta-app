@@ -64,6 +64,14 @@ function normalize(str: string): string {
   return (str || '').toLowerCase()
 }
 
+function leadMatchesProfile(lead: StreakLeadRow, profile: VesselProfile): boolean {
+  const sourceMatch = normalize(lead.source_placement).includes(profile.utmPattern.toLowerCase())
+  const vesselField = normalize(lead.vessel || '')
+  const nameMatch = vesselField.includes(profile.name.toLowerCase())
+  const bookingMatch = vesselField.includes(profile.bookingPattern.toLowerCase())
+  return sourceMatch || nameMatch || bookingMatch
+}
+
 function inRange(day: string, days: number): boolean {
   if (!day) return false
   const d = new Date(day)
@@ -108,7 +116,7 @@ export async function loadVesselFunnel(vesselId: string, days: number): Promise<
   const bookings = await fetchBookings()
 
   const streakInRange = streak.filter((lead) => inRange(lead.inquiry_date, days))
-  const leadsForVessel = streakInRange.filter((lead) => normalize(lead.source_placement).includes(profile.utmPattern.toLowerCase()))
+  const leadsForVessel = streakInRange.filter((lead) => leadMatchesProfile(lead, profile))
   const ql = leadsForVessel.filter((lead) => (lead.ai_score || 0) >= 50)
   const vesselQl = ql.filter((lead) => {
     const budgetMin = parseBudgetMin(lead.budget_range || '')
