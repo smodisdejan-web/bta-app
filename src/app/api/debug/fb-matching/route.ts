@@ -33,12 +33,26 @@ export async function GET() {
     const unmatched = uniqueSources.filter((s) => !mapping.has(s))
 
     const perCampaignQl: Record<string, number> = {}
-    fbQL30d.forEach((lead: any) => {
+    const perUnknownSource: Record<string, { total: number; ql: number }> = {}
+
+    fbLeads30d.forEach((lead: any) => {
       const campaign =
         mapping.get(lead.source_placement) ||
         matchSourceToCampaign(lead.source_placement, fbCampaigns) ||
         'Unknown Facebook'
-      perCampaignQl[campaign] = (perCampaignQl[campaign] || 0) + 1
+
+      // Tally per-campaign QL
+      if ((lead.ai_score || 0) >= 50) {
+        perCampaignQl[campaign] = (perCampaignQl[campaign] || 0) + 1
+      }
+
+      // Track unknown bucket by source_placement
+      if (campaign === 'Unknown Facebook') {
+        const key = lead.source_placement || '(empty)'
+        if (!perUnknownSource[key]) perUnknownSource[key] = { total: 0, ql: 0 }
+        perUnknownSource[key].total += 1
+        if ((lead.ai_score || 0) >= 50) perUnknownSource[key].ql += 1
+      }
     })
 
     const expectedCpql = fbQL30d.length > 0 ? spend30d / fbQL30d.length : 0
@@ -54,6 +68,13 @@ export async function GET() {
       unmatched_examples: unmatched.slice(0, 15),
       expected_cpql: expectedCpql,
       quality_leads_per_campaign: perCampaignQl,
+      unknown_facebook_sources: Object.entries(perUnknownSource)
+        .map(([source, vals]) => ({
+          source,
+          total_leads: vals.total,
+          quality_leads: vals.ql,
+        }))
+        .sort((a, b) => b.quality_leads - a.quality_leads),
     })
   } catch (error: any) {
     console.error('[fb-matching] error', error)
