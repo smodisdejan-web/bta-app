@@ -30,25 +30,44 @@ export async function GET() {
 
   const fbRows = await fetchFbEnriched(fetchSheet)
   const realCampaigns = fbRows.map((r: any) => r.campaign_name)
+  const realGulets = realCampaigns.find((c) => c.toLowerCase().includes('gulets')) || ''
 
   const tests = inputs.map((input) => ({
     input,
     normalized: normalize(input),
     rule_matched_dummy: matchSourceToCampaign(input, TEST_CAMPAIGNS),
     rule_matched_real: matchSourceToCampaign(input, realCampaigns),
-    findCampaign_result: null, // placeholder; matchSourceToCampaign already uses findCampaign inside
+    findCampaign_result: null,
   }))
 
-  const whitespaceTest = {
-    target: 'Landing Gulets - Scaling - CBO 150',
-    campaign_with_double_space: 'Landing Gulets  - Scaling - CBO 150',
-    match_result: matchSourceToCampaign('landing_gulet_video3', ['Landing Gulets  - Scaling - CBO 150']),
+  // Inline whitespace test
+  const target = 'Landing Gulets - Scaling - CBO 150'
+  const campaign = 'Landing Gulets  - Scaling - CBO 150'
+  const targetNorm = target.toLowerCase().replace(/\s+/g, ' ')
+  const campNorm = campaign.toLowerCase().replace(/\s+/g, ' ')
+  const inlineResult = campNorm.includes(targetNorm)
+
+  const inlineTest = {
+    targetNorm,
+    campNorm,
+    target_chars: [...target].map((c) => c.charCodeAt(0)),
+    campaign_chars: [...campaign].map((c) => c.charCodeAt(0)),
+    includes_result: inlineResult,
   }
+
+  const realGuletsChars = [...realGulets].map((c) => c.charCodeAt(0))
 
   return NextResponse.json({
     tests,
     actual_campaigns: realCampaigns,
-    findCampaign_whitespace_test: whitespaceTest,
+    findCampaign_whitespace_test: {
+      target,
+      campaign,
+      match_result: matchSourceToCampaign('landing_gulet_video3', [campaign]),
+    },
+    inline_test: inlineTest,
+    real_gulets: realGulets,
+    real_gulets_chars: realGuletsChars,
     findCampaign_code: findCampaignSnippet,
   })
 }
