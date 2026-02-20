@@ -94,6 +94,8 @@ export default function GoogleAdsPage() {
   const [aiLoading, setAiLoading] = useState(false)
   const [googleLeads, setGoogleLeads] = useState<StreakLeadRow[]>([])
   const [bookings, setBookings] = useState<BookingRecord[]>([])
+  const [googleLeads, setGoogleLeads] = useState<StreakLeadRow[]>([])
+  const [bookings, setBookings] = useState<BookingRecord[]>([])
   const generateAiSummary = async () => {
     if (!settings.sheetUrl) return
     setAiLoading(true)
@@ -329,6 +331,89 @@ export default function GoogleAdsPage() {
   }, [processedData, viewMode])
 
   const fmtEUR = (n: number) => formatCurrency(n, '€')
+
+  const tableData = useMemo(() => {
+    if (viewMode !== 'campaign') return processedData
+    return (processedData as GoogleAdRecord[]).map((row) => {
+      const conv = perCampaignConversions.get(row.campaign) || 0
+      const val = perCampaignValue.get(row.campaign) || 0
+      const spend = row.spend || 0
+      const cpa = conv > 0 ? spend / conv : 0
+      const roas = spend > 0 ? val / spend : 0
+      return {
+        ...row,
+        conversions: conv,
+        value: val,
+        cpa,
+        roas,
+      }
+    })
+  }, [processedData, viewMode, perCampaignConversions, perCampaignValue])
+
+  const matchLeadToCampaign = (detail: string, campaigns: string[]): string | null => {
+    const sd = (detail || '').toLowerCase().trim()
+    const camps = campaigns.map((c) => c.toLowerCase())
+    const find = (predicate: (c: string) => boolean) => {
+      const idx = camps.findIndex(predicate)
+      return idx >= 0 ? campaigns[idx] : null
+    }
+    if (sd.includes('brand')) return find((c) => c.includes('brand'))
+    if (sd.includes('uk, ca, aus') || sd.includes('uk,ca,aus'))
+      return find((c) => c.includes('performance') && c.includes('uk'))
+    if (sd.includes('perfromance max') || sd.includes('performance max') || sd.includes('top 17')) {
+      let c = find((c) => c.includes('performance') && c.includes('eu'))
+      if (!c) c = find((c) => c.includes('performance max') || c.includes('perfromance max'))
+      return c
+    }
+    if (sd.includes('sem') || sd.includes('tofu'))
+      return find((c) => c.includes('search') && c.includes('croatia') && c.includes('en'))
+    if (sd.includes('latam') || sd.includes('latm'))
+      return find((c) => c.includes('latm'))
+    if (sd.includes('demand gen'))
+      return find((c) => c.includes('demand gen'))
+    return null
+  }
+
+  const campaignNames = useMemo(() => processedData.filter((r) => r.campaign).map((r) => r.campaign), [processedData])
+
+  const perCampaignConversions = useMemo(() => {
+    const map = new Map<string, number>()
+    paidSearchLeads.forEach((lead) => {
+      const matched = matchLeadToCampaign(lead.source_detail || '', campaignNames) || 'Unknown Google'
+      map.set(matched, (map.get(matched) || 0) + 1)
+    })
+    return map
+  }, [paidSearchLeads, campaignNames])
+
+  const bookingsInRange = useMemo(() => {
+    const start = kpiStart
+    const end = kpiEnd
+    return bookings.filter((b) => {
+      const rawDate = b.booking_date || b.inquiry_date
+      if (!rawDate) return false
+      const d = new Date(rawDate.length === 7 ? `${rawDate}-01` : rawDate)
+      if (Number.isNaN(+d)) return false
+      d.setHours(0, 0, 0, 0)
+      return d >= start && d <= end
+    })
+  }, [bookings, kpiStart, kpiEnd])
+
+  const perCampaignValue = useMemo(() => {
+    const map = new Map<string, number>()
+    const campaignSet = campaignNames.map((c) => c.toLowerCase())
+    bookingsInRange.forEach((b) => {
+      const camp = (b.campaign || '').toLowerCase()
+      const src = (b.source || '').toLowerCase()
+      let matched: string | null = null
+      const idx = campaignSet.findIndex((c) => c && camp.includes(c))
+      if (idx >= 0) matched = campaignNames[idx]
+      else if (src === 'google') matched = 'Unknown Google'
+      if (matched) {
+        map.set(matched, (map.get(matched) || 0) + (b.rvc || 0))
+      }
+    })
+    return map
+  }, [bookingsInRange, campaignNames])
 
   const handleSort = (field: keyof GoogleAdRecord) => {
     if (sortField === field) {
@@ -732,7 +817,7 @@ export default function GoogleAdsPage() {
               <BarChart3 className="h-5 w-5" />
               {viewMode === 'campaign' ? 'Campaign Performance' : 'Daily Performance'}
             </CardTitle>
-            <CardDescription>{processedData.length} {viewMode === 'campaign' ? 'campaigns' : 'records'} found</CardDescription>
+            <CardDescription>{tableData.length} {viewMode === 'campaign' ? 'campaigns' : 'records'} found</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
@@ -798,14 +883,14 @@ export default function GoogleAdsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {processedData.length === 0 ? (
+                  {tableData.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={viewMode === 'daily' ? 12 : 11} className="text-center py-8 text-gray-500">
                         No data found
                       </TableCell>
                     </TableRow>
                   ) : (
-                    processedData.map((row, idx) => (
+                    (tableData as GoogleAdRecord[]).map((row, idx) => (
                       <TableRow key={idx} className="hover:bg-gray-50">
                         <TableCell className="font-medium">
                           <div className="flex items-center gap-2">
