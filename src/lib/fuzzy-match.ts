@@ -11,6 +11,7 @@ const normalize = (s: string) =>
     .toLowerCase()
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '')
+    .replace(/\s+/g, ' ')
     .trim();
 
 // Temporary debug logging for mapping issues
@@ -20,9 +21,9 @@ function debugMatch(sourcePlacement: string, ruleName: string, matched: boolean)
 }
 
 const findCampaign = (campaigns: string[], target: string): string | null => {
-  const targetNorm = normalize(target).replace(/\s+/g, ' ');
+  const targetNorm = normalize(target);
   for (const campaign of campaigns) {
-    const campNorm = normalize(campaign).replace(/\s+/g, ' ');
+    const campNorm = normalize(campaign);
     if (campNorm.includes(targetNorm) || campNorm.startsWith(targetNorm)) {
       return campaign;
     }
