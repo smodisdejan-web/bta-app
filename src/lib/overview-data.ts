@@ -11,8 +11,6 @@ import {
   loadGoogleTraffic,
   loadFbTraffic,
   loadFbSpendFromRaw,
-  fetchStreakSyncFb,
-  fetchStreakSyncGoogle,
   mapFbEnriched,
   fetchSheet,
   DateRange,
@@ -25,7 +23,7 @@ import { getSheetsUrl } from './config';
 import { computeFacebookSummary, FacebookSummary } from './metrics/facebook';
 import { fetchTab } from './sheetsData';
 import { loadFbDashboard, FbDashboardData } from './loaders/fb-dashboard';
-import { fetchBookings, fetchStreakSync, fetchStreakSyncFb, fetchStreakSyncGoogle } from './sheetsData';
+import { fetchBookings, fetchStreakSync } from './sheetsData';
 
 export type CACMode = 'leads' | 'deals';
 
