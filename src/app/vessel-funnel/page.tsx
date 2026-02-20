@@ -102,6 +102,18 @@ export default function VesselFunnelPage() {
     )
   }, [data])
   const leads = useMemo(() => data?.leads || [], [data])
+  const adsets = useMemo(() => {
+    if (!data?.adsets) return null
+    const { adsets, counts } = data
+    return {
+      spend: formatCurrency(adsets.spend),
+      impressions: adsets.impressions.toLocaleString(),
+      clicks: adsets.clicks.toLocaleString(),
+      ctr: formatPct(adsets.ctr),
+      cpc: adsets.clicks > 0 ? formatCurrency(adsets.cpc) : '—',
+      costPerBooking: counts.bookings > 0 ? formatCurrency(adsets.costPerBooking) : '—',
+    }
+  }, [data])
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -208,6 +220,23 @@ export default function VesselFunnelPage() {
               <RateCard label="Vessel QL → Booking" value={data.rates.vesselQlToBooking} hint="Percentage of vessel-qualified leads that converted to booking" />
               <RateCard label="Revenue / Lead" value={data.rates.revenuePerLead} money hint="Total booking revenue divided by number of leads" />
             </div>
+
+            {adsets && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-1">
+                  <h3 className="text-lg font-semibold text-gray-900">Ad Set Performance</h3>
+                  <InfoIcon text="Facebook ad set metrics matched by vessel name from fb_adsets_enriched" />
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+                  <KpiCard title="Ad Spend" value={adsets.spend} hint="Ad spend from matched ad sets (fb_adsets_enriched)" />
+                  <KpiCard title="Impressions" value={adsets.impressions} hint="Impressions from matched ad sets" />
+                  <KpiCard title="Clicks" value={adsets.clicks} hint="Clicks from matched ad sets" />
+                  <KpiCard title="CTR" value={adsets.ctr} hint="CTR = clicks / impressions" />
+                  <KpiCard title="CPC" value={adsets.cpc} hint="CPC = spend / clicks" />
+                  <KpiCard title="Cost / Booking" value={adsets.costPerBooking} hint="Ad spend divided by bookings" />
+                </div>
+              </div>
+            )}
 
             {/* Charts */}
             <div className="grid gap-6 lg:grid-cols-2">

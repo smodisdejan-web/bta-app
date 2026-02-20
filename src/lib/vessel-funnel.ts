@@ -1,5 +1,5 @@
-import { fetchBookings, fetchStreakSync } from './sheetsData'
-import type { BookingRecord, StreakLeadRow } from './sheetsData'
+import { fetchBookings, fetchFbAdsets, fetchStreakSync } from './sheetsData'
+import type { BookingRecord, FbAdsetRow, StreakLeadRow } from './sheetsData'
 import { fetchSheet } from './sheetsData'
 import { VESSEL_PROFILES, VesselProfile } from './vessel-profiles'
 
@@ -44,6 +44,14 @@ export type VesselFunnelResult = {
   funnelSteps: { label: string; value: number }[]
   whyNot: WhyNotBreakdown[]
   leads: VesselLead[]
+  adsets: {
+    spend: number
+    impressions: number
+    clicks: number
+    ctr: number
+    cpc: number
+    costPerBooking: number
+  }
 }
 
 function parseBudgetMin(budgetRange: string): number {
@@ -70,6 +78,11 @@ function leadMatchesProfile(lead: StreakLeadRow, profile: VesselProfile): boolea
   const nameMatch = vesselField.includes(profile.name.toLowerCase())
   const bookingMatch = vesselField.includes(profile.bookingPattern.toLowerCase())
   return sourceMatch || nameMatch || bookingMatch
+}
+
+function adsetMatchesProfile(adset: FbAdsetRow, profile: VesselProfile): boolean {
+  const name = normalize(adset.adset_name)
+  return name.includes(profile.name.toLowerCase())
 }
 
 function inRange(day: string, days: number): boolean {
@@ -114,6 +127,7 @@ export async function loadVesselFunnel(vesselId: string, days: number): Promise<
   const profile = VESSEL_PROFILES.find((v) => v.id === vesselId) || VESSEL_PROFILES[0]
   const streak = await fetchStreakSync(fetchSheet)
   const bookings = await fetchBookings()
+  const fbAdsets = await fetchFbAdsets(fetchSheet)
 
   const streakInRange = streak.filter((lead) => inRange(lead.inquiry_date, days))
   const leadsForVessel = streakInRange.filter((lead) => leadMatchesProfile(lead, profile))
@@ -129,6 +143,17 @@ export async function loadVesselFunnel(vesselId: string, days: number): Promise<
   const bookingsForVessel = filterBookings(bookings, profile, days)
 
   const revenue = bookingsForVessel.reduce((sum, b) => sum + (b.rvc || 0), 0)
+
+  // Ad set metrics (filtered by date window and vessel name)
+  const adsetsForVessel = fbAdsets.filter((ad) => {
+    if (!inRange(ad.date_start, days)) return false
+    return adsetMatchesProfile(ad, profile)
+  })
+  const adSpend = adsetsForVessel.reduce((sum, a) => sum + (a.spend || 0), 0)
+  const adClicks = adsetsForVessel.reduce((sum, a) => sum + (a.clicks || 0), 0)
+  const adImpr = adsetsForVessel.reduce((sum, a) => sum + (a.impressions || 0), 0)
+  const adCtr = adImpr > 0 ? (adClicks / adImpr) * 100 : 0
+  const adCpc = adClicks > 0 ? adSpend / adClicks : 0
 
   const whyNotMap = new Map<string, number>()
   leadsForVessel.forEach((lead) => {
@@ -165,6 +190,8 @@ export async function loadVesselFunnel(vesselId: string, days: number): Promise<
     revenue,
   }
 
+  const costPerBooking = counts.bookings > 0 ? adSpend / counts.bookings : 0
+
   const safeDiv = (num: number, den: number) => (den > 0 ? (num / den) * 100 : 0)
 
   const rates: FunnelRates = {
@@ -190,5 +217,13 @@ export async function loadVesselFunnel(vesselId: string, days: number): Promise<
     funnelSteps,
     whyNot,
     leads,
+    adsets: {
+      spend: adSpend,
+      impressions: adImpr,
+      clicks: adClicks,
+      ctr: adCtr,
+      cpc: adCpc,
+      costPerBooking,
+    },
   }
 }

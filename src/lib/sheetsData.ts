@@ -1289,15 +1289,15 @@ export function mapStreakLeads(rows: any[][]): StreakLeadRow[] {
 
   return data
     .map(r => ({
-      inquiry_date: String(r[I.inquiry_date] ?? ''),
-      source_placement: String(r[I.source_placement] ?? '').toLowerCase(),
-      ai_score: toNumber(r[I.ai_score]),
-      country: String(r[I.country] ?? ''),
-      stage: String(r[I.stage] ?? ''),
-      source_category: String(r[I.source_category] ?? ''),
-      source_detail: String(r[I.source_detail] ?? ''),
-      budget_range: String(r[I.budget_range] ?? ''),
-      platform: String(r[I.platform] ?? ''),
+    inquiry_date: String(r[I.inquiry_date] ?? ''),
+    source_placement: String(r[I.source_placement] ?? '').toLowerCase(),
+    ai_score: toNumber(r[I.ai_score]),
+    country: String(r[I.country] ?? ''),
+    stage: String(r[I.stage] ?? ''),
+    source_category: String(r[I.source_category] ?? ''),
+    source_detail: String(r[I.source_detail] ?? ''),
+    budget_range: String(r[I.budget_range] ?? ''),
+    platform: String(r[I.platform] ?? ''),
       name: I.name !== -1 ? String(r[I.name] ?? '') : undefined,
       size_of_group: I.size_of_group !== -1 ? Number(r[I.size_of_group] ?? 0) : undefined,
       destination: I.destination !== -1 ? String(r[I.destination] ?? '') : undefined,
@@ -1569,6 +1569,44 @@ export function calculateBookingMetrics(
     bookingCount,
     avgDealValue,
     bookings: filtered,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Facebook ad sets enriched
+// ---------------------------------------------------------------------------
+
+export interface FbAdsetRow {
+  adset_name: string
+  campaign_name: string
+  date_start: string
+  clicks: number
+  impressions: number
+  spend: number
+}
+
+export async function fetchFbAdsets(
+  fetchSheetFn: (args: { sheetUrl: string; tab: string }) => Promise<any[][]>,
+  sheetUrl?: string
+): Promise<FbAdsetRow[]> {
+  const url = sheetUrl || getSheetsUrl() || DEFAULT_WEB_APP_URL
+  try {
+    const raw = await fetchSheetFn({ sheetUrl: url, tab: SHEETS_TABS.FB_ADSETS_ENRICHED })
+    if (!raw || raw.length < 2) return []
+    const [header, ...rows] = raw
+    const idx = (name: string) =>
+      header.findIndex((h: string) => String(h || '').trim().toLowerCase() === name.toLowerCase())
+    return rows.map((row: any[]) => ({
+      adset_name: String(row[idx('data.adset_name')] || ''),
+      campaign_name: String(row[idx('data.campaign_name')] || ''),
+      date_start: String(row[idx('data.date_start')] || ''),
+      clicks: Number(row[idx('data.clicks')]) || 0,
+      impressions: Number(row[idx('data.impressions')]) || 0,
+      spend: Number(row[idx('data.spend')]) || 0,
+    }))
+  } catch (error) {
+    console.error('Error fetching fb_adsets_enriched:', error)
+    return []
   }
 }
 
