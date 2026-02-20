@@ -92,8 +92,8 @@ export default function GoogleAdsPage() {
   const [customDateRange, setCustomDateRange] = useState<[Date, Date] | null>(null)
   const [aiBullets, setAiBullets] = useState<string[]>([])
   const [aiLoading, setAiLoading] = useState(false)
-  const [googleLeads, setGoogleLeads] = useState<StreakLeadRow[]>([])
-  const [bookings, setBookings] = useState<BookingRecord[]>([])
+  const [googleLeadsState, setGoogleLeadsState] = useState<StreakLeadRow[]>([])
+  const [bookingsState, setBookingsState] = useState<BookingRecord[]>([])
   const [googleLeads, setGoogleLeads] = useState<StreakLeadRow[]>([])
   const [bookings, setBookings] = useState<BookingRecord[]>([])
   const generateAiSummary = async () => {
@@ -141,8 +141,8 @@ export default function GoogleAdsPage() {
           fetchBookings(fetchSheet, settings.sheetUrl || getSheetsUrl()),
         ])
         setData(records)
-        setGoogleLeads(leads || [])
-        setBookings(bookingRows || [])
+        setGoogleLeadsState(leads || [])
+        setBookingsState(bookingRows || [])
         setLastRefresh(new Date())
       } catch (err: any) {
         console.error('Error loading Google Ads:', err)
@@ -192,14 +192,14 @@ export default function GoogleAdsPage() {
 
   const { startDate: kpiStart, endDate: kpiEnd } = getDateRangeBounds()
   const leadsInRange = useMemo(() => {
-    return googleLeads.filter((lead) => {
+    return googleLeadsState.filter((lead) => {
       if (!lead.inquiry_date) return false
       const d = new Date(lead.inquiry_date)
       if (Number.isNaN(+d)) return false
       d.setHours(0, 0, 0, 0)
       return d >= kpiStart && d <= kpiEnd
     })
-  }, [googleLeads, kpiStart, kpiEnd])
+  }, [googleLeadsState, kpiStart, kpiEnd])
 
   const paidSearchLeads = useMemo(
     () => leadsInRange.filter((l) => (l.source_category || '').toLowerCase() === 'paid_search'),
@@ -211,7 +211,7 @@ export default function GoogleAdsPage() {
     const start = kpiStart
     const end = kpiEnd
     const campaignNames = new Set(data.map((c) => (c.campaign || '').toLowerCase()))
-    return bookings
+    return bookingsState
       .filter((b) => {
         const rawDate = b.booking_date || b.inquiry_date
         if (!rawDate) return false
@@ -227,7 +227,7 @@ export default function GoogleAdsPage() {
         return Array.from(campaignNames).some((c) => c && camp.includes(c))
       })
       .reduce((sum, b) => sum + (b.rvc || 0), 0)
-  }, [bookings, data, kpiStart, kpiEnd])
+  }, [bookingsState, data, kpiStart, kpiEnd])
 
   const processedData = useMemo(() => {
     const { startDate, endDate } = getDateRangeBounds()
