@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { useSettings } from '@/lib/contexts/SettingsContext'
 import { fetchGoogleAds, aggregateGoogleByCampaign, addGoogleAiMetrics, calculateGoogleTotals, type GoogleAdRecord } from '@/lib/google-ads'
+import { fetchStreakSyncGoogle, fetchBookings, fetchSheet, type BookingRecord, type StreakLeadRow } from '@/lib/sheetsData'
 import { getSheetsUrl } from '@/lib/config'
 import { formatCurrency } from '@/lib/utils'
 import { 
@@ -91,6 +92,8 @@ export default function GoogleAdsPage() {
   const [customDateRange, setCustomDateRange] = useState<[Date, Date] | null>(null)
   const [aiBullets, setAiBullets] = useState<string[]>([])
   const [aiLoading, setAiLoading] = useState(false)
+  const [googleLeads, setGoogleLeads] = useState<StreakLeadRow[]>([])
+  const [bookings, setBookings] = useState<BookingRecord[]>([])
   const generateAiSummary = async () => {
     if (!settings.sheetUrl) return
     setAiLoading(true)
@@ -130,8 +133,14 @@ export default function GoogleAdsPage() {
       try {
         setLoading(true)
         setError(null)
-        const records = await fetchGoogleAds(settings.sheetUrl || getSheetsUrl())
+        const [records, leads, bookingRows] = await Promise.all([
+          fetchGoogleAds(settings.sheetUrl || getSheetsUrl()),
+          fetchStreakSyncGoogle(fetchSheet, settings.sheetUrl || getSheetsUrl()),
+          fetchBookings(fetchSheet, settings.sheetUrl || getSheetsUrl()),
+        ])
         setData(records)
+        setGoogleLeads(leads || [])
+        setBookings(bookingRows || [])
         setLastRefresh(new Date())
       } catch (err: any) {
         console.error('Error loading Google Ads:', err)
@@ -178,6 +187,45 @@ export default function GoogleAdsPage() {
       return recordDate >= startDate && recordDate <= endDate
     })
   }
+
+  const { startDate: kpiStart, endDate: kpiEnd } = getDateRangeBounds()
+  const leadsInRange = useMemo(() => {
+    return googleLeads.filter((lead) => {
+      if (!lead.inquiry_date) return false
+      const d = new Date(lead.inquiry_date)
+      if (Number.isNaN(+d)) return false
+      d.setHours(0, 0, 0, 0)
+      return d >= kpiStart && d <= kpiEnd
+    })
+  }, [googleLeads, kpiStart, kpiEnd])
+
+  const paidSearchLeads = useMemo(
+    () => leadsInRange.filter((l) => (l.source_category || '').toLowerCase() === 'paid_search'),
+    [leadsInRange]
+  )
+
+  const conversionsFromLeads = paidSearchLeads.length
+  const valueFromBookings = useMemo(() => {
+    const start = kpiStart
+    const end = kpiEnd
+    const campaignNames = new Set(data.map((c) => (c.campaign || '').toLowerCase()))
+    return bookings
+      .filter((b) => {
+        const rawDate = b.booking_date || b.inquiry_date
+        if (!rawDate) return false
+        const d = new Date(rawDate.length === 7 ? `${rawDate}-01` : rawDate)
+        if (Number.isNaN(+d)) return false
+        d.setHours(0, 0, 0, 0)
+        return d >= start && d <= end
+      })
+      .filter((b) => {
+        const src = (b.source || '').toLowerCase()
+        const camp = (b.campaign || '').toLowerCase()
+        if (src === 'google') return true
+        return Array.from(campaignNames).some((c) => c && camp.includes(c))
+      })
+      .reduce((sum, b) => sum + (b.rvc || 0), 0)
+  }, [bookings, data, kpiStart, kpiEnd])
 
   const processedData = useMemo(() => {
     const { startDate, endDate } = getDateRangeBounds()
@@ -385,8 +433,8 @@ export default function GoogleAdsPage() {
           <MetricCard title="Total Spend" value={fmtEUR(totals.spend)} icon={DollarSign} gradient />
           <MetricCard title="Clicks" value={totals.clicks.toLocaleString()} icon={MousePointerClick} />
           <MetricCard title="Impressions" value={totals.impressions.toLocaleString()} icon={Eye} />
-          <MetricCard title="Conversions" value={totals.conversions.toLocaleString()} icon={FileText} />
-          <MetricCard title="Value" value={fmtEUR(totals.value)} icon={BarChart3} />
+          <MetricCard title="Conversions" value={conversionsFromLeads.toLocaleString()} icon={FileText} />
+          <MetricCard title="Value" value={fmtEUR(valueFromBookings)} icon={BarChart3} />
         </div>
 
         {/* AI Quality Metrics Row */}

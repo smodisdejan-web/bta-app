@@ -117,6 +117,7 @@ export function addGoogleAiMetrics(
   }
 
   const leadsByCampaign = new Map<string, StreakLeadRow[]>()
+  const unknownBucket: StreakLeadRow[] = []
   let matchedCount = 0
 
   for (const lead of streakLeads) {
@@ -155,12 +156,14 @@ export function addGoogleAiMetrics(
       arr.push(lead)
       leadsByCampaign.set(matchedCampaign, arr)
       matchedCount++
+    } else {
+      unknownBucket.push(lead)
     }
   }
 
   console.log(`[Google AI] Matched ${matchedCount}/${streakLeads.length} leads to campaigns`)
 
-  return campaigns.map(campaign => {
+  const augmented = campaigns.map(campaign => {
     const leads = leadsByCampaign.get(campaign.campaign) || []
     const leadsWithAi = leads.filter(l => l.ai_score > 0)
     const totalLeads = leadsWithAi.length
@@ -185,6 +188,44 @@ export function addGoogleAiMetrics(
       cpql,
     }
   })
+
+  if (unknownBucket.length > 0) {
+    const leadsWithAi = unknownBucket.filter(l => l.ai_score > 0)
+    const totalLeads = leadsWithAi.length
+    const qualityLeads = leadsWithAi.filter(l => l.ai_score >= 50).length
+    const excellentLeads = leadsWithAi.filter(l => l.ai_score >= 70).length
+    const avgAiScore = totalLeads > 0
+      ? Math.round(leadsWithAi.reduce((sum, l) => sum + l.ai_score, 0) / totalLeads)
+      : 0
+    const qualityRate = totalLeads > 0
+      ? Math.round((qualityLeads / totalLeads) * 100)
+      : 0
+    augmented.push({
+      date: '',
+      campaign: 'Unknown Google',
+      campaignId: '',
+      adGroup: '',
+      adGroupId: '',
+      spend: 0,
+      clicks: 0,
+      impressions: 0,
+      conversions: 0,
+      value: 0,
+      cpc: 0,
+      ctr: 0,
+      convRate: 0,
+      cpa: 0,
+      roas: 0,
+      totalLeads,
+      qualityLeads,
+      excellentLeads,
+      qualityRate,
+      avgAiScore,
+      cpql: 0,
+    })
+  }
+
+  return augmented
 }
 
 export function calculateGoogleTotals(records: GoogleAdRecord[]) {
