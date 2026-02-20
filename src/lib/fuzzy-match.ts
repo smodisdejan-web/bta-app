@@ -20,9 +20,9 @@ function debugMatch(sourcePlacement: string, ruleName: string, matched: boolean)
 }
 
 const findCampaign = (campaigns: string[], target: string): string | null => {
-  const targetNorm = normalize(target);
+  const targetNorm = normalize(target).replace(/\s+/g, ' ');
   for (const campaign of campaigns) {
-    const campNorm = normalize(campaign);
+    const campNorm = normalize(campaign).replace(/\s+/g, ' ');
     if (campNorm.includes(targetNorm) || campNorm.startsWith(targetNorm)) {
       return campaign;
     }
