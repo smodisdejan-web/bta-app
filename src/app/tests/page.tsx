@@ -1,10 +1,14 @@
 'use client'
 
 import React, { useEffect, useMemo, useState } from 'react'
-import { FlaskConical, Hourglass, Trophy } from 'lucide-react'
+import { Crown, FlaskConical, Hourglass, Trophy } from 'lucide-react'
+import { DM_Sans, DM_Serif_Display } from 'next/font/google'
 
 import type { TestTrackerRow } from '@/lib/sheetsData'
 import { cn } from '@/lib/utils'
+
+const dmSans = DM_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '700'] })
+const dmSerif = DM_Serif_Display({ subsets: ['latin'], weight: '400' })
 
 type Summary = {
   activeCount: number
@@ -45,12 +49,20 @@ function parseTarget(successCriteria?: string): number | null {
   return parseNumber(match[1])
 }
 
+function isCostMetric(kpiName: string) {
+  const lower = kpiName.toLowerCase()
+  return ['cpql', 'cpa', 'cpl', 'cost', 'cpc', 'cac'].some((k) => lower.includes(k))
+}
+
+function isCurrency(kpiName: string) {
+  const lower = kpiName.toLowerCase()
+  return lower.includes('€') || lower.includes('eur') || lower.includes('usd') || lower.includes('aud') || lower.includes('cad')
+}
+
 function formatValue(value: number | null, kpiName: string): string {
   if (value === null || Number.isNaN(value)) return '—'
   const lower = kpiName.toLowerCase()
-  if (lower.includes('€') || lower.includes('eur')) {
-    return `€${value.toFixed(2)}`
-  }
+  if (isCurrency(lower)) return `€${value.toFixed(2)}`
   if (lower.includes('%')) {
     return `${value.toFixed(1)}%`
   }
@@ -61,7 +73,7 @@ function barColor(value: number | null, target: number | null) {
   if (value === null || target === null) return 'bg-gray-200'
   if (value < target) return 'bg-green-500'
   if (value < target * 1.5) return 'bg-yellow-400'
-  if (value < target * 2) return 'bg-orange-500'
+  if (value < target * 2.5) return 'bg-orange-500'
   return 'bg-red-500'
 }
 
@@ -159,11 +171,11 @@ export default function TestsPage() {
   )
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className={cn('min-h-screen', dmSans.className)} style={{ background: '#FAF8F5' }}>
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
         <header className="mb-6 flex flex-col gap-2">
-          <p className="text-xs uppercase tracking-wide text-gray-500">Experimentation</p>
-          <h1 className="text-3xl font-semibold text-gray-900">Tests</h1>
+          <p className="text-xs uppercase tracking-wide text-[#B39262]">Experimentation</p>
+          <h1 className={cn('text-3xl font-semibold text-gray-900', dmSerif.className)}>Tests</h1>
           <p className="text-sm text-gray-600">Read-only view of the Test Tracker sheet. Update details in Google Sheets.</p>
         </header>
 
@@ -327,7 +339,7 @@ function SummaryCard({
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm text-gray-600">{title}</p>
-          <div className="text-2xl font-semibold text-gray-900">{value}</div>
+          <div className={cn('text-2xl font-semibold text-gray-900', dmSerif.className)}>{value}</div>
           {subtitle && <p className="text-xs text-gray-500">{subtitle}</p>}
         </div>
         {icon}
@@ -343,25 +355,70 @@ function TestCard({ test }: { test: TestTrackerRow }) {
   const kpiB = parseNumber(test.kpi_b)
   const maxVal = Math.max(baseline ?? 0, kpiA ?? 0, kpiB ?? 0, target ?? 0, 1)
   const days = test.days_running || daysSince(test.start_date) || 0
+  const lowerBetter = isCostMetric(test.kpi_name)
+
+  const leadingVariant = (() => {
+    if (kpiA === null || kpiB === null) return null
+    if (lowerBetter) {
+      if (kpiA < kpiB) return 'A'
+      if (kpiB < kpiA) return 'B'
+      return null
+    }
+    if (kpiA > kpiB) return 'A'
+    if (kpiB > kpiA) return 'B'
+    return null
+  })()
+
+  const verdict = (() => {
+    if (kpiA === null || kpiB === null) return { text: '⏳ Too early to determine a winner', tone: 'bg-gray-100 text-gray-800' }
+    if (lowerBetter) {
+      if (kpiA < kpiB) return { text: `🏆 Variant A leads — ${formatValue(Math.abs(kpiA - kpiB), test.kpi_name)} lower ${test.kpi_name}`, tone: 'bg-green-100 text-green-900' }
+      if (kpiB < kpiA) return { text: `🏆 Variant B leads — ${formatValue(Math.abs(kpiA - kpiB), test.kpi_name)} lower ${test.kpi_name}`, tone: 'bg-green-100 text-green-900' }
+    } else {
+      if (kpiA > kpiB) return { text: `🏆 Variant A leads — ${formatValue(Math.abs(kpiA - kpiB), test.kpi_name)} higher ${test.kpi_name}`, tone: 'bg-green-100 text-green-900' }
+      if (kpiB > kpiA) return { text: `🏆 Variant B leads — ${formatValue(Math.abs(kpiA - kpiB), test.kpi_name)} higher ${test.kpi_name}`, tone: 'bg-green-100 text-green-900' }
+    }
+    return { text: '⏳ Too early to determine a winner', tone: 'bg-gray-100 text-gray-800' }
+  })()
+
+  const confidence = (test.stat_confidence || '').toLowerCase()
+  const confidenceTone =
+    confidence === 'high' ? 'bg-green-500' : confidence === 'medium' ? 'bg-amber-400' : 'bg-gray-400'
+  const confidenceText = test.stat_confidence || 'Low'
+
+  const dangerZone = target ? target * 2.5 : null
+  const isStale = test.status.toLowerCase() === 'running' && (test.days_running || 0) > 14
+  const daysTone = isStale ? 'text-red-600 font-semibold' : 'text-gray-500'
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+    <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
-          <span>{test.test_id}</span>
-          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">{test.category || '—'}</span>
+          <span className="text-[#B39262]">{test.test_id}</span>
+          <span className="rounded-full bg-[#F4EDE4] px-2 py-0.5 text-xs font-medium text-[#B39262]">
+            {test.category || '—'}
+          </span>
           {statusBadge(test.status)}
         </div>
-        <div className="text-sm text-gray-500">{days} days</div>
+        <div className={cn('flex items-center gap-1 text-sm', daysTone)}>
+          {isStale ? '⚠️' : null}
+          <span>{(test.days_running ?? days) || 0} days</span>
+        </div>
       </div>
 
-      <p className="mt-2 text-base font-semibold text-gray-900">{test.test_name}</p>
+      <p className={cn('mt-3 text-xl text-gray-900', dmSerif.className)}>{test.test_name}</p>
       <p className="mt-1 text-sm text-gray-600">{test.hypothesis}</p>
 
-      <div className="mt-4 flex flex-wrap gap-3 text-sm text-gray-700">
-        <span className="font-medium">KPI: {test.kpi_name || '—'}</span>
-        <span>Baseline: {formatValue(baseline, test.kpi_name)}</span>
-        <span>Target: {target ? formatValue(target, test.kpi_name) : test.success_criteria || '—'}</span>
+      <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-gray-50 p-3 text-sm text-gray-700 md:grid-cols-4">
+        <div><span className="font-semibold">Metric</span><div>{test.kpi_name || '—'}</div></div>
+        <div><span className="font-semibold">Baseline</span><div>{formatValue(baseline, test.kpi_name)}</div></div>
+        <div><span className="font-semibold">Target</span><div>{target ? formatValue(target, test.kpi_name) : test.success_criteria || '—'}</div></div>
+        <div><span className="font-semibold">Danger zone</span><div>{dangerZone ? formatValue(dangerZone, test.kpi_name) : '—'}</div></div>
+      </div>
+
+      <div className={cn('mt-4 flex items-center justify-between rounded-lg px-4 py-3 text-sm', verdict.tone)}>
+        <div className="font-semibold">{verdict.text}</div>
+        <div className="text-xs text-gray-700">Confidence: {confidenceText || 'Low'} · Too early to call</div>
       </div>
 
       <div className="mt-4 grid gap-3 md:grid-cols-2">
@@ -372,6 +429,8 @@ function TestCard({ test }: { test: TestTrackerRow }) {
           baseline={baseline}
           target={target}
           maxVal={maxVal}
+          kpiName={test.kpi_name}
+          isLeader={leadingVariant === 'A'}
         />
         <VariantCard
           label="Variant B"
@@ -380,19 +439,19 @@ function TestCard({ test }: { test: TestTrackerRow }) {
           baseline={baseline}
           target={target}
           maxVal={maxVal}
+          kpiName={test.kpi_name}
+          isLeader={leadingVariant === 'B'}
         />
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-gray-700">
-        {winnerBadge(test.winner)}
-        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-700">
-          Confidence: {test.stat_confidence || '—'}
-        </span>
-      </div>
-
-      <div className="mt-3 text-sm text-gray-700">
-        <span className="font-medium">Next Action: </span>
-        <span>{test.next_action || '—'}</span>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-gray-700">
+        <div className="flex items-center gap-2">
+          <span className={cn('h-2 w-2 rounded-full', confidenceTone)} />
+          <span>{confidenceText || 'Low'} confidence · ~{(test.days_running ?? days) || 0} days of data</span>
+        </div>
+        <div className="text-[#B39262]">
+          → {test.next_action || 'Next action pending'}
+        </div>
       </div>
     </div>
   )
@@ -405,6 +464,8 @@ function VariantCard({
   baseline,
   target,
   maxVal,
+  kpiName,
+  isLeader,
 }: {
   label: string
   variantLabel: string
@@ -412,33 +473,58 @@ function VariantCard({
   baseline: number | null
   target: number | null
   maxVal: number
+  kpiName: string
+  isLeader: boolean
 }) {
   const width = Math.max(5, Math.min(100, ((value ?? 0) / maxVal) * 100))
   const color = barColor(value, target)
+  const better = isLeader
+  const ratioToTarget = value !== null && target ? value / target : null
+  const baselineDelta = deltaPct(value, baseline)
+  const targetDelta =
+    ratioToTarget !== null
+      ? ratioToTarget > 1
+        ? `${ratioToTarget.toFixed(1)}× above target`
+        : `${(1 - ratioToTarget).toFixed(1)}× below target`
+      : ''
+  const contextualDelta =
+    baselineDelta !== '—' || targetDelta
+      ? `${baselineDelta !== '—' ? `${baselineDelta.replace('+', '↑ ')} vs baseline` : ''}${baselineDelta !== '—' && targetDelta ? ' · ' : ''}${targetDelta}`
+      : '—'
+  const targetPos = target && maxVal ? Math.min(100, Math.max(0, (target / maxVal) * 100)) : null
+  const formattedValue = formatValue(value, kpiName)
+
   return (
-    <div className="rounded-lg border border-gray-200 p-3">
+    <div className={cn('relative rounded-xl border p-4 shadow-sm', better ? 'border-green-200 bg-green-50/40' : 'border-gray-200 bg-white')}>
+      {better && (
+        <div className="absolute right-3 top-3 text-green-600">
+          <span className="text-lg">👑</span>
+        </div>
+      )}
       <div className="flex items-center justify-between text-sm font-semibold text-gray-800">
         <span>{label}</span>
         <span className="text-xs text-gray-600">{variantLabel}</span>
       </div>
-      <div className="mt-2 flex items-center justify-between text-lg font-semibold text-gray-900">
-        <span>{formatValue(value, '')}</span>
-        <span className="text-xs text-gray-500">{deltaPct(value, baseline)}</span>
+      <div className={cn('mt-2 flex items-baseline justify-between gap-2 text-gray-900', dmSerif.className)}>
+        <span className="text-2xl">{formattedValue}</span>
+        <span className="text-xs text-gray-500">{contextualDelta}</span>
       </div>
-      <div className="mt-3 h-3 w-full rounded-full bg-gray-100">
+      <div className="mt-3 h-4 w-full rounded-full bg-gray-100 relative overflow-hidden">
+        {targetPos !== null && (
+          <span
+            className="absolute top-0 bottom-0 w-[2px] bg-gray-700 z-10"
+            style={{ left: `${targetPos}%` }}
+          />
+        )}
         <div
-          className={cn('h-3 rounded-full transition-all', color)}
+          className={cn('h-full rounded-full transition-all', color)}
           style={{ width: `${width}%` }}
         />
-      </div>
-      <div className="mt-2 text-xs text-gray-500">
-        {target ? (
-          <span>
-            Target {formatValue(target, '')} · Baseline {formatValue(baseline, '')}
-          </span>
-        ) : (
-          <span>Baseline {formatValue(baseline, '')}</span>
-        )}
+        <div className="absolute inset-0 flex items-center justify-between px-2 text-[11px] text-gray-600">
+          <span>€0</span>
+          <span>{target ? `Target ${formatValue(target, kpiName)}` : 'Target'}</span>
+          <span>{formattedValue}</span>
+        </div>
       </div>
     </div>
   )

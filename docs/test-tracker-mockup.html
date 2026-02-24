@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Tracker — Goolets BTA</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --gold: #B39262;
+    --gold-light: #D4B98A;
+    --gold-bg: rgba(179, 146, 98, 0.08);
+    --graphite: #121212;
+    --ivory: #FAF8F5;
+    --card: #FFFFFF;
+    --border: #E8E4DF;
+    --text-secondary: #7A756E;
+    --text-tertiary: #A09A93;
+    --green: #2E7D4F;
+    --green-bg: rgba(46, 125, 79, 0.08);
+    --green-bar: #34D474;
+    --yellow: #C68A00;
+    --yellow-bg: rgba(198, 138, 0, 0.08);
+    --yellow-bar: #FFBE2E;
+    --red: #C0392B;
+    --red-bg: rgba(192, 57, 43, 0.06);
+    --red-bar: #E74C3C;
+    --orange: #D35400;
+    --orange-bg: rgba(211, 84, 0, 0.06);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--ivory);
+    color: var(--graphite);
+    padding: 40px;
+    max-width: 840px;
+    margin: 0 auto;
+  }
+
+  /* ─── Page Header ─── */
+  .page-label {
+    font-size: 11px;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--gold);
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .page-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 28px;
+    color: var(--graphite);
+    margin-bottom: 4px;
+  }
+  .page-subtitle {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 32px;
+  }
+
+  /* ─── Summary Cards ─── */
+  .summary-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 36px;
+  }
+  .summary-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .summary-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+  .summary-card.active::before { background: var(--gold); }
+  .summary-card.stale::before { background: var(--red); }
+  .summary-card.winners::before { background: var(--green); }
+
+  .summary-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    margin-bottom: 8px;
+  }
+  .summary-value {
+    font-family: 'DM Serif Display', serif;
+    font-size: 32px;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .summary-detail {
+    font-size: 12px;
+    color: var(--text-tertiary);
+  }
+
+  /* ─── Section Header ─── */
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 16px;
+  }
+  .section-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 20px;
+  }
+  .section-count {
+    font-size: 13px;
+    color: var(--text-tertiary);
+  }
+
+  /* ─── Test Card ─── */
+  .test-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px;
+    margin-bottom: 16px;
+    transition: box-shadow 0.2s;
+  }
+  .test-card:hover {
+    box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+  }
+
+  .test-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+  }
+  .test-header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .test-id {
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--graphite);
+  }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 100px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+  }
+  .badge-category {
+    background: var(--gold-bg);
+    color: var(--gold);
+  }
+  .badge-running {
+    background: #EBF5FF;
+    color: #2563EB;
+  }
+  .badge-analyzing {
+    background: var(--yellow-bg);
+    color: var(--yellow);
+  }
+  .badge-done {
+    background: var(--green-bg);
+    color: var(--green);
+  }
+  .days-running {
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .days-running.stale {
+    color: var(--red);
+    font-weight: 600;
+  }
+
+  .test-name {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    line-height: 1.3;
+  }
+  .test-hypothesis {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin-bottom: 16px;
+  }
+
+  /* ─── KPI Row ─── */
+  .kpi-context {
+    display: flex;
+    gap: 24px;
+    align-items: center;
+    padding: 10px 16px;
+    background: var(--ivory);
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 13px;
+  }
+  .kpi-context-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .kpi-context-label {
+    color: var(--text-tertiary);
+  }
+  .kpi-context-value {
+    font-weight: 600;
+    color: var(--graphite);
+  }
+
+  /* ─── Verdict Banner ─── */
+  .verdict-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-radius: 10px;
+    margin-bottom: 16px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .verdict-banner.b-leads {
+    background: var(--green-bg);
+    color: var(--green);
+    border: 1px solid rgba(46, 125, 79, 0.15);
+  }
+  .verdict-banner.too-early {
+    background: var(--ivory);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+  }
+  .verdict-banner .verdict-icon { font-size: 18px; }
+  .verdict-banner .verdict-detail {
+    font-weight: 400;
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-left: auto;
+  }
+
+  /* ─── Variants Grid ─── */
+  .variants-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+  .variant-card {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+    position: relative;
+  }
+  .variant-card.leading {
+    border-color: var(--green);
+    background: rgba(46, 125, 79, 0.02);
+  }
+  .variant-card.leading::after {
+    content: '👑';
+    position: absolute;
+    top: -10px;
+    right: 12px;
+    font-size: 16px;
+  }
+
+  .variant-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-tertiary);
+    margin-bottom: 2px;
+  }
+  .variant-name {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+  }
+  .variant-kpi {
+    font-family: 'DM Serif Display', serif;
+    font-size: 28px;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .variant-delta {
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+  .delta-bad { color: var(--red); }
+  .delta-warn { color: var(--orange); }
+  .delta-good { color: var(--green); }
+
+  /* ─── Target Bar ─── */
+  .target-bar-container {
+    position: relative;
+    height: 8px;
+    background: #F0EDEA;
+    border-radius: 100px;
+    overflow: visible;
+    margin-bottom: 8px;
+  }
+  .target-bar-fill {
+    height: 100%;
+    border-radius: 100px;
+    transition: width 0.6s ease;
+    min-width: 4px;
+  }
+  .target-bar-fill.zone-green { background: var(--green-bar); }
+  .target-bar-fill.zone-yellow { background: var(--yellow-bar); }
+  .target-bar-fill.zone-orange { background: #F39C12; }
+  .target-bar-fill.zone-red { background: var(--red-bar); }
+
+  .target-marker {
+    position: absolute;
+    top: -4px;
+    width: 2px;
+    height: 16px;
+    background: var(--graphite);
+    border-radius: 1px;
+    opacity: 0.4;
+  }
+  .target-bar-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--text-tertiary);
+  }
+  .target-label-marker {
+    font-weight: 600;
+    color: var(--graphite);
+    opacity: 0.5;
+  }
+
+  /* ─── Footer Row ─── */
+  .test-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+  }
+  .confidence-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .confidence-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+  }
+  .confidence-dot.low { background: #D1D1D1; }
+  .confidence-dot.medium { background: var(--yellow-bar); }
+  .confidence-dot.high { background: var(--green-bar); }
+  .confidence-text {
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+  .next-action {
+    font-size: 13px;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .next-action-icon {
+    color: var(--gold);
+    font-weight: 700;
+  }
+
+  /* ─── Example: Done Card ─── */
+  .done-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px 28px;
+    margin-bottom: 12px;
+  }
+  .done-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .done-result {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .done-winner-badge {
+    background: var(--green-bg);
+    color: var(--green);
+    padding: 4px 12px;
+    border-radius: 100px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .done-delta {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--green);
+  }
+  .done-learning {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    padding-left: 2px;
+  }
+
+  /* ─── Responsive ─── */
+  @media (max-width: 640px) {
+    body { padding: 20px; }
+    .summary-row { grid-template-columns: 1fr; }
+    .variants-grid { grid-template-columns: 1fr; }
+    .kpi-context { flex-wrap: wrap; gap: 12px; }
+    .test-footer { flex-direction: column; align-items: flex-start; gap: 10px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Page Header -->
+<div class="page-label">Experimentation</div>
+<div class="page-title">Tests</div>
+<div class="page-subtitle">Live experiment performance from Google Sheets</div>
+
+<!-- Summary Cards -->
+<div class="summary-row">
+  <div class="summary-card active">
+    <div class="summary-label">Active Tests</div>
+    <div class="summary-value">1</div>
+    <div class="summary-detail">1 running · 0 analyzing</div>
+  </div>
+  <div class="summary-card stale">
+    <div class="summary-label">Stale Tests</div>
+    <div class="summary-value">0</div>
+    <div class="summary-detail">Running > 14 days</div>
+  </div>
+  <div class="summary-card winners">
+    <div class="summary-label">Recent Winners</div>
+    <div class="summary-value">1</div>
+    <div class="summary-detail">Decided in last 30 days</div>
+  </div>
+</div>
+
+<!-- Active Tests -->
+<div class="section-header">
+  <div class="section-title">Active Tests</div>
+  <div class="section-count">1 active</div>
+</div>
+
+<div class="test-card">
+  <!-- Header -->
+  <div class="test-header">
+    <div class="test-header-left">
+      <span class="test-id">LF-001</span>
+      <span class="badge badge-category">Lead Form</span>
+      <span class="badge badge-running">Running</span>
+    </div>
+    <span class="days-running">6 days</span>
+  </div>
+
+  <!-- Title -->
+  <div class="test-name">Lead Form vs Landing Page — Individual Yachts ABO</div>
+  <div class="test-hypothesis">Testing if lead forms deliver lower CPQL than landing pages for individual yacht campaigns</div>
+
+  <!-- KPI Context Bar -->
+  <div class="kpi-context">
+    <div class="kpi-context-item">
+      <span class="kpi-context-label">Metric:</span>
+      <span class="kpi-context-value">CPQL</span>
+    </div>
+    <div class="kpi-context-item">
+      <span class="kpi-context-label">Baseline:</span>
+      <span class="kpi-context-value">€84</span>
+    </div>
+    <div class="kpi-context-item">
+      <span class="kpi-context-label">Target:</span>
+      <span class="kpi-context-value">&lt; €96</span>
+    </div>
+    <div class="kpi-context-item">
+      <span class="kpi-context-label">Danger:</span>
+      <span class="kpi-context-value" style="color: var(--red);">&gt; €240</span>
+    </div>
+  </div>
+
+  <!-- Verdict Banner -->
+  <div class="verdict-banner b-leads">
+    <span class="verdict-icon">🏆</span>
+    Variant B vodi — €165 nižji CPQL
+    <span class="verdict-detail">Confidence: Low · Too early to call</span>
+  </div>
+
+  <!-- Variants -->
+  <div class="variants-grid">
+    <!-- Variant A: Lead Form -->
+    <div class="variant-card">
+      <div class="variant-label">Variant A</div>
+      <div class="variant-name">Lead Form — Individual Yachts ABO</div>
+      <div class="variant-kpi" style="color: var(--red);">€275.83</div>
+      <div class="variant-delta delta-bad">↑ 228% vs baseline · 2.9× nad targetom</div>
+      <div class="target-bar-container">
+        <div class="target-bar-fill zone-red" style="width: 100%;"></div>
+        <div class="target-marker" style="left: 35%;" title="Target €96"></div>
+      </div>
+      <div class="target-bar-labels">
+        <span>€0</span>
+        <span class="target-label-marker">Target €96</span>
+        <span>€275</span>
+      </div>
+    </div>
+
+    <!-- Variant B: Landing Page (Leading) -->
+    <div class="variant-card leading">
+      <div class="variant-label">Variant B</div>
+      <div class="variant-name">Landing Page — Individual Yachts ABO</div>
+      <div class="variant-kpi" style="color: var(--orange);">€111.04</div>
+      <div class="variant-delta delta-warn">↑ 32% vs baseline · 16% nad targetom</div>
+      <div class="target-bar-container">
+        <div class="target-bar-fill zone-yellow" style="width: 65%;"></div>
+        <div class="target-marker" style="left: 35%;" title="Target €96"></div>
+      </div>
+      <div class="target-bar-labels">
+        <span>€0</span>
+        <span class="target-label-marker">Target €96</span>
+        <span>€170</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="test-footer">
+    <div class="confidence-row">
+      <div class="confidence-dot low"></div>
+      <span class="confidence-text">Low confidence · ~6 days of data</span>
+    </div>
+    <div class="next-action">
+      <span class="next-action-icon">→</span>
+      Check CPQL after 2 weeks of data (by March 4)
+    </div>
+  </div>
+</div>
+
+<!-- Example: Done Card -->
+<div class="section-header" style="margin-top: 36px;">
+  <div class="section-title">Done</div>
+  <div class="section-count">1 completed</div>
+</div>
+
+<div class="done-card">
+  <div class="done-header">
+    <div class="test-header-left">
+      <span class="test-id">LP-001</span>
+      <span class="badge badge-category">Landing Page</span>
+      <span class="badge badge-done">Done</span>
+    </div>
+    <div class="done-result">
+      <span class="done-winner-badge">Winner: A</span>
+      <span class="done-delta">+72% Form CR</span>
+    </div>
+  </div>
+  <div class="test-name" style="margin-top: 8px;">Hero Section: Drone Video vs Static Image</div>
+  <div class="done-learning" style="margin-top: 6px;">
+    Video hero converts 2× better. Users engage 2× longer above the fold. Rolling out to all yacht LP variants. Sourcing 3 more drone clips.
+  </div>
+</div>
+
+</body>
+</html>

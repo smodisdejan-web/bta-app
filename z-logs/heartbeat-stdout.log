@@ -9,3 +9,307 @@ Done. Written to `briefing/heartbeat-today.md`. Key takeaways:
 - **Google auth still broken** — needs re-authentication (3+ days now)
 - **20 commits since Feb 19** — heavy work on FB/Google matching and normalization
 - **Cleanup opportunity** — google-matching debug endpoint still live, 2 stale stashes, idle feature branches
+Done. Briefing written to `briefing/heartbeat-today.md`.
+
+**Quick summary:**
+- Working tree is clean, 22 commits since yesterday — mostly campaign matching improvements
+- Google auth is still broken (day 3+) — needs re-auth for calendar/email checks
+- One debug endpoint (`google-matching`) still live — remove when ready
+- 2 stale stashes and 2 idle feature branches could be cleaned up
+Done. Briefing written to `briefing/heartbeat-today.md`.
+
+**Quick summary:**
+- 6 commits today — all Google Ads table fixes (state dedup, metrics init order, streak alignment)
+- Working tree is clean
+- Still need to: remove the debug endpoint, re-auth Google, and clean up the `-new`/`-old` file pairs + stashes when ready
+Done. Quick summary:
+
+- **Build: passing** — clean production build
+- **3 new commits** since last check (vessels, streak dedup, overview KPIs)
+- **2 items flagged**: debug endpoint still live, Google auth still expired
+- **Cleanup**: 4 old/new file pairs, 2 stale stashes, 2 idle branches
+
+Briefing written to `briefing/heartbeat-today.md`.
+Done. Quick summary:
+
+- **Build: PASSING** — no issues
+- **Google auth still expired** — needs re-auth for calendar/email checks
+- **Debug endpoint still deployed** — remove `api/debug/google-matching` when ready
+- **Housekeeping:** 2 stale stashes, 2 idle branches, 4 old data files to clean up
+- No new commits since this morning's heartbeat
+Done. Heartbeat written to `briefing/heartbeat-today.md`.
+
+**Summary:** Build is passing, working tree is clean. Two items need attention:
+1. **Google auth expired** — re-auth needed for calendar/email checks
+2. **Debug endpoint still live** — remove when ready
+
+Minor housekeeping: 2 stale stashes and 2 idle branches can be cleaned up.
+Heartbeat complete. Here's the summary:
+
+**Build: PASSING** — all routes clean.
+
+**2 items need attention:**
+1. Google auth is expired (no calendar/email checks possible)
+2. Debug endpoint `api/debug/google-matching` is still live
+
+**Housekeeping:** 2 old stashes and 2 idle branches (`feature/ga4-landing-pages`, `feature/overview`) could be cleaned up when you're ready.
+Done. Quick summary:
+
+- **Build: PASSING** — all routes clean
+- **2 items need attention:** Google auth is still expired, and the debug endpoint is still live
+- **Cleanup:** 2 old stashes + 2 idle branches can be dropped when ready
+- No new issues since yesterday's heartbeat — project is stable
+Heartbeat done. Quick summary:
+
+- **Build: PASSING** — all routes clean
+- **Google auth expired** — Calendar/Gmail checks can't run until you re-authenticate
+- **1 debug endpoint** still live (`api/debug/google-matching`) — remove when ready
+- **2 stale stashes + 2 idle branches** — safe to clean up whenever
+
+Output written to `briefing/heartbeat-today.md`.
+Done. Quick summary:
+
+- **Build: passing** — all routes compile clean.
+- **Google auth still expired** — calendar/email checks blocked until you re-auth.
+- **Housekeeping:** 1 debug endpoint to remove, 2 stale stashes, 2 idle branches.
+- Everything else looks good. Nothing urgent beyond the auth fix.
+Heartbeat done. Here's the summary:
+
+**Build: PASSING** — all routes OK.
+
+**Attention needed:**
+- Google auth still expired (Calendar/Gmail offline)
+- Debug endpoint `api/debug/google-matching` still live — remove when ready
+
+**Housekeeping:** 2 stale stashes and 2 idle branches (`feature/ga4-landing-pages`, `feature/overview`) can be cleaned up whenever.
+Heartbeat done. Quick summary:
+
+- **Build: PASSING** — all routes clean
+- **Auth still expired** — no calendar/email data until you re-auth Google
+- **Cleanup opportunity** — 1 debug endpoint, 2 stale stashes, 2 idle branches
+- Working tree is clean otherwise
+Done. Here's the quick summary:
+
+- **Build: passing** — all routes clean.
+- **Auth expired** — Calendar/Gmail checks can't run until you re-auth.
+- **Housekeeping:** 1 debug endpoint to remove, 2 stale stashes, 2 idle branches.
+- No other issues found. Working tree is clean.
+Heartbeat complete. Summary:
+
+- **Build: PASSING** — all routes compile clean
+- **Google auth still expired** — Calendar/Gmail unavailable until you re-auth
+- **Debug endpoint** (`api/debug/google-matching`) still live — remove when ready
+- **Housekeeping:** 2 old stashes + 2 idle branches can be cleaned up
+- **Working tree:** clean (only heartbeat logs touched)
+
+Nothing else urgent.
+Heartbeat done. Quick summary:
+
+- **Build: PASSING** — all routes compile clean.
+- **Google auth still expired** — Calendar/Gmail checks can't run until you re-auth.
+- **Debug endpoint still live** — `api/debug/google-matching` ready to remove when you're done with it.
+- **Cleanup available** — 2 old stashes, 2 idle branches.
+
+Output written to `briefing/heartbeat-today.md`.
+Already captured that build result — it passed cleanly. The heartbeat briefing is written to `briefing/heartbeat-today.md`.
+Heartbeat done. Quick summary:
+
+- **Build: PASSING** — all routes clean
+- **Google auth still expired** — no calendar/email data
+- **Debug endpoint** still live at `api/debug/google-matching` — remove when ready
+- **Cleanup:** 2 old stashes + 2 idle branches can be dropped
+- Working tree is clean, latest commit is `794077e` (fb adset metrics)
+Done. Quick summary:
+
+- **Build: PASSING** — all routes compile clean.
+- **Google auth still expired** — same as yesterday, Calendar/Gmail checks can't run until you re-auth.
+- **Debug endpoint still live** — `api/debug/google-matching` is still there.
+- **Cleanup:** 2 old stashes + 2 idle feature branches could be dropped.
+- **Working tree:** clean (only heartbeat logs modified).
+
+Nothing new broke overnight. The main action item is re-authenticating Google so Calendar/Gmail checks can resume.
+Heartbeat done. Quick summary:
+
+- **Build: PASSING** — all routes clean
+- **Google auth still expired** — calendar/email checks blocked
+- **Cleanup available**: 1 debug endpoint, 2 stale stashes, 2 idle branches
+- **No new issues** since yesterday's check
+
+Output written to `briefing/heartbeat-today.md`.
+Heartbeat done. Quick summary:
+
+- **Build: PASSING** — all 14 routes clean
+- **Google auth still expired** — Calendar/Gmail unavailable since Feb 20
+- **Debug endpoint** `api/debug/google-matching` still live — remove when ready
+- **Housekeeping:** 2 old stashes + 2 idle branches to clean up whenever
+Heartbeat done. Quick summary:
+
+- **Build: PASSING** — all routes OK
+- **Working tree: clean** (only heartbeat logs touched)
+- **Google auth still expired** since Feb 20 — calendar/email checks blocked until you re-auth
+- **Cleanup available:** 1 debug endpoint, 2 stale stashes, 2 idle branches
+
+Output written to `briefing/heartbeat-today.md`.
+Done. Here's the summary:
+
+**Build: PASSING** — all routes compile clean.
+
+**2 items need attention:**
+1. **Google auth expired** since Feb 20 — Calendar/Gmail checks won't work until you re-auth.
+2. **Debug endpoint still live** at `api/debug/google-matching` — remove when ready.
+
+**Housekeeping:** 2 old stashes and 2 idle branches (`feature/ga4-landing-pages`, `feature/overview`) can be cleaned up whenever.
+Done. Quick summary:
+
+- **Build: PASSING** — everything compiles clean.
+- **Google auth still expired** since Feb 20 — no calendar/email access until you re-auth.
+- **Debug endpoint still live** — `api/debug/google-matching` ready to remove whenever.
+- **2 stale stashes + 2 idle branches** — safe to clean up when convenient.
+- No new issues since yesterday's heartbeat.
+Heartbeat done. Quick summary:
+
+- **Build: PASSING** — all good
+- **2 items need attention:** Google auth expired (since Feb 20) and debug endpoint still live
+- **Cleanup:** 2 stale stashes, 2 idle branches
+- No calendar/email access until you re-auth Google
+Heartbeat done. Quick summary:
+
+- **Build: PASSING** — all routes compile clean.
+- **Google auth still expired** since Feb 20 — calendar/email checks blocked until you re-auth.
+- **1 debug endpoint** (`api/debug/google-matching`) still live — remove when ready.
+- **2 stale stashes + 2 idle branches** ready to clean up whenever.
+- Working tree is clean. Nothing urgent beyond the auth fix.
+Heartbeat done. Here's the summary:
+
+**Build: PASSING** — all routes compile clean.
+
+**Attention needed:**
+- Google auth still expired (since Feb 20) — Calendar/Gmail unavailable until you re-auth
+- Debug endpoint `api/debug/google-matching` still live — remove when ready
+
+**Cleanup candidates:** 2 old stashes, 2 idle branches (`feature/ga4-landing-pages`, `feature/overview`)
+
+Everything else looks good. Written to `briefing/heartbeat-today.md`.
+Done. Quick summary:
+
+- **Build: PASSING** — all routes compile clean.
+- **Google auth still expired** since Feb 20 — calendar/email checks blocked until you re-auth.
+- **Debug endpoint** (`api/debug/google-matching`) still live — flag it for removal.
+- **Cleanup:** 2 old stashes + 2 idle branches ready to drop whenever you want.
+- Working tree is clean. Nothing else urgent.
+Heartbeat done. Quick summary:
+
+- **Build: PASSING** — all routes compile clean.
+- **Google auth still expired** since Feb 20 — no calendar/email access until you re-auth.
+- **Debug endpoint still live** at `api/debug/google-matching` — remove when ready.
+- **Cleanup available**: 2 old stashes, 2 idle branches (`feature/ga4-landing-pages`, `feature/overview`).
+- Working tree is clean. Nothing else urgent.
+Heartbeat done. Quick summary:
+
+- **Build: PASSING** — all routes compile clean.
+- **Google auth still expired** since Feb 20 — no calendar/email checks possible until you re-auth.
+- **Debug endpoint still live** at `api/debug/google-matching` — remove when ready.
+- **Cleanup available:** 2 old stashes and 2 idle branches (`feature/ga4-landing-pages`, `feature/overview`).
+- Working tree is clean otherwise.
+
+Output written to `briefing/heartbeat-today.md`.
+Done. Quick summary:
+
+- **Build: PASSING** — all routes compile clean.
+- **Google auth still expired** since Feb 20 — no calendar/email data until you re-auth.
+- **1 debug endpoint** still live (`api/debug/google-matching`) — remove when ready.
+- **2 stashes + 2 idle branches** can be cleaned up.
+- Working tree is clean aside from heartbeat logs.
+Already retrieved that build output and incorporated it into the heartbeat — build is passing. All done.
+Heartbeat done. Summary:
+
+- **Build: PASSING** — all routes compile clean.
+- **Google auth still expired** since Feb 20 — calendar/email checks skipped.
+- **Debug endpoint still live** at `api/debug/google-matching` — remove when ready.
+- **2 stale stashes + 2 idle branches** could be cleaned up.
+- Working tree is clean. Nothing else urgent.
+Heartbeat done. Summary:
+
+- **Build: PASSING** — all clean
+- **Google auth still expired** since Feb 20 — calendar/email checks blocked until you re-auth
+- **Debug endpoint** (`api/debug/google-matching`) still live — flag to remove
+- **Housekeeping:** 2 old stashes + 2 idle branches ready to clean up
+- No new issues since last check
+Heartbeat done. Summary:
+
+- **Build: PASSING** — all routes compile clean.
+- **Google auth still expired** since Feb 20 — calendar/email checks unavailable. You'll need to re-auth to restore those.
+- **Debug endpoint** (`api/debug/google-matching`) still live — remove when ready.
+- **Housekeeping:** 2 old stashes + 2 idle branches could be cleaned up.
+- Working tree is clean. Nothing else flagged.
+Done. Quick summary:
+
+- **Build: PASSING** — everything compiles clean.
+- **Google auth still expired** since Feb 20 — no calendar/email access.
+- **Debug endpoint** (`api/debug/google-matching`) still live — remove when ready.
+- **Cleanup:** 2 old stashes, 2 idle branches, all safe to drop.
+- No new commits since yesterday. Working tree is clean.
+Heartbeat done. Here's the quick summary:
+
+- **Build: PASSING** — all routes compile clean.
+- **Google auth still expired** since Feb 20 — no calendar/email access until you re-auth.
+- **1 debug endpoint** still live (`api/debug/google-matching`) — remove when ready.
+- **Cleanup available:** 2 old stashes, 2 idle branches.
+- **Working tree:** clean.
+
+Nothing else urgent.
+Heartbeat done. Summary:
+
+- **Build: PASSING** — all routes compile clean
+- **2 items need attention:** Google auth expired (since Feb 20) and a debug endpoint still live
+- **Cleanup available:** 2 stale stashes, 2 idle branches
+- Working tree is clean otherwise
+**Heartbeat done.** Quick summary:
+
+- **Build: PASSING** — all good
+- **Working tree: clean** — only heartbeat logs modified
+- **Action needed:** Google auth still expired (since Feb 20) — re-auth to restore calendar/email checks
+- **Cleanup:** debug endpoint still live, 2 stale stashes, 2 idle branches
+Already retrieved that result earlier — it was just the `--no-lint` flag error, which I followed up with a successful full build. The heartbeat briefing is written and up to date.
+Heartbeat done. Quick summary:
+
+- **Build: PASSING** — all routes compile clean.
+- **Google auth still expired** since Feb 20 — no calendar/email access until you re-auth.
+- **Debug endpoint still live** at `api/debug/google-matching` — remove when ready.
+- **Housekeeping:** 2 old stashes and 2 idle branches could be cleaned up.
+
+Nothing else urgent. Output written to `briefing/heartbeat-today.md`.
+Heartbeat done. Summary:
+
+- **Build: PASSING** — all routes compile clean.
+- **Action needed:** Google auth still expired (since Feb 20) — no calendar/email visibility.
+- **Cleanup:** 1 debug endpoint, 2 stale stashes, 2 idle branches. Nothing urgent beyond the auth refresh.
+Done. Quick summary:
+
+- **Build: PASSING** — all routes compile clean
+- **Google auth still expired** since Feb 20 — calendar/email checks blocked
+- **1 debug endpoint** still live, 2 stale stashes, 2 idle branches ready to clean up
+- **1 untracked file** (`scripts/setup-test-tracker.ts`) not yet committed
+
+Output written to `briefing/heartbeat-today.md`.
+Got it — the background build also confirmed passing. Heartbeat is all set.
+Heartbeat done. Quick summary:
+
+- **Build: PASSING** — all routes compile clean.
+- **Google auth still expired** since Feb 20 — no calendar/email checks possible until you re-auth.
+- **Housekeeping:** 1 debug endpoint to remove, 2 old stashes, 2 idle branches, 1 untracked script.
+- Nothing else urgent.
+**Heartbeat done.** Quick summary:
+
+- **Build: PASSING** — all routes compile clean
+- **Google auth still expired** since Feb 20 — calendar/email checks blocked
+- **1 debug endpoint** still live, 2 stale stashes, 2 idle branches ready for cleanup
+- **1 untracked file** (`scripts/setup-test-tracker.ts`)
+
+Nothing urgent beyond re-authing Google when you get a chance.
+Done. Briefing written to `briefing/heartbeat-today.md`.
+
+**Quick summary:**
+- **Build: passing**
+- **Action items:** 72 lines of uncommitted changes in `config.ts` + `sheetsData.ts`, plus untracked test-tracker files. Google auth still expired (since Feb 20). Debug endpoint still live.
+- **Housekeeping:** 2 old stashes, 2 idle branches ready to clean up.

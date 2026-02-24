@@ -1,23 +1,23 @@
-# Heartbeat - 2026-02-20
+# Heartbeat - 2026-02-24
 
 ## Attention Needed
-- **Google auth still broken** — Calendar & Gmail returning `invalid_grant` for 3+ days. Re-auth required.
-- `z-logs/` and `briefing/heartbeat-today.md` untracked — consider adding to `.gitignore` or committing.
+- **Uncommitted work** — `src/lib/config.ts` and `src/lib/sheetsData.ts` have 72 lines of unstaged changes. Commit or stash.
+- **Untracked files** — `scripts/setup-test-tracker.ts` and `src/app/api/test-tracker/` not committed.
+- **Google auth still expired** — Calendar & Gmail unavailable since Feb 20. Re-auth needed.
+- **Debug endpoint still live** — `src/app/api/debug/google-matching/route.ts`. Remove when stable.
 
 ## Project Pulse
-- **20 commits since Feb 19** — focused on FB campaign matching, whitespace normalization, and Google lead matching.
-- Latest: improved Google lead matching + debug spend endpoint.
-- Debug endpoints cleaned up (fb-matching & normalize-test removed), but `google-matching` debug route still active.
-- 2 stashes on main (from earlier debug/overview work).
-- 2 idle feature branches: `feature/ga4-landing-pages`, `feature/overview`.
+- **Build: PASSING** — all routes compile, no errors.
+- **Latest commit:** `feat: add fb adset metrics to vessel funnel` (794077e)
+- Working tree: 2 modified files, 2 untracked paths.
 
 ## Cleanup Candidates
-- Google matching debug endpoint (`/api/debug/google-matching`) — still needed?
-- 2 stashes could be dropped if no longer relevant.
-- Several `chore:` debug commits could be squashed if pushing to a shared branch.
+- 2 stashes on main — old WIP, safe to drop
+- 2 idle branches: `feature/ga4-landing-pages`, `feature/overview`
+- 1 debug endpoint (`api/debug/google-matching`)
 
 ## Calendar / Email
-- Unavailable (auth expired — see Attention Needed)
+- Unavailable (auth expired since Feb 20).
 
 ## Drafts Created
 - None
