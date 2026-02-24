@@ -22,6 +22,7 @@ const navItems = [
     ]
   },
   { label: 'GA4 Landing Pages', href: '/ga4-landing-pages' },
+  { label: 'Tests', href: '/tests' },
   { label: 'Vessel Funnel', href: '/vessel-funnel' }
 ] as const
 

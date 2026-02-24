@@ -21,6 +21,7 @@ export const SHEETS_TABS = {
   FB_ENRICHED: 'fb_ads_enriched',
   FB_RAW: 'fb_ads_raw', // fallback only
   FB_ADSETS_ENRICHED: 'fb_adsets_enriched',
+  TEST_TRACKER: 'test_tracker',
   STREAK_SYNC: 'streak_sync',
   STREAK_LEADS: 'streak_leads',
   STREAK_LEADS_GOOGLE: 'streak_leads_google',

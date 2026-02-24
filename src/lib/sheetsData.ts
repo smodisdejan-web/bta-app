@@ -1610,6 +1610,77 @@ export async function fetchFbAdsets(
   }
 }
 
+// ---------------------------------------------------------------------------
+// Test tracker
+// ---------------------------------------------------------------------------
+
+export interface TestTrackerRow {
+  test_id: string
+  category: string
+  channel: string
+  test_name: string
+  hypothesis: string
+  success_criteria: string
+  status: string
+  priority: number
+  campaigns: string
+  start_date: string | null
+  end_date: string | null
+  days_running: number
+  baseline: number
+  kpi_name: string
+  variant_a: string
+  variant_b: string
+  kpi_a: number
+  kpi_b: number
+  winner: string
+  stat_confidence: string
+  learning: string
+  next_action: string
+}
+
+export async function fetchTestTracker(
+  fetchSheetFn: (args: { sheetUrl: string; tab: string }) => Promise<any[][]>,
+  sheetUrl?: string
+): Promise<TestTrackerRow[]> {
+  const url = sheetUrl || getSheetsUrl() || DEFAULT_WEB_APP_URL
+  try {
+    const raw = await fetchSheetFn({ sheetUrl: url, tab: SHEETS_TABS.TEST_TRACKER })
+    if (!raw || raw.length < 2) return []
+    const [header, ...rows] = raw
+    const idx = (name: string) =>
+      header.findIndex((h: string) => String(h || '').trim().toLowerCase() === name.toLowerCase())
+    const mapRow = (row: any[]): TestTrackerRow => ({
+      test_id: String(row[idx('Test ID')] ?? ''),
+      category: String(row[idx('Category')] ?? ''),
+      channel: String(row[idx('Channel')] ?? ''),
+      test_name: String(row[idx('Test Name')] ?? ''),
+      hypothesis: String(row[idx('Hypothesis')] ?? ''),
+      success_criteria: String(row[idx('Success Criteria')] ?? ''),
+      status: String(row[idx('Status')] ?? ''),
+      priority: toNumberEUorUS(row[idx('Priority')]),
+      campaigns: String(row[idx('Campaign(s)')] ?? ''),
+      start_date: toIsoDay(row[idx('Start Date')]),
+      end_date: toIsoDay(row[idx('End Date')]),
+      days_running: toNumberEUorUS(row[idx('Days Running')]),
+      baseline: toNumberEUorUS(row[idx('Baseline')]),
+      kpi_name: String(row[idx('KPI Name')] ?? ''),
+      variant_a: String(row[idx('Variant A')] ?? ''),
+      variant_b: String(row[idx('Variant B')] ?? ''),
+      kpi_a: toNumberEUorUS(row[idx('KPI A')]),
+      kpi_b: toNumberEUorUS(row[idx('KPI B')]),
+      winner: String(row[idx('Winner')] ?? ''),
+      stat_confidence: String(row[idx('Stat Confidence')] ?? ''),
+      learning: String(row[idx('Learning')] ?? ''),
+      next_action: String(row[idx('Next Action')] ?? ''),
+    })
+    return rows.map(mapRow)
+  } catch (error) {
+    console.error('Error fetching test_tracker:', error)
+    return []
+  }
+}
+
 // Helper to aggregate FB totals
 export function totalsFb(rows: FbEnrichedRow[]) {
   return rows.reduce((a, r) => {
