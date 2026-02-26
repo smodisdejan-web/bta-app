@@ -55,26 +55,48 @@ function sumSafe(values: Array<number | undefined | null>) {
 }
 
 function aggregateVariant(
-  campaign: string,
+  campaignRaw: string,
   startDate: Date | null,
   fbRows: FbEnrichedRow[],
-  streakRows: StreakLeadRow[]
+  streakRows: StreakLeadRow[],
+  debug: { fbMatched: number; streakMatched: number }
 ): VariantMetrics {
+  const campaign = (campaignRaw || '').trim()
+  if (!campaign) {
+    return {
+      spend: 0,
+      clicks: 0,
+      lpViews: 0,
+      leads: 0,
+      ql: 0,
+      qualityRate: 0,
+      cpl: null,
+      cpql: null,
+      bookings: 0,
+      rvc: 0,
+    }
+  }
+
   const fbFiltered = fbRows.filter((row) => {
-    if (!row.campaign_name || row.campaign_name !== campaign) return false
+    const camp = (row.campaign_name || '').trim()
+    if (!camp) return false
+    if (camp !== campaign) return false
     if (startDate) {
       const d = parseDate(row.date)
       if (!d || d < startDate) return false
     }
     return true
   })
+  debug.fbMatched = fbFiltered.length
 
-  const isLfCampaign = campaign.trim().toLowerCase().startsWith('lf')
-  const spend = sumSafe(fbFiltered.map((r) => r.spend))
-  const clicks = sumSafe(fbFiltered.map((r) => r.clicks))
-  const lpViews = sumSafe(fbFiltered.map((r) => r.lp_views))
+  const isLfCampaign = campaign.toLowerCase().startsWith('lf')
+  const spend = sumSafe(fbFiltered.map((r) => parseFloat(String(r.spend)) || 0))
+  const clicks = sumSafe(fbFiltered.map((r) => parseFloat(String(r.clicks)) || 0))
+  const lpViews = sumSafe(fbFiltered.map((r) => parseFloat(String(r.lp_views)) || 0))
   const leads = sumSafe(
-    fbFiltered.map((r) => (isLfCampaign ? r.fb_form_leads : r.landing_leads))
+    fbFiltered.map((r) =>
+      isLfCampaign ? parseFloat(String(r.fb_form_leads)) || 0 : parseFloat(String(r.landing_leads)) || 0
+    )
   )
 
   const streakFiltered = streakRows.filter((lead) => {
@@ -84,6 +106,7 @@ function aggregateVariant(
     }
     return sourceMatchesCampaign(lead.source_placement, campaign)
   })
+  debug.streakMatched = streakFiltered.length
 
   let ql = 0
   let bookings = 0
@@ -126,6 +149,8 @@ export async function GET() {
       fetchStreakSync(fetchSheet),
     ])
 
+    const campaignSamples = fbRows.slice(0, 5).map((r) => r.campaign_name)
+
     const tests: TestWithVariants[] = testsRaw.map((test) => {
       const campaigns = (test.campaigns || '')
         .split(',')
@@ -135,10 +160,24 @@ export async function GET() {
       const campaignB = campaigns[1] || ''
       const startDate = parseDate(test.start_date)
 
+      const debugA = { fbMatched: 0, streakMatched: 0 }
+      const debugB = { fbMatched: 0, streakMatched: 0 }
+
       const variants = {
-        A: aggregateVariant(campaignA, startDate, fbRows, streakRows),
-        B: aggregateVariant(campaignB, startDate, fbRows, streakRows),
+        A: aggregateVariant(campaignA, startDate, fbRows, streakRows, debugA),
+        B: aggregateVariant(campaignB, startDate, fbRows, streakRows, debugB),
       }
+
+      console.log('[test-tracker] campaigns', {
+        test: test.test_id,
+        campaignA,
+        campaignB,
+        fbMatchedA: debugA.fbMatched,
+        fbMatchedB: debugB.fbMatched,
+        streakMatchedA: debugA.streakMatched,
+        streakMatchedB: debugB.streakMatched,
+        sampleCampaigns: campaignSamples,
+      })
 
       return { ...test, variants }
     })
