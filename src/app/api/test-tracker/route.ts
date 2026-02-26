@@ -39,15 +39,21 @@ function parseDate(value?: string | null) {
 }
 
 function sourceMatchesCampaign(sourcePlacement: string, campaign: string) {
-  const src = (sourcePlacement || '').toLowerCase()
-  const camp = (campaign || '').toLowerCase()
-  const variants = [
-    camp,
-    camp.replace(/[\s-]+/g, '_'),
-    camp.replace(/[\s_]+/g, '-'),
-    camp.replace(/[\s_-]+/g, ' '),
-  ].filter(Boolean)
-  return variants.some((v) => v && src.includes(v))
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim()
+  const src = norm(sourcePlacement || '')
+  const camp = norm(campaign || '')
+  if (!src || !camp) return false
+
+  // Require key tokens (e.g., lf/lp + individual)
+  const tokens = camp.split(' ').filter(Boolean)
+  const keyPrefix = tokens.find((t) => t === 'lf' || t === 'lp') || tokens[0]
+  const keySecond = tokens.find((t) => t !== keyPrefix)
+  const required = [keyPrefix, keySecond].filter(Boolean)
+
+  const tokensMatch = required.every((t) => src.includes(t))
+  const fullMatch = src.includes(camp)
+
+  return tokensMatch || fullMatch
 }
 
 function sumSafe(values: Array<number | undefined | null>) {
@@ -150,6 +156,8 @@ export async function GET() {
     ])
 
     const campaignSamples = fbRows.slice(0, 5).map((r) => r.campaign_name)
+    const fbDataRaw = fbRows.map((r) => [r.campaign_name, null, r.date, r.spend])
+    const streakDataRaw = streakRows.map((r) => [r.inquiry_date, r.source_placement])
 
     const tests: TestWithVariants[] = testsRaw.map((test) => {
       const campaigns = (test.campaigns || '')
@@ -162,6 +170,35 @@ export async function GET() {
 
       const debugA = { fbMatched: 0, streakMatched: 0 }
       const debugB = { fbMatched: 0, streakMatched: 0 }
+
+      // Debug: find ANY fb rows matching campaign names, ignoring dates
+      const fbMatchesA_noDate = fbDataRaw.filter((row) => {
+        const name = String(row[0] || '').trim()
+        return name === campaignA
+      }).length
+
+      const fbMatchesB_noDate = fbDataRaw.filter((row) => {
+        const name = String(row[0] || '').trim()
+        return name === campaignB
+      }).length
+
+      // Debug: show first 3 matching rows for A
+      const fbSampleMatchingA = fbDataRaw
+        .filter((row) => String(row[0] || '').trim() === campaignA)
+        .slice(0, 3)
+        .map((row) => ({ name: String(row[0]).trim(), date: String(row[2]), spend: row[3] }))
+
+      // Debug: show first 3 matching rows for B
+      const fbSampleMatchingB = fbDataRaw
+        .filter((row) => String(row[0] || '').trim() === campaignB)
+        .slice(0, 3)
+        .map((row) => ({ name: String(row[0]).trim(), date: String(row[2]), spend: row[3] }))
+
+      // Debug: streak B matching - show placements containing "individual"
+      const streakIndividualPlacements = streakDataRaw
+        .filter((row) => String(row[1] || '').toLowerCase().includes('individual'))
+        .slice(0, 10)
+        .map((row) => String(row[1]))
 
       const variants = {
         A: aggregateVariant(campaignA, startDate, fbRows, streakRows, debugA),
@@ -196,6 +233,10 @@ export async function GET() {
             }
             return true
           }).length,
+          fbMatchesA_noDate,
+          fbMatchesB_noDate,
+          fbSampleMatchingA,
+          fbSampleMatchingB,
           streakRowsTotal: streakRows.length,
           streakSamplePlacements: streakRows.slice(0, 5).map((r) => r.source_placement),
           streakMatchesA: streakRows.filter((lead) => {
@@ -212,6 +253,7 @@ export async function GET() {
             }
             return sourceMatchesCampaign(lead.source_placement, campaignB)
           }).length,
+          streakIndividualPlacements,
           startDate: test.start_date,
         },
       }
