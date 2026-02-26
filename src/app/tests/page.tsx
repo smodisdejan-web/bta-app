@@ -18,6 +18,26 @@ type Summary = {
   recentWinners: number
 }
 
+type VariantMetrics = {
+  spend: number
+  clicks: number
+  lpViews: number
+  leads: number
+  ql: number
+  qualityRate: number
+  cpl: number | null
+  cpql: number | null
+  bookings: number
+  rvc: number
+}
+
+type TestWithVariants = TestTrackerRow & {
+  variants?: {
+    A: VariantMetrics
+    B: VariantMetrics
+  }
+}
+
 const STATUS_COLORS: Record<string, string> = {
   running: 'bg-blue-100 text-blue-800',
   analyzing: 'bg-amber-100 text-amber-800',
@@ -59,10 +79,14 @@ function isCurrency(kpiName: string) {
   return lower.includes('€') || lower.includes('eur') || lower.includes('usd') || lower.includes('aud') || lower.includes('cad')
 }
 
+function formatCurrencyTerse(value: number): string {
+  return `€${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+}
+
 function formatValue(value: number | null, kpiName: string): string {
   if (value === null || Number.isNaN(value)) return '—'
   const lower = kpiName.toLowerCase()
-  if (isCurrency(lower)) return `€${value.toFixed(2)}`
+  if (isCurrency(lower)) return formatCurrencyTerse(value)
   if (lower.includes('%')) {
     return `${value.toFixed(1)}%`
   }
@@ -75,6 +99,43 @@ function barColor(value: number | null, target: number | null) {
   if (value < target * 1.5) return 'bg-yellow-400'
   if (value < target * 2.5) return 'bg-orange-500'
   return 'bg-red-500'
+}
+
+function formatMetricValue(key: keyof VariantMetrics, value: number | null | undefined) {
+  if (value === null || value === undefined) return '—'
+  if (['spend', 'cpl', 'cpql', 'rvc'].includes(key)) return formatCurrencyTerse(value)
+  if (key === 'qualityRate') return `${value.toFixed(1)}%`
+  return Math.round(value).toLocaleString()
+}
+
+type BetterDir = 'higher' | 'lower'
+
+function comparisonBadge(value: number | null | undefined, other: number | null | undefined, dir: BetterDir, isRate = false) {
+  if (value === null || value === undefined || other === null || other === undefined) return null
+  if (value === other) return null
+  const higherIsBetter = dir === 'higher'
+  const isBetter = higherIsBetter ? value > other : value < other
+  const tone = isBetter ? 'bg-green-100 text-green-800 border-green-200' : 'bg-red-100 text-red-700 border-red-200'
+
+  let text = ''
+  if (isRate) {
+    const diff = value - other
+    text = `${diff > 0 ? '+' : ''}${diff.toFixed(1)}pp`
+  } else if (other === 0) {
+    text = value > 0 ? (higherIsBetter ? 'more' : 'higher') : '—'
+  } else {
+    const ratio = value / other
+    if (ratio >= 1.8 && higherIsBetter) {
+      text = `${ratio.toFixed(1)}× more`
+    } else if (ratio <= 0.55 && !higherIsBetter) {
+      text = `${(1 / Math.max(ratio, 0.01)).toFixed(1)}× lower`
+    } else {
+      const pct = ((value - other) / other) * 100
+      text = `${pct > 0 ? '+' : ''}${pct.toFixed(0)}%`
+    }
+  }
+
+  return { text, tone }
 }
 
 function deltaPct(value: number | null, baseline: number | null): string {
@@ -109,7 +170,7 @@ function daysSince(dateStr?: string | null) {
   return Math.floor(diff / (1000 * 60 * 60 * 24))
 }
 
-function useSummary(tests: TestTrackerRow[]): Summary {
+function useSummary(tests: TestWithVariants[]): Summary {
   return useMemo(() => {
     const active = tests.filter((t) => ['running', 'analyzing'].includes(t.status.toLowerCase()))
     const runningCount = active.filter((t) => t.status.toLowerCase() === 'running').length
@@ -132,7 +193,7 @@ function useSummary(tests: TestTrackerRow[]): Summary {
 }
 
 export default function TestsPage() {
-  const [tests, setTests] = useState<TestTrackerRow[]>([])
+  const [tests, setTests] = useState<TestWithVariants[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showBacklog, setShowBacklog] = useState(false)
@@ -145,7 +206,7 @@ export default function TestsPage() {
         setError(null)
         const res = await fetch('/api/test-tracker')
         if (!res.ok) throw new Error(`Failed to load tests (${res.status})`)
-        const json = (await res.json()) as TestTrackerRow[]
+        const json = (await res.json()) as TestWithVariants[]
         setTests(json || [])
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load tests')
@@ -416,7 +477,7 @@ function TestCard({ test }: { test: TestTrackerRow }) {
         <div><span className="font-semibold">Danger zone</span><div>{dangerZone ? formatValue(dangerZone, test.kpi_name) : '—'}</div></div>
       </div>
 
-      <div className={cn('mt-4 flex items-center justify-between rounded-lg px-4 py-3 text-sm', verdict.tone)}>
+      <div className={cn('mt-4 flex items-center justify-between rounded-lg px-4 py-3 text-sm shadow-inner', verdict.tone)}>
         <div className="font-semibold">{verdict.text}</div>
         <div className="text-xs text-gray-700">Confidence: {confidenceText || 'Low'} · Too early to call</div>
       </div>
@@ -431,6 +492,8 @@ function TestCard({ test }: { test: TestTrackerRow }) {
           maxVal={maxVal}
           kpiName={test.kpi_name}
           isLeader={leadingVariant === 'A'}
+          metrics={test.variants?.A}
+          otherMetrics={test.variants?.B}
         />
         <VariantCard
           label="Variant B"
@@ -441,6 +504,8 @@ function TestCard({ test }: { test: TestTrackerRow }) {
           maxVal={maxVal}
           kpiName={test.kpi_name}
           isLeader={leadingVariant === 'B'}
+          metrics={test.variants?.B}
+          otherMetrics={test.variants?.A}
         />
       </div>
 
@@ -466,6 +531,8 @@ function VariantCard({
   maxVal,
   kpiName,
   isLeader,
+  metrics,
+  otherMetrics,
 }: {
   label: string
   variantLabel: string
@@ -475,6 +542,8 @@ function VariantCard({
   maxVal: number
   kpiName: string
   isLeader: boolean
+  metrics?: VariantMetrics
+  otherMetrics?: VariantMetrics
 }) {
   const width = Math.max(5, Math.min(100, ((value ?? 0) / maxVal) * 100))
   const color = barColor(value, target)
@@ -493,6 +562,23 @@ function VariantCard({
       : '—'
   const targetPos = target && maxVal ? Math.min(100, Math.max(0, (target / maxVal) * 100)) : null
   const formattedValue = formatValue(value, kpiName)
+
+  const deliveryMetrics: Array<{ key: keyof VariantMetrics; label: string; better: BetterDir }> = [
+    { key: 'spend', label: 'Spend', better: 'lower' },
+    { key: 'clicks', label: 'Clicks', better: 'higher' },
+    { key: 'lpViews', label: 'LP Views', better: 'higher' },
+  ]
+  const leadQualityMetrics: Array<{ key: keyof VariantMetrics; label: string; better: BetterDir; isRate?: boolean }> = [
+    { key: 'leads', label: 'Leads', better: 'higher' },
+    { key: 'ql', label: 'QL', better: 'higher' },
+    { key: 'qualityRate', label: 'QL Rate', better: 'higher', isRate: true },
+    { key: 'cpl', label: 'CPL', better: 'lower' },
+    { key: 'cpql', label: 'CPQL', better: 'lower' },
+  ]
+  const revenueMetrics: Array<{ key: keyof VariantMetrics; label: string; better: BetterDir }> = [
+    { key: 'bookings', label: 'Bookings', better: 'higher' },
+    { key: 'rvc', label: 'RVC', better: 'higher' },
+  ]
 
   return (
     <div className={cn('relative rounded-xl border p-4 shadow-sm', better ? 'border-green-200 bg-green-50/40' : 'border-gray-200 bg-white')}>
@@ -525,6 +611,52 @@ function VariantCard({
           <span>{target ? `Target ${formatValue(target, kpiName)}` : 'Target'}</span>
           <span>{formattedValue}</span>
         </div>
+      </div>
+
+      <div className="mt-3 space-y-3">
+        <MetricsSection title="Delivery" metrics={deliveryMetrics} metricsData={metrics} other={otherMetrics} />
+        <MetricsSection title="Lead Quality" metrics={leadQualityMetrics} metricsData={metrics} other={otherMetrics} />
+        <MetricsSection title="Revenue" metrics={revenueMetrics} metricsData={metrics} other={otherMetrics} />
+      </div>
+    </div>
+  )
+}
+
+function MetricsSection({
+  title,
+  metrics,
+  metricsData,
+  other,
+}: {
+  title: string
+  metrics: Array<{ key: keyof VariantMetrics; label: string; better: BetterDir; isRate?: boolean }>
+  metricsData?: VariantMetrics
+  other?: VariantMetrics
+}) {
+  return (
+    <div className="space-y-1 border-t border-gray-100 pt-3">
+      <div className="text-[10px] font-semibold uppercase tracking-[0.1em] text-gray-500">{title}</div>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+        {metrics.map((m) => {
+          const val = metricsData ? metricsData[m.key] : null
+          const otherVal = other ? other[m.key] : null
+          const badge = comparisonBadge(val as number | null, otherVal as number | null, m.better, m.isRate)
+          return (
+            <div key={m.key as string} className="rounded-md bg-[#FAF8F5] px-3 py-2">
+              <div className="text-[11px] uppercase tracking-wide text-gray-500">{m.label}</div>
+              <div className="flex items-center gap-2">
+                <span className="text-[15px] font-semibold text-gray-900">
+                  {formatMetricValue(m.key, val as number | null)}
+                </span>
+                {badge ? (
+                  <span className={cn('rounded-full border px-2 py-[2px] text-[9px] font-semibold', badge.tone)}>
+                    {badge.text}
+                  </span>
+                ) : null}
+              </div>
+            </div>
+          )
+        })}
       </div>
     </div>
   )

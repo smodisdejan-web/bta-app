@@ -313,3 +313,217 @@ Done. Briefing written to `briefing/heartbeat-today.md`.
 - **Build: passing**
 - **Action items:** 72 lines of uncommitted changes in `config.ts` + `sheetsData.ts`, plus untracked test-tracker files. Google auth still expired (since Feb 20). Debug endpoint still live.
 - **Housekeeping:** 2 old stashes, 2 idle branches ready to clean up.
+Done. Quick summary:
+
+- **Build: passing** — clean compile, all routes good
+- **Working tree: clean** — nothing uncommitted
+- **Google auth still expired** since Feb 20 (calendar/email unavailable)
+- **Cleanup available:** 2 old stashes, 2 idle feature branches
+
+Nothing urgent today.
+Done. Summary:
+
+- **Build: passing** — all routes compile clean.
+- **1 uncommitted change:** `src/app/tests/page.tsx` (tests page redesign).
+- **2 stale stashes** and **2 idle branches** can be cleaned up when convenient.
+- **Google auth** still expired — calendar/email checks unavailable until re-authed.
+Done. Quick summary:
+
+- **Build: PASSING** — all routes compile clean.
+- **1 uncommitted file:** `src/app/tests/page.tsx` (tests page redesign) — commit when ready.
+- **Cleanup:** 2 old stashes and 2 idle feature branches still lingering.
+- **Google auth** still expired since Feb 20 — no calendar/email access.
+Done. Quick summary:
+
+- **Build: passing** — all routes compile clean.
+- **1 uncommitted change:** `tests/page.tsx` (your redesign). Commit when ready.
+- **Housekeeping:** 2 old stashes and 2 idle feature branches could be cleaned up.
+- **Google auth still expired** — calendar/email checks won't work until you re-auth.
+Heartbeat done. Summary:
+
+- **Build: PASSING** 
+- **1 uncommitted file:** `src/app/tests/page.tsx` (tests page redesign) — commit when ready
+- **2 stale stashes** safe to drop, 1 idle branch (`feature/overview`)
+- **Google auth still expired** — calendar/email unavailable since ~Feb 20
+
+Written to `briefing/heartbeat-today.md`.
+Done. Quick summary:
+
+- **Build: PASSING** — all routes compile clean.
+- **1 uncommitted file:** `src/app/tests/page.tsx` (tests page redesign) — commit when ready.
+- **2 stale stashes** and 1 idle branch (`feature/overview`) you could clean up.
+- **Google auth** still expired for calendar/email checks.
+
+Nothing urgent.
+Heartbeat done. Summary:
+
+- **Build: PASSING** — all routes compile clean.
+- **1 uncommitted change:** `tests/page.tsx` (redesign) — commit when ready.
+- **2 stale stashes** and **1 unmerged branch** (`feature/overview`) — safe to clean up.
+- **Google auth still expired** — calendar/email checks unavailable since ~Feb 20.
+- Nothing urgent.
+Done. Quick summary:
+
+- **Build: passing** — all routes compile clean.
+- **1 uncommitted change:** `tests/page.tsx` (the redesign). Commit when you're ready.
+- **2 old stashes** and **1 unmerged branch** (`feature/overview`) could be cleaned up.
+- **Google auth still expired** — calendar/email checks unavailable since ~Feb 20.
+Done. Quick summary:
+
+- **Build: PASSING** — all routes compile clean.
+- **1 uncommitted change:** `tests/page.tsx` (the redesign). Commit when you're ready.
+- **2 stale stashes** and **1 unmerged branch** (`feature/overview`) could be cleaned up.
+- **Google auth** for calendar/email is still expired since ~Feb 20.
+
+Nothing urgent.
+Heartbeat done. Quick summary:
+
+- **Build: passing** — all routes compile clean.
+- **1 uncommitted change:** `tests/page.tsx` (redesign) — commit when ready.
+- **Cleanup:** 2 old stashes + 1 idle branch (`feature/overview`) you could clean up.
+- **Google auth still expired** — calendar/email checks won't work until you re-auth.
+Heartbeat done. Summary:
+
+- **Build: PASSING** — all routes compile clean.
+- **1 uncommitted change:** `src/app/tests/page.tsx` (tests page redesign) — commit when ready.
+- **Cleanup:** 2 stale stashes + `feature/overview` branch sitting unmerged.
+- **Calendar/Email:** still blocked by expired Google auth (since ~Feb 20).
+
+Nothing urgent.
+Heartbeat done. Summary:
+
+- **Build: PASSING** — all routes compile clean.
+- **1 uncommitted change:** `src/app/tests/page.tsx` (tests page redesign) — commit when ready.
+- **Cleanup:** 2 old stashes and `feature/overview` branch still hanging around.
+- **Calendar/Email:** Still unavailable (Google auth expired since ~Feb 20).
+- Nothing urgent.
+Heartbeat done. Quick summary:
+
+- **Build: PASSING** — all routes compile clean.
+- **1 uncommitted change:** `tests/page.tsx` (redesign) — commit when ready.
+- **Cleanup:** 2 stale stashes + `feature/overview` branch still unmerged.
+- **Calendar/Email:** Still blocked — Google auth expired since ~Feb 20.
+- **Nothing urgent.**
+**Heartbeat complete.** Summary:
+
+- **Build: PASSING** — all good.
+- **1 uncommitted file:** `tests/page.tsx` (redesign) — commit when ready.
+- **Cleanup:** 2 old stashes + `feature/overview` branch could be dropped.
+- **Calendar/Email:** still blocked by expired Google auth.
+- Nothing urgent.
+Done. Quick summary:
+
+- **Build: passing** — all good.
+- **1 uncommitted file:** `tests/page.tsx` (your redesign). Commit when ready.
+- **2 stale stashes** and **1 unmerged branch** (`feature/overview`) — can clean up anytime.
+- **Google auth still expired** — calendar/email checks won't work until you re-auth.
+Heartbeat done. Summary:
+
+- **Build: passing** — all routes compile clean.
+- **1 uncommitted change:** `tests/page.tsx` (redesign) — commit when ready.
+- **Cleanup:** 2 old stashes and `feature/overview` branch could be dropped.
+- **Calendar/Email:** still offline (Google auth expired since ~Feb 20).
+- **Nothing urgent.**
+Done. Quick summary:
+
+- **Build: passing** — all routes compile clean.
+- **1 uncommitted file:** `tests/page.tsx` (your redesign). Commit when ready.
+- **2 stale stashes** and **1 unmerged branch** (`feature/overview`) — cleanup candidates.
+- **Google auth still expired** — calendar/email checks unavailable since ~Feb 20.
+- Nothing urgent otherwise.
+Heartbeat done. Quick summary:
+
+- **Build: PASSING** — everything compiles clean.
+- **1 uncommitted change:** `src/app/tests/page.tsx` (tests page redesign) — commit when ready.
+- **Cleanup:** 2 old stashes + `feature/overview` branch still hanging around.
+- **Google auth** still expired since ~Feb 20 — no calendar/email access.
+
+Nothing urgent.
+Done. Quick summary:
+
+- **Build: PASSING** — all routes compile clean.
+- **1 uncommitted change:** `src/app/tests/page.tsx` (tests page redesign) — commit when ready.
+- **Housekeeping:** 2 old stashes and `feature/overview` branch could be cleaned up.
+- **Google auth** still expired — calendar/email unavailable since ~Feb 20.
+
+Nothing urgent.
+Heartbeat done. Quick summary:
+
+- **Build: PASSING** — all routes compile clean.
+- **1 uncommitted change:** `src/app/tests/page.tsx` (tests page redesign) — commit when ready.
+- **Cleanup:** 2 stale stashes + `feature/overview` branch still unmerged.
+- **Calendar/Email:** still unavailable (Google auth expired since ~Feb 20).
+
+Nothing urgent.
+Heartbeat done. Quick summary:
+
+- **Build: PASSING** — all routes compile clean.
+- **1 uncommitted change:** `tests/page.tsx` (tests page redesign) — commit when ready.
+- **2 stale stashes** and **1 unmerged branch** (`feature/overview`) could be cleaned up.
+- **Google auth still expired** — calendar/email checks unavailable since ~Feb 20.
+- Nothing urgent.
+Done. Quick summary:
+
+- **Build: PASSING** — all routes compile clean.
+- **1 uncommitted file:** `src/app/tests/page.tsx` (tests page redesign) — same as yesterday.
+- **2 stale stashes** and **1 unmerged branch** (`feature/overview`) still lingering.
+- **Google auth** still expired — calendar/email unavailable since ~Feb 20.
+- Nothing urgent.
+Heartbeat done. Summary:
+
+- **Build: PASSING** — all routes compile clean.
+- **1 uncommitted file:** `src/app/tests/page.tsx` (tests page redesign) — commit when ready.
+- **2 stale stashes** and **1 unmerged branch** (`feature/overview`) could be cleaned up.
+- **Google auth still expired** — calendar/email checks unavailable since ~Feb 20.
+- Nothing urgent.
+Heartbeat done. Summary:
+
+- **Build: PASSING** — all routes compile clean.
+- **1 uncommitted change:** `tests/page.tsx` (redesign) — commit when ready.
+- **Cleanup:** 2 old stashes + `feature/overview` branch sitting idle.
+- **Calendar/Email:** Still unavailable (Google auth expired since ~Feb 20).
+- Nothing urgent.
+Done. Quick summary:
+
+- **Build: PASSING** — all routes compile clean.
+- **1 uncommitted file:** `src/app/tests/page.tsx` (tests page redesign) — commit when ready.
+- **Cleanup:** 2 stale stashes + `feature/overview` branch still unmerged.
+- **Google auth** still expired (calendar/email unavailable since ~Feb 20).
+- Nothing urgent.
+Done. Quick summary:
+
+- **Build: passing** — all routes compile clean.
+- **1 uncommitted file:** `src/app/tests/page.tsx` (tests page redesign) — commit when ready.
+- **2 stale stashes** and **1 unmerged branch** (`feature/overview`) could be cleaned up.
+- **Google auth still expired** — calendar/email checks won't work until you re-auth.
+
+Nothing urgent. Written to `briefing/heartbeat-today.md`.
+Done. Quick summary:
+
+- **Build: passing** — all routes compile clean.
+- **1 uncommitted file:** `src/app/tests/page.tsx` (tests page redesign) — commit when ready.
+- **2 stale stashes** and **1 unmerged branch** (`feature/overview`) — safe to clean up.
+- **Google auth still expired** — calendar/email checks won't work until you re-auth.
+Done. Quick summary:
+
+- **Build: PASSING** — all routes compile clean.
+- **1 uncommitted change:** `tests/page.tsx` (redesign) — commit when ready.
+- **2 stale stashes** and **1 unmerged branch** (`feature/overview`) — safe to clean up.
+- **Google auth still expired** — calendar/email checks unavailable.
+- Nothing urgent.
+Heartbeat done. Summary:
+
+- **Build: PASSING** — all routes compile clean.
+- **1 uncommitted change:** `src/app/tests/page.tsx` (tests page redesign) — commit when ready.
+- **Cleanup:** 2 old stashes + 1 unmerged branch (`feature/overview`) you could tidy up.
+- **Calendar/Email:** still unavailable (Google auth expired ~Feb 20).
+
+Nothing urgent. Written to `briefing/heartbeat-today.md`.
+Heartbeat done. Quick summary:
+
+- **Build: PASSING** — all routes compile clean.
+- **1 uncommitted change:** `src/app/tests/page.tsx` (tests page redesign) — commit when ready.
+- **Cleanup:** 2 old stashes + 1 idle branch (`feature/overview`) could be cleaned up.
+- **Calendar/Email:** still unavailable (Google auth expired ~Feb 20).
+
+Nothing urgent.
