@@ -168,18 +168,53 @@ export async function GET() {
         B: aggregateVariant(campaignB, startDate, fbRows, streakRows, debugB),
       }
 
-      console.log('[test-tracker] campaigns', {
-        test: test.test_id,
-        campaignA,
-        campaignB,
-        fbMatchedA: debugA.fbMatched,
-        fbMatchedB: debugB.fbMatched,
-        streakMatchedA: debugA.streakMatched,
-        streakMatchedB: debugB.streakMatched,
-        sampleCampaigns: campaignSamples,
-      })
-
-      return { ...test, variants }
+      return {
+        ...test,
+        variants,
+        _debug: {
+          campaignA,
+          campaignB,
+          fbRowsTotal: fbRows.length,
+          fbSampleNames: campaignSamples,
+          fbMatchesA: fbRows.filter((row) => {
+            const camp = (row.campaign_name || '').trim()
+            if (!camp) return false
+            if (camp !== campaignA.trim()) return false
+            if (startDate) {
+              const d = parseDate(row.date)
+              if (!d || d < startDate) return false
+            }
+            return true
+          }).length,
+          fbMatchesB: fbRows.filter((row) => {
+            const camp = (row.campaign_name || '').trim()
+            if (!camp) return false
+            if (camp !== campaignB.trim()) return false
+            if (startDate) {
+              const d = parseDate(row.date)
+              if (!d || d < startDate) return false
+            }
+            return true
+          }).length,
+          streakRowsTotal: streakRows.length,
+          streakSamplePlacements: streakRows.slice(0, 5).map((r) => r.source_placement),
+          streakMatchesA: streakRows.filter((lead) => {
+            if (startDate) {
+              const d = parseDate(lead.inquiry_date)
+              if (!d || d < startDate) return false
+            }
+            return sourceMatchesCampaign(lead.source_placement, campaignA)
+          }).length,
+          streakMatchesB: streakRows.filter((lead) => {
+            if (startDate) {
+              const d = parseDate(lead.inquiry_date)
+              if (!d || d < startDate) return false
+            }
+            return sourceMatchesCampaign(lead.source_placement, campaignB)
+          }).length,
+          startDate: test.start_date,
+        },
+      }
     })
 
     return NextResponse.json(tests)
