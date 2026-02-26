@@ -38,6 +38,25 @@ function parseDate(value?: string | null) {
   return Number.isNaN(+d) ? null : d
 }
 
+function toDateFromCell(val: unknown): Date | null {
+  if (val instanceof Date) return val
+  if (typeof val === 'number') {
+    // Excel serial date (days since 1899-12-30)
+    const epoch = new Date(1899, 11, 30)
+    const d = new Date(epoch.getTime() + val * 24 * 60 * 60 * 1000)
+    return Number.isNaN(+d) ? null : d
+  }
+  if (typeof val === 'string' && val.trim()) {
+    const d = new Date(val)
+    return Number.isNaN(+d) ? null : d
+  }
+  return null
+}
+
+function getRowDate(row: FbEnrichedRow): Date | null {
+  return toDateFromCell((row as any).date_iso ?? (row as any).date ?? (row as any).date_start)
+}
+
 function sourceMatchesCampaign(sourcePlacement: string, campaign: string) {
   const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim()
   const src = norm(sourcePlacement || '')
@@ -83,14 +102,14 @@ function aggregateVariant(
     }
   }
 
-  const fbFiltered = fbRows.filter((row) => {
+  const fbFiltered = fbRows.filter((row, idx) => {
+    // drop header/formula artifacts where date is missing
     const camp = (row.campaign_name || '').trim()
     if (!camp) return false
     if (camp !== campaign) return false
-    if (startDate) {
-      const d = parseDate(row.date)
-      if (!d || d < startDate) return false
-    }
+    const rowDate = getRowDate(row)
+    if (!rowDate) return false
+    if (startDate && rowDate < startDate) return false
     return true
   })
   debug.fbMatched = fbFiltered.length
@@ -156,7 +175,7 @@ export async function GET() {
     ])
 
     const campaignSamples = fbRows.slice(0, 5).map((r) => r.campaign_name)
-    const fbDataRaw = fbRows.map((r) => [r.campaign_name, null, r.date, r.spend])
+    const fbDataRaw = fbRows.map((r) => [r.campaign_name, (r as any).date_iso ?? (r as any).date ?? (r as any).date_start, r.spend])
     const streakDataRaw = streakRows.map((r) => [r.inquiry_date, r.source_placement])
 
     const tests: TestWithVariants[] = testsRaw.map((test) => {
@@ -186,13 +205,13 @@ export async function GET() {
       const fbSampleMatchingA = fbDataRaw
         .filter((row) => String(row[0] || '').trim() === campaignA)
         .slice(0, 3)
-        .map((row) => ({ name: String(row[0]).trim(), date: String(row[2]), spend: row[3] }))
+        .map((row) => ({ name: String(row[0]).trim(), date: row[1], spend: row[2] }))
 
       // Debug: show first 3 matching rows for B
       const fbSampleMatchingB = fbDataRaw
         .filter((row) => String(row[0] || '').trim() === campaignB)
         .slice(0, 3)
-        .map((row) => ({ name: String(row[0]).trim(), date: String(row[2]), spend: row[3] }))
+        .map((row) => ({ name: String(row[0]).trim(), date: row[1], spend: row[2] }))
 
       // Debug: streak B matching - show placements containing "individual"
       const streakIndividualPlacements = streakDataRaw
