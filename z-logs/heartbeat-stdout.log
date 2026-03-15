@@ -1972,3 +1972,10 @@ Done. Key takeaways:
 - **Google auth is expired** — overnight calendar/Gmail checks are failing. You'll need to re-authenticate to restore those.
 - **174 TS errors** (unchanged, not blocking)
 - Latest work: CRO-001 test tracker fix (streak prefix matching + spend anomaly filter)
+Done. Key takeaways:
+
+- **Working tree is clean**, main is up to date with origin
+- **4 new commits** since last heartbeat (SS-001, SS-002, CRO-001 work)
+- **Google auth still expired** — needs re-authentication for calendar/email checks
+- **174 TS errors** — unchanged, not blocking
+- 2 old stashes still sitting around
