@@ -17,6 +17,8 @@ export const dynamic = 'force-dynamic'
 const STREAK_PREFIX_MAP: Record<string, string> = {
   'Dalmatinčki - Sail Smarter - CRO-001 Control': 'dalmatincki_sail-smarter_',
   'Test - Dalmatinčki - Sail Smarter - CRO-001 Test': 'dalmatincki_smart-luxury-sailing_',
+  'Smart Spirit - 25 Off - CBO': '25off',
+  'Test - Smart Spirit - Family - CBO': 'family',
 }
 
 const SPEND_ANOMALY_THRESHOLD = 1000
@@ -141,12 +143,18 @@ function aggregateVariant(
       const d = parseDate(lead.inquiry_date)
       if (!d || d < startDate) return false
     }
-    // If we have an explicit prefix mapping, use it (exact prefix match, PAID_SOCIAL only)
-    const streakPrefix = STREAK_PREFIX_MAP[campaign]
-    if (streakPrefix) {
+    // If we have an explicit mapping, use it instead of fuzzy matching
+    const streakMapValue = STREAK_PREFIX_MAP[campaign]
+    if (streakMapValue) {
       const sp = (lead.source_placement || '').toLowerCase()
       const cat = ((lead as any).source_category || (lead as any).latest_source_category || '').toUpperCase()
-      return sp.startsWith(streakPrefix) && cat === 'PAID_SOCIAL'
+      if (cat !== 'PAID_SOCIAL') return false
+      // Trailing '_' → exact prefix match (CRO-001 style)
+      // No trailing '_' → keyword match within a shared prefix (SS-001 style)
+      if (streakMapValue.endsWith('_')) {
+        return sp.startsWith(streakMapValue)
+      }
+      return sp.startsWith('smart_spirit_') && sp.includes(streakMapValue)
     }
     // Otherwise fall back to existing fuzzy matching (for LF-001 etc.)
     return sourceMatchesCampaign(lead.source_placement, campaign)

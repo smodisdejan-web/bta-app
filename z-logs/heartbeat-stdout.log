@@ -1966,3 +1966,9 @@ Heartbeat done. Quick summary:
 - **1 untracked file** (`PROJECT-STATUS.md`) — needs commit or gitignore
 - **2 old stashes** — safe to drop
 - Nothing urgent.
+Done. Key takeaways:
+
+- **Working tree is clean**, up to date on main
+- **Google auth is expired** — overnight calendar/Gmail checks are failing. You'll need to re-authenticate to restore those.
+- **174 TS errors** (unchanged, not blocking)
+- Latest work: CRO-001 test tracker fix (streak prefix matching + spend anomaly filter)
