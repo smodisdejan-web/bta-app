@@ -527,3 +527,1442 @@ Heartbeat done. Quick summary:
 - **Calendar/Email:** still unavailable (Google auth expired ~Feb 20).
 
 Nothing urgent.
+Done. Quick summary:
+
+- **Build: passing** — all routes compile clean
+- **Working tree: clean** — no uncommitted changes
+- **Nothing urgent** — last 3 commits are test tracker debug improvements
+- **Housekeeping:** 2 old stashes and `feature/overview` branch still hanging around
+- **Google auth still expired** — calendar/email checks unavailable
+Done. Quick summary:
+
+- **Build: PASSING** — all routes clean
+- **Working tree:** 2 unstaged changes (`test-tracker/route.ts`, `heartbeat-today.md`)
+- **Stale items:** 2 old stashes, 1 unmerged branch (`feature/overview`)
+- **Calendar/Email:** Still offline (Google auth expired)
+
+Nothing urgent.
+Done. Quick summary:
+
+- **Build: passing** — all routes compile clean
+- **Working tree:** 2 unstaged files (heartbeat logs only)
+- **Cleanup:** 2 stale stashes + `feature/overview` branch still unmerged
+- **Calendar/Email:** still down (Google auth expired)
+
+Nothing urgent.
+Heartbeat done. Quick summary:
+
+- **Build: PASSING** — all 18 routes compile clean
+- **Nothing urgent** — no errors, no failing routes
+- **Working tree:** only the 2 expected heartbeat files modified
+- **Cleanup:** 2 old stashes + `feature/overview` branch still unmerged
+- **Calendar/Email:** still needs Google re-auth
+
+Written to `briefing/heartbeat-today.md`.
+Heartbeat done. Quick summary:
+
+- **Build:** PASSING — 18 routes, zero errors
+- **Git:** Clean working tree (only heartbeat files modified, as expected)
+- **Stashes:** 2 old WIP stashes you could drop
+- **Branches:** `feature/overview` still unmerged
+- **Calendar/Email:** Still down — Google auth needs re-auth
+
+Nothing urgent.
+Done. Quick summary:
+
+- **Build:** PASSING — 18 routes, zero errors
+- **Working tree:** Clean (2 expected unstaged files)
+- **Stashes:** 2 old WIPs you could drop
+- **Unmerged branch:** `feature/overview` still hanging around
+- **Calendar/Email:** Still needs Google re-auth
+
+Nothing urgent.
+**Heartbeat complete.** All green:
+
+- **Build:** PASSING (18 routes, 0 errors)
+- **Working tree:** Clean aside from expected heartbeat files
+- **2 stashes** and **1 unmerged branch** (`feature/overview`) — minor cleanup candidates
+- **Google auth** still expired for calendar/email checks
+**Heartbeat complete.** All green:
+
+- **Build:** Passes — 18 routes, 0 errors
+- **Git:** Clean working tree (only heartbeat logs modified, as expected)
+- **Housekeeping:** 2 stale stashes and `feature/overview` branch could be cleaned up when ready
+- **Google auth** still expired — calendar/email checks won't work until re-authed
+Done. Quick summary:
+
+- **Build:** Passing, 18 routes, no errors
+- **Git:** Clean (2 expected unstaged files)
+- **Google auth:** Still expired since yesterday — re-auth needed if you want Calendar/Gmail checks back
+- **Housekeeping:** 2 stale stashes + `feature/overview` branch could be cleaned up
+Done. Quick summary:
+
+- **Build:** Passing clean — 7 API routes, 12 pages, zero errors
+- **Git:** Clean working tree, on `main` at `b89d7c8`
+- **Flag:** Google auth still expired (no calendar/email access)
+- **Housekeeping:** 2 stale stashes and `feature/overview` branch could be cleaned up
+
+Written to `briefing/heartbeat-today.md`.
+Done. Quick summary:
+
+- **Build:** Passing, clean.
+- **Tree:** Clean (only heartbeat logs).
+- **One issue:** Google auth still expired — Calendar/Gmail checks have been failing since Feb 25. Re-auth needed to restore those.
+- **Housekeeping:** 2 droppable stashes, 1 unmerged branch (`feature/overview`).
+
+Output written to `briefing/heartbeat-today.md`.
+Done. Quick summary:
+
+- **Build:** Passing
+- **Working tree:** Clean
+- **Action needed:** Google auth is still expired — calendar/email checks won't work until you re-authenticate
+- **Cleanup:** 2 old stashes + `feature/overview` branch still unmerged
+Done. Quick summary:
+
+- **Build:** Passing
+- **Tree:** Clean (only heartbeat logs dirty)
+- **Stashes:** 2 old WIPs, safe to drop
+- **Unmerged:** `feature/overview` still hanging around
+- **Calendar/Email:** Still down — Google auth needs re-auth
+Done. Quick summary:
+
+- **Build:** Passing
+- **Working tree:** Clean
+- **Google auth:** Still expired — calendar/email checks remain unavailable
+- **Cleanup:** 2 droppable stashes, 1 unmerged branch (`feature/overview`)
+- **Recent focus:** FB date sample debugging and test tracker campaign matching
+Done. Quick summary:
+
+- **Build:** Passing
+- **Tree:** Clean (only heartbeat logs dirty)
+- **Last commit:** `b89d7c8` — FB date sample debugging
+- **Flag:** Google auth still expired — calendar/email checks unavailable until you re-auth.
+- **Cleanup:** 2 stale stashes + unmerged `feature/overview` branch still hanging around.
+Done. Quick summary:
+
+- **Build:** Passing
+- **Working tree:** Clean
+- **Google auth:** Still expired — calendar/email checks unavailable
+- **Cleanup:** 2 stashes + 1 unmerged branch (`feature/overview`) could be tidied up
+
+Output written to `briefing/heartbeat-today.md`.
+Done. Quick summary:
+
+- **Build:** Passing
+- **Tree:** Clean (only heartbeat logs dirty)
+- **Action needed:** Google auth still expired — Calendar/Gmail checks are offline until you re-auth.
+- **Housekeeping:** 2 stale stashes + `feature/overview` branch still unmerged.
+Done. Quick summary:
+
+- **Build:** Passing
+- **Tree:** Clean (only heartbeat logs modified)
+- **Latest:** FB date sample debugging (b89d7c8)
+- **Flag:** Google auth still expired — Calendar/Gmail checks remain unavailable until you re-auth.
+- **Housekeeping:** 2 droppable stashes, 1 unmerged branch (`feature/overview`).
+Done. Quick summary:
+
+- **Build:** Passing
+- **Tree:** Clean (only heartbeat logs modified)
+- **Latest commit:** `b89d7c8` — FB date sample debugging
+- **Google auth:** Still expired — calendar/email checks unavailable
+- **Housekeeping:** 2 droppable stashes, 1 unmerged branch (`feature/overview`)
+
+Nothing urgent beyond the Google re-auth.
+Done. Quick summary:
+
+- **Build:** Passing
+- **Tree:** Clean (only heartbeat logs dirty)
+- **Last commit:** FB date sample debugging (b89d7c8)
+- **Google auth:** Still expired — calendar/email checks unavailable
+- **Housekeeping:** 2 stale stashes, 1 unmerged branch (`feature/overview`)
+
+Nothing urgent beyond the Google re-auth that's been pending since Feb 26.
+Done. Quick summary:
+
+- **Build:** Passing
+- **Tree:** Clean (only heartbeat logs modified)
+- **Action needed:** Google auth still expired — Calendar/Gmail checks remain unavailable
+- **Cleanup:** 2 stale stashes + 2 unmerged feature branches (`overview`, `ga4-landing-pages`)
+- **Recent work:** All focused on FB campaign matching debug and test tracker improvements
+Done. Quick summary:
+
+- **Build:** Passing
+- **Tree:** Clean (only heartbeat logs modified)
+- **Latest:** FB date sample debugging (b89d7c8)
+- **Action needed:** Google auth is still expired — Calendar/Gmail checks remain offline
+- **Cleanup:** 2 stashes safe to drop, 1 unmerged branch (`feature/overview`)
+Done. Quick summary:
+
+- **Build:** Passing
+- **Working tree:** Clean (just heartbeat logs)
+- **Latest commit:** FB date sample debugging (b89d7c8)
+- **Flag:** Google auth still expired — Calendar/Gmail checks remain offline until you re-auth.
+- **Cleanup:** 2 stale stashes + `feature/overview` branch unmerged.
+
+Nothing else urgent.
+Done. Quick summary:
+
+- **Build:** Passing
+- **Tree:** Clean (only heartbeat logs touched)
+- **Action needed:** Google auth still expired — Calendar/Gmail checks remain offline
+- **Housekeeping:** 2 droppable stashes, 1 unmerged branch (`feature/overview`)
+
+Nothing else urgent.
+Done. `briefing/heartbeat-today.md` updated.
+
+**Quick summary:**
+- **Build:** Passing
+- **Tree:** Clean (main branch)
+- **Last work:** FB date/campaign matching debugging in test tracker
+- **Action needed:** Google auth is still expired — calendar & email checks remain offline
+- **Housekeeping:** 2 droppable stashes, 1 unmerged branch (`feature/overview`)
+Done. Quick summary:
+
+- **Build:** Passing
+- **Tree:** Clean (only heartbeat logs touched)
+- **Last commit:** FB date samples & matching alignment (b89d7c8)
+- **Flag:** Google auth still expired — Calendar/Gmail checks remain offline. Re-auth when you get a chance.
+- **Housekeeping:** 2 droppable stashes, 1 unmerged branch (`feature/overview`).
+Done. Quick summary:
+
+- **Build:** Passing
+- **Working tree:** Clean
+- **Main issue:** Google auth still expired — Calendar/Gmail checks are blocked until you re-auth.
+- **Cleanup:** 2 old stashes + `feature/overview` branch still unmerged.
+
+Everything else looks healthy. Recent work has been focused on FB campaign matching debugging in the test tracker.
+Done. Quick summary:
+
+- **Build:** Passing
+- **Tree:** Clean (main, b89d7c8)
+- **Flag:** Google auth still expired — Calendar/Gmail checks remain offline until you re-auth.
+- **Housekeeping:** 2 droppable stashes, 1 unmerged branch (`feature/overview`).
+
+Nothing else urgent. Briefing written to `briefing/heartbeat-today.md`.
+Done. Quick summary:
+
+- **Build:** Passing
+- **Tree:** Clean (only heartbeat logs touched)
+- **Stashes:** 2 old WIP stashes, safe to drop
+- **Unmerged branch:** `feature/overview`
+- **Google auth:** Still expired — Calendar/Gmail checks won't work until you re-auth
+
+Nothing urgent beyond the auth issue.
+Done. Quick summary:
+
+- **Build:** Passing
+- **Working tree:** Clean
+- **Google auth:** Still expired — calendar/email checks unavailable
+- **Cleanup:** 2 stale stashes + `feature/overview` branch unmerged
+- **Recent work:** All focused on FB date debugging and test tracker campaign matching
+Done. Quick summary:
+
+- **Build:** Passing
+- **Tree:** Clean (only heartbeat logs modified)
+- **Latest:** FB date sample debugging (b89d7c8)
+- **Stale:** 2 stashes safe to drop, `feature/overview` branch unmerged
+- **Google auth** still expired — Calendar/Gmail checks remain offline
+Done. Quick summary:
+
+- **Build:** Passing
+- **Tree:** Clean (only heartbeat logs touched)
+- **Flag:** Google auth still expired — calendar/email checks remain offline until you re-auth
+- **Cleanup:** 2 stale stashes + `feature/overview` branch still unmerged
+Heartbeat done. Quick summary:
+
+- **Build:** Passing
+- **Tree:** Clean (only heartbeat logs dirty)
+- **Flag:** Google auth still expired — no calendar/email access until you re-auth
+- **Housekeeping:** 2 stale stashes + `feature/overview` branch unmerged
+Done. Written to `briefing/heartbeat-today.md`.
+
+**Quick summary:** Build is passing, working tree is clean. No changes since yesterday's heartbeat — same latest commit (b89d7c8). Google auth is still expired so no calendar/email data. Two stale stashes and the `feature/overview` branch are still hanging around if you want to clean up.
+Heartbeat done. Quick summary:
+
+- **Build:** Passing
+- **Tree:** Clean (only heartbeat logs modified)
+- **Latest:** FB date/campaign matching debug work (b89d7c8)
+- **Flag:** Google auth still expired — calendar/email checks unavailable
+- **Cleanup:** 2 stale stashes, 1 unmerged branch (`feature/overview`)
+
+Written to `briefing/heartbeat-today.md`.
+Done. Briefing written to `briefing/heartbeat-today.md`.
+
+**Quick summary:**
+- **Build:** Passing
+- **Tree:** Clean (main branch)
+- **Flag:** Google auth still expired — calendar/email checks remain offline
+- **Housekeeping:** 2 droppable stashes, 1 unmerged branch (`feature/overview`)
+Done. Quick summary:
+
+- **Build:** Passing
+- **Tree:** Clean (no real changes)
+- **Google auth:** Still expired — calendar/email checks won't work until you re-auth
+- **Housekeeping:** 2 droppable stashes, 1 unmerged branch (`feature/overview`)
+
+Nothing urgent beyond the Google re-auth.
+Heartbeat done. Quick summary:
+
+- **Build:** Passing
+- **Tree:** Clean (only heartbeat logs modified)
+- **Stale:** 2 stashes + 1 unmerged branch (`feature/overview`) — safe to clean up when ready
+- **Google auth:** Still expired — calendar/email checks unavailable until you re-auth
+Done. Quick summary:
+
+- **Build:** Passing
+- **Tree:** Clean (only heartbeat logs touched)
+- **Action needed:** Google auth is still expired — calendar/email checks remain offline. Everything else looks good. 2 old stashes and 1 unmerged branch (`feature/overview`) are still hanging around if you want to clean up.
+Done. Quick summary:
+
+- **Build:** Passing
+- **Tree:** Clean (only heartbeat logs touched)
+- **Action needed:** Google auth is still expired — calendar/email checks won't work until you re-auth
+- **Cleanup:** 2 stale stashes + `feature/overview` branch still unmerged
+Heartbeat done. Quick summary:
+
+- **Build:** Passing
+- **Tree:** Clean (main branch, only heartbeat logs modified)
+- **Last work:** FB date sample debugging & test tracker campaign matching
+- **Action needed:** Google auth still expired — re-auth to restore Calendar/Gmail checks
+- **Cleanup:** 2 stale stashes + 1 unmerged branch (`feature/overview`)
+Done. Quick summary:
+
+- **Build:** Passing
+- **Tree:** Clean (just heartbeat logs)
+- **Action needed:** Google auth is still expired — calendar/email checks remain offline until you re-auth.
+- **Housekeeping:** 2 stale stashes and `feature/overview` branch could be cleaned up when convenient.
+
+Briefing written to `briefing/heartbeat-today.md`.
+Heartbeat written to `briefing/heartbeat-today.md`. Quick summary:
+
+- **Build:** Passing
+- **Tree:** Clean (only heartbeat logs dirty)
+- **Google auth:** Still expired — calendar/email checks unavailable
+- **Housekeeping:** 2 droppable stashes, 1 unmerged branch (`feature/overview`)
+- Nothing else urgent.
+Done. Quick summary:
+
+- **Build:** Passing
+- **Tree:** Clean (only heartbeat logs dirty)
+- **Google auth:** Still expired — calendar/email checks unavailable
+- **Housekeeping:** 2 stale stashes + `feature/overview` branch unmerged
+Heartbeat done. Quick summary:
+
+- **Build:** Passing
+- **Tree:** Clean (only heartbeat logs modified)
+- **Latest:** FB date/campaign matching debug work (b89d7c8)
+- **Flag:** Google auth still expired — calendar/email checks remain offline. Re-auth when you get a chance.
+- **Housekeeping:** 2 droppable stashes, 1 unmerged branch (`feature/overview`).
+Heartbeat done. Quick summary:
+
+- **Build:** Passing
+- **Tree:** Clean (main, b89d7c8)
+- **Flag:** Google auth still expired — no calendar/email access
+- **Cleanup:** 2 droppable stashes, 1 unmerged branch (`feature/overview`)
+- **No urgent issues** beyond the auth expiry.
+Done. Quick summary:
+
+- **Build:** Passing
+- **Working tree:** Clean (only heartbeat logs)
+- **Google auth:** Still expired — calendar/email checks unavailable
+- **Cleanup:** 2 stashes + 1 unmerged branch (`feature/overview`) to consider tidying up
+Heartbeat done. Quick summary:
+
+- **Build:** Passing
+- **Tree:** Clean (main, b89d7c8)
+- **Action needed:** Google auth still expired — no calendar/email access until you re-auth.
+- **Housekeeping:** 2 stale stashes + `feature/overview` branch unmerged.
+Heartbeat done. Quick summary:
+
+- **Build:** Passing
+- **Tree:** Clean (only heartbeat logs modified)
+- **Latest:** FB date sample debugging (b89d7c8)
+- **Flag:** Google auth still expired — no calendar/email access until you re-auth
+- **Cleanup:** 2 stale stashes + `feature/overview` branch still unmerged
+Done. Quick summary:
+
+- **Build:** Passing
+- **Tree:** Clean (only heartbeat logs touched)
+- **Action needed:** Google auth is still expired — Calendar/Gmail checks remain unavailable until you re-auth.
+- **Cleanup:** 2 stale stashes + `feature/overview` branch could be dropped when ready.
+Heartbeat done. Quick summary:
+
+- **Build:** Passing
+- **Tree:** Clean (only heartbeat logs dirty)
+- **Action needed:** Google auth still expired — calendar/email checks remain unavailable
+- **Housekeeping:** 2 stale stashes and 1 unmerged branch (`feature/overview`) you could clean up
+Heartbeat done. Quick summary:
+
+- **Build:** Passing
+- **Tree:** Clean (only heartbeat logs dirty)
+- **Action needed:** Google auth is still expired — re-auth to restore calendar/email checks
+- **Housekeeping:** 2 droppable stashes, 1 unmerged branch (`feature/overview`)
+Done. Quick summary:
+
+- **Build:** Passing
+- **Tree:** Clean (only heartbeat logs dirty)
+- **Google auth:** Still expired since Feb 26 — no calendar/email checks possible
+- **Housekeeping:** 2 droppable stashes, 1 unmerged branch (`feature/overview`)
+
+Nothing else urgent. Output written to `briefing/heartbeat-today.md`.
+Done. Quick summary:
+
+- **Build:** Passing
+- **Tree:** Clean (only heartbeat logs touched)
+- **Flag:** Google auth still expired — calendar/email checks remain unavailable
+- **Cleanup:** 2 stale stashes + `feature/overview` branch unmerged
+
+Briefing written to `briefing/heartbeat-today.md`.
+Done. Quick summary:
+
+- **Build:** Passing
+- **Tree:** Clean (only heartbeat logs dirty)
+- **Action needed:** Google auth is still expired — calendar/email checks won't work until you re-auth.
+- **Housekeeping:** 2 stale stashes and `feature/overview` branch still unmerged.
+Heartbeat done. Summary:
+
+- **Build:** Passing
+- **Tree:** Clean (only heartbeat logs modified)
+- **Action needed:** Google auth is still expired — Calendar/Gmail checks remain offline. Re-auth to restore.
+- **Housekeeping:** 2 stashes and 1 unmerged branch (`feature/overview`) could be cleaned up.
+Done. Quick summary:
+
+- **Build:** Passing
+- **Tree:** Clean (only heartbeat logs dirty)
+- **Action needed:** Google auth is still expired — calendar/email checks remain unavailable until you re-auth.
+- **Housekeeping:** 2 stale stashes and `feature/overview` branch could be cleaned up when convenient.
+Heartbeat done. Quick summary:
+
+- **Build:** Passing
+- **Tree:** Clean (main, only heartbeat logs modified)
+- **Action needed:** Google auth still expired — no calendar/email access
+- **Housekeeping:** 2 droppable stashes, 1 unmerged branch (`feature/overview`)
+Heartbeat done. Quick summary:
+
+- **Build:** Passing
+- **Tree:** Clean (only heartbeat logs modified)
+- **Action needed:** Google auth is still expired — calendar/email checks won't work until you re-authenticate.
+- **Housekeeping:** 2 stale stashes and the `feature/overview` branch could be cleaned up when you get a chance.
+Done. Quick summary:
+
+- **Build:** Passing
+- **Tree:** Clean (only heartbeat logs modified)
+- **Latest:** FB date/campaign matching debug work (b89d7c8)
+- **Flag:** Google auth still expired — Calendar/Gmail checks remain offline. Re-auth when you get a chance.
+- **Housekeeping:** 2 droppable stashes, 1 unmerged branch (`feature/overview`).
+Heartbeat done. Quick summary:
+
+- **Build:** Passing
+- **Tree:** Clean (only heartbeat logs dirty)
+- **Flag:** Google auth still expired — calendar/email checks remain offline. Re-auth when you get a chance.
+- **Housekeeping:** 2 stale stashes + `feature/overview` branch still unmerged.
+Done. Quick summary:
+
+- **Build:** Passing
+- **Working tree:** Clean
+- **Google auth:** Still expired — calendar/email checks unavailable
+- **Cleanup:** 2 stashes + 1 unmerged branch (`feature/overview`) you could tidy up
+- **No urgent issues** beyond the auth expiry
+Done. Quick summary:
+
+- **Build:** Passing
+- **Tree:** Clean (only heartbeat logs touched)
+- **Flag:** Google auth still expired — calendar/email checks remain offline. Everything else looks good. 2 stale stashes and the `feature/overview` branch are still hanging around if you want to clean up.
+Heartbeat done. Quick summary:
+
+- **Build:** Passing
+- **Tree:** Clean (only heartbeat logs dirty)
+- **No new commits** since yesterday's check
+- **Google auth still expired** — calendar/email checks remain unavailable
+- **Cleanup:** 2 stale stashes + `feature/overview` branch still unmerged
+Failed to authenticate. API Error: 401 {"type":"error","error":{"type":"authentication_error","message":"OAuth token has expired. Please obtain a new token or refresh your existing token."},"request_id":"req_011CYg6ymeUUsePX1NmGr12Y"}
+Done. Quick summary:
+
+- **Build:** Passing
+- **Working tree:** Clean
+- **Flags:** Google auth still expired (no calendar/email). Overnight heartbeat hasn't run since Feb 26 — cron may need a restart.
+- **Cleanup:** 2 droppable stashes, 1 unmerged branch (`feature/overview`).
+Done. Quick summary:
+
+- **Build:** Passing
+- **Working tree:** Clean
+- **Last commit:** b89d7c8 (FB date sample debugging)
+- **Issues:** Google auth still expired (no calendar/email access since Feb 26), automated heartbeat cron appears stalled for 5 days
+- **Housekeeping:** 2 droppable stashes, 1 unmerged branch (`feature/overview`)
+Done. Quick summary:
+
+- **Build:** Passing
+- **Working tree:** Clean
+- **2 flags:** Google auth still expired (no calendar/email since Feb 26), and the automated cron hasn't run in 5 days — likely needs a restart.
+- **Cleanup:** 2 stale stashes and 1 unmerged branch (`feature/overview`) sitting around.
+Done. Quick summary:
+
+- **Build:** Passing
+- **Working tree:** Clean
+- **Last commit:** `b89d7c8` (FB date samples / matching alignment)
+- **Google auth:** Still expired — no calendar/email checks possible. 5-day gap since last automated heartbeat.
+- **Housekeeping:** 2 droppable stashes, 1 unmerged branch (`feature/overview`)
+Done. Briefing written to `briefing/heartbeat-today.md`.
+
+**Quick summary:**
+- **Build:** Passing
+- **Working tree:** Clean
+- **2 flags:** Google auth still expired (no calendar/email), and no automated heartbeat has run since Feb 26 — cron likely needs a restart.
+- **Cleanup:** 2 old stashes + 1 unmerged branch (`feature/overview`).
+Done. Quick summary:
+
+- **Build:** Passing
+- **Working tree:** Clean
+- **Flags:** Google auth still expired (6 days now), automated cron likely stalled
+- **Cleanup:** 2 old stashes + 1 unmerged branch (`feature/overview`)
+
+Nothing else urgent. Output written to `briefing/heartbeat-today.md`.
+Done. Quick summary:
+
+- **Build:** Passing
+- **Tree:** Clean
+- **Two flags:** Google auth still expired (no calendar/email since Feb 26), and the automated heartbeat cron hasn't run in 6 days — likely needs a restart.
+Done. Two things need attention:
+
+1. **Google auth expired** since Feb 26 — Calendar/Gmail checks are blocked until you re-authenticate.
+2. **Automated heartbeat stopped** — the cron/launchd job hasn't run in 6 days.
+
+Everything else looks good: build passes (3.2s, 29 pages), working tree is clean, recent work focused on FB campaign matching debug in the test tracker.
+Done. Quick summary:
+
+- **Build:** Passing (2.7s, 29 pages)
+- **Working tree:** Clean
+- **Two issues:** Google auth expired since Feb 26 (no calendar/email access), and automated heartbeat cron appears stopped (6 days stale)
+- **Cleanup:** 2 droppable stashes, 1 unmerged branch (`feature/overview`)
+Heartbeat done. Summary:
+
+- **Build:** Passing (2.7s, 29 pages)
+- **Tree:** Clean
+- **2 issues:** Google auth expired since Feb 26 (no calendar/email access), and automated heartbeat cron appears stopped
+- **Cleanup:** 2 stale stashes, 1 unmerged branch (`feature/overview`)
+Done. Briefing written to `briefing/heartbeat-today.md`.
+
+**Key findings:**
+- **Build:** Passing (3.4s, 29 pages)
+- **Working tree:** Clean
+- **Google auth** still expired since Feb 26 — calendar/email checks unavailable
+- **Automated heartbeat** hasn't run in 6 days — likely needs launchd restart
+- 2 stale stashes + 1 unmerged branch (`feature/overview`) could be cleaned up
+Done. Quick summary:
+
+- **Build:** Passing (2.7s, 29 pages)
+- **Working tree:** Clean
+- **Two issues:** Google auth expired since Feb 26 (no calendar/email access), and the automated heartbeat cron hasn't run since then either. Both need re-auth/restart.
+- **Cleanup:** 2 old stashes and `feature/overview` branch could be tidied up.
+Done. Quick summary:
+
+- **Build:** Passing, all good
+- **2 issues:** Google auth expired (6 days) and automated heartbeat stopped since Feb 26
+- **Working tree:** Clean aside from heartbeat logs
+- **Housekeeping:** 2 stale stashes + `feature/overview` branch unmerged
+Done. Quick summary:
+
+- **Build:** Passing
+- **Working tree:** Clean
+- **2 items need attention:** Google auth is still expired (6 days now), and the automated heartbeat cron hasn't run since Feb 26.
+- **Cleanup:** 2 stashes and 1 unmerged branch (`feature/overview`) could be tidied up.
+Done. Key takeaways:
+
+- **Build: passing**, working tree clean
+- **Google auth expired** for 6 days — calendar/email checks can't run, and this is likely why the automated heartbeat stopped committing
+- **launchd agent is loaded** (`com.brain.heartbeat`) but the overnight script errors on auth
+- 2 stale stashes and 1 unmerged branch (`feature/overview`) to clean up when ready
+Done. Quick summary:
+
+- **Build:** Passing
+- **Working tree:** Clean
+- **Main issue:** Google auth still expired (7 days now) — calendar/email checks blocked, automated heartbeat not committing
+- **Cleanup:** 2 stashes + 1 unmerged branch (`feature/overview`) you could clean up
+- **Recent work:** FB campaign matching debugging in test tracker
+Heartbeat done. Summary:
+
+- **Build:** Passing
+- **Working tree:** Clean
+- **Main issue:** Google auth has been expired since Feb 26 — calendar, Gmail, and automated overnight heartbeats are all broken. Re-auth needed to restore them.
+- **Cleanup:** 2 stale stashes and 1 unmerged branch (`feature/overview`) could be tidied up.
+Done. Written to `briefing/heartbeat-today.md`.
+
+**Key findings:**
+- **Build passing**, working tree clean
+- **Google auth expired 7 days** — Calendar/Gmail checks and automated overnight heartbeat are both broken until you re-auth
+- 2 droppable stashes and 1 unmerged branch (`feature/overview`) as cleanup candidates
+Heartbeat done. Summary:
+
+- **Build:** Passing
+- **Working tree:** Clean (only heartbeat files modified)
+- **Latest commit:** `b89d7c8` — FB date samples & matching alignment
+- **Action needed:** Google auth expired 7 days ago — re-auth to restore calendar/email checks and the automated heartbeat agent
+- **Cleanup:** 2 stale stashes + 1 unmerged branch (`feature/overview`)
+Heartbeat written to `briefing/heartbeat-today.md`.
+
+**Key findings:**
+- **Build:** Passing
+- **Auth:** Google credentials expired 7 days ago — calendar/email checks are blocked until you re-auth
+- **Overnight heartbeat:** Stalled since Feb 26 (same auth issue)
+- **Housekeeping:** 2 droppable stashes, 1 unmerged branch (`feature/overview`)
+Done. Written to `briefing/heartbeat-today.md`.
+
+**Summary:** Build is passing, working tree is clean. Main flag: Google auth has been expired since Feb 26 — calendar/Gmail checks and the overnight heartbeat are still blocked until you re-auth. Two old stashes and the `feature/overview` branch are still around if you want to clean up.
+Done. Briefing written to `briefing/heartbeat-today.md`.
+
+**Quick summary:**
+- **Build:** Passing
+- **Tree:** Clean (only heartbeat files modified)
+- **Flag:** Google auth still expired (6 days) — calendar/email checks blocked until you re-auth
+- **Housekeeping:** 2 droppable stashes, 1 unmerged branch (`feature/overview`)
+Done. Quick summary:
+
+- **Build:** Passing
+- **Working tree:** Clean
+- **Main issue:** Google auth still expired since Feb 26 — calendar/email checks can't run until you re-auth
+- **Cleanup:** 2 stale stashes + `feature/overview` branch unmerged
+Done. Quick summary:
+
+- **Build:** Passing
+- **Tree:** Clean (only heartbeat files dirty)
+- **Action needed:** Google auth still expired since Feb 26 — calendar/email checks remain unavailable
+- **Housekeeping:** 2 stale stashes and `feature/overview` branch could be cleaned up
+Heartbeat done. Summary:
+
+- **Build:** Passing
+- **Tree:** Clean (only heartbeat files modified)
+- **Google auth:** Still expired since Feb 26 — calendar/email checks skipped
+- **Cleanup:** 2 stale stashes + `feature/overview` branch unmerged
+- **No urgent issues** beyond the auth expiry
+Done. Briefing written to `briefing/heartbeat-today.md`.
+
+**Quick summary:**
+- **Build:** Passing
+- **Working tree:** Clean
+- **Google auth:** Still expired since Feb 26 — calendar/email checks unavailable
+- **Cleanup:** 2 stashes + 1 unmerged branch (`feature/overview`) you could tidy up
+- No other issues found
+Heartbeat done. Summary:
+
+- **Build:** Passing
+- **Working tree:** Clean
+- **Google auth:** Still expired since Feb 26 -- calendar/email unavailable
+- **Cleanup:** 2 stale stashes, 2 unmerged branches (`feature/overview`, `feature/ga4-landing-pages`)
+- **No urgent issues** beyond the auth expiry
+Heartbeat complete. Summary:
+
+- **Build:** Passing
+- **Working tree:** Clean (only heartbeat files modified)
+- **Action needed:** Google auth still expired since Feb 26 -- re-auth to restore calendar/email checks
+- **Cleanup:** 2 stale stashes and 2 unmerged feature branches (`feature/overview`, `feature/ga4-landing-pages`)
+Heartbeat done. Summary:
+
+- **Build:** Passing
+- **Working tree:** Clean (only heartbeat files modified)
+- **Google auth:** Still expired since Feb 26 — calendar/email checks skipped
+- **Cleanup:** 2 stale stashes + 2 unmerged feature branches (`feature/overview`, `feature/ga4-landing-pages`)
+- **Recent work:** FB campaign matching debugging in test tracker
+Done. Quick summary:
+
+- **Build:** Passing
+- **Working tree:** Clean
+- **Google auth:** Still expired since Feb 26 -- re-auth needed for calendar/email
+- **Cleanup:** `feature/ga4-landing-pages` has 0 commits ahead (safe to delete), 2 old stashes can be dropped
+- **`feature/overview`:** 4 commits ahead of main -- worth reviewing
+Heartbeat written to `briefing/heartbeat-today.md`. Quick summary:
+
+- **Build:** Passing
+- **Tree:** Clean (only heartbeat files modified)
+- **Google auth:** Still expired since Feb 26 -- calendar/email checks unavailable
+- **Cleanup:** `feature/ga4-landing-pages` is safe to delete (0 ahead), `feature/overview` has 4 commits to review, 2 old stashes can be dropped
+Done. Quick summary:
+
+- **Build:** Passing
+- **No new commits** since last heartbeat (b89d7c8 is still latest)
+- **Google auth** still expired since Feb 26 -- calendar/email checks remain unavailable
+- **feature/overview** still has 4 commits ahead of main (nav restructure + dashboard rebuild) -- worth reviewing
+- **2 stale stashes** and `feature/ga4-landing-pages` branch can be cleaned up
+Done. Key takeaways:
+
+- **Build is passing**
+- **Google auth still expired** since Feb 26 — no calendar/email access
+- **`feature/overview`** has 4 unmerged commits (nav restructure, dashboard rebuild, FB data switch) — worth reviewing
+- **Cleanup:** `feature/ga4-landing-pages` branch and 2 stashes can be safely dropped
+Heartbeat written to `briefing/heartbeat-today.md`. Quick summary:
+
+- **Build:** Passing
+- **Tree:** Clean (only heartbeat files dirty)
+- **Google auth** still expired since Feb 26 -- no calendar/email access
+- **`feature/overview`** has 4 unmerged commits -- worth reviewing
+- **2 stale stashes** and `feature/ga4-landing-pages` branch safe to clean up
+Heartbeat written to `briefing/heartbeat-today.md`.
+
+**Quick summary:** Build is passing, working tree is clean. Two items need attention:
+1. **Google auth** is still expired (since Feb 26) — no calendar/email access
+2. **`feature/overview`** branch has 5 unmerged commits worth reviewing
+
+Cleanup-wise: 2 stale stashes and the merged `feature/ga4-landing-pages` branch can be dropped.
+Heartbeat done. Quick summary:
+
+- **Build:** Passing
+- **Branch:** main, up to date with origin
+- **Google auth:** Still expired since Feb 26 — calendar/email unavailable
+- **`feature/overview`:** 4 unmerged commits worth reviewing
+- **Cleanup:** 2 stale stashes + `feature/ga4-landing-pages` branch safe to delete
+Done. Heartbeat written to `briefing/heartbeat-today.md`.
+
+**Key findings:**
+- **Build:** Passing
+- **Google auth:** Still expired since Feb 26 — calendar/email checks blocked
+- **`feature/overview`:** 4 unmerged commits worth reviewing
+- **Cleanup:** 2 stale stashes + `feature/ga4-landing-pages` branch can be deleted
+Heartbeat written to `briefing/heartbeat-today.md`. Quick summary:
+
+- **Build:** Passing
+- **Main branch:** Up to date with origin
+- **Attention:** Google auth still expired (since Feb 26). `feature/overview` has 4 unmerged commits worth reviewing.
+- **Cleanup:** 2 stale stashes and `feature/ga4-landing-pages` branch can be deleted.
+Heartbeat complete. Summary:
+
+- **Build:** Passing
+- **Working tree:** Clean (main, up to date)
+- **Google auth:** Still expired since Feb 26 -- no calendar/email access
+- **Cleanup:** 2 stale stashes, `feature/ga4-landing-pages` can be deleted, `feature/overview` has 5 unmerged commits to review
+
+Output written to `briefing/heartbeat-today.md`.
+Heartbeat done. Quick summary:
+
+- **Build:** Passing
+- **Working tree:** Clean (main, up to date)
+- **Flags:** Google auth still expired (since Feb 26), `feature/overview` has 5 unmerged commits worth reviewing
+- **Cleanup:** 2 stale stashes + `feature/ga4-landing-pages` branch can be deleted
+Heartbeat done. Quick summary:
+
+- **Build:** Passing
+- **2 items need attention:** Google auth still expired (no calendar/email access since Feb 26), and `feature/overview` has 5 unmerged commits worth reviewing
+- **Cleanup:** 2 stale stashes, 1 merged branch (`feature/ga4-landing-pages`) safe to delete
+
+Output written to `briefing/heartbeat-today.md`.
+The background build task completed successfully (exit code 0) — consistent with the build check I already ran. The heartbeat is up to date, no changes needed.
+Done. Quick summary:
+
+- **Build:** Passing
+- **Working tree:** Clean (in sync with origin)
+- **Google auth:** Still expired since Feb 26 -- calendar/email checks skipped
+- **`feature/overview`:** 4 unmerged commits, 9 days stale -- worth reviewing
+- **Cleanup:** 2 stale stashes + `feature/ga4-landing-pages` branch can be deleted
+
+Output written to `briefing/heartbeat-today.md`.
+Done. Key findings:
+
+- **Build passing**, working tree clean
+- **Local is 8 commits behind origin** (all automated heartbeat commits) -- `git pull` to sync
+- **Google auth still expired** since Feb 26 -- calendar/email checks remain unavailable
+- **`feature/overview`** is now 8 weeks stale with 4 unmerged commits -- worth deciding on
+- 2 stashes and 1 merged branch (`feature/ga4-landing-pages`) are safe to clean up
+Heartbeat done. Key findings:
+
+- **Build passing**, working tree clean
+- **8 commits behind origin** — `git pull` to sync
+- **Google auth still expired** since Feb 26 — calendar/email unavailable
+- **`feature/overview`** is 8 weeks stale — worth deciding on
+- 2 old stashes and `feature/ga4-landing-pages` branch ready for cleanup
+Heartbeat complete. Summary:
+
+- **Build:** Passing
+- **Behind origin:** 8 commits (all heartbeat-related, safe to `git pull`)
+- **Stale branch:** `feature/overview` is 8 weeks old -- worth deciding on
+- **Cleanup:** 2 stashes + `feature/ga4-landing-pages` branch safe to drop
+- **Google auth** still expired, so no calendar/email checks
+Heartbeat written to `briefing/heartbeat-today.md`. Quick summary:
+
+- **Build:** Passing
+- **Sync:** 8 commits behind origin (heartbeat commits only) — `git pull` to fix
+- **Cleanup:** `feature/ga4-landing-pages` merged and deletable; `feature/overview` 10 weeks stale with 4 unmerged commits; 2 old stashes
+- **Calendar/Email:** Still needs Google re-auth (expired since Feb)
+Heartbeat written to `briefing/heartbeat-today.md`. Quick summary:
+
+- **Build:** Passing
+- **Local main:** 8 commits behind origin (heartbeat commits only) — `git pull` to sync
+- **Stale branches:** `feature/overview` (8wk), `feature/ga4-landing-pages` (4wk) — consider cleanup
+- **2 old stashes** safe to drop
+- **Google auth** still expired for calendar/email checks
+Heartbeat done. Quick summary:
+
+- **Build:** Passing
+- **8 behind origin** — just heartbeat commits, `git pull` will sync
+- **2 stale branches** to clean up (`feature/overview`, `feature/ga4-landing-pages`)
+- **2 old stashes** safe to drop
+- **Google auth** still expired since Feb 26 — no calendar/email checks possible
+Heartbeat complete. Summary:
+
+- **Build:** Passing
+- **8 commits behind origin** (heartbeat-only) — `git pull` to sync
+- **2 stale branches** to clean up (`feature/overview`, `feature/ga4-landing-pages`)
+- **2 old stashes** safe to drop
+- **Google auth still expired** since Feb 26 — no calendar/email access
+
+Nothing urgent beyond the housekeeping items.
+Heartbeat written to `briefing/heartbeat-today.md`. Quick summary:
+
+- **Build:** Passing
+- **8 behind origin** -- just heartbeat commits, `git pull` to sync
+- **2 stale branches** worth cleaning up (`feature/overview`, `feature/ga4-landing-pages`)
+- **2 old stashes** safe to drop
+- **Google auth** still expired since Feb 26 -- calendar/email checks unavailable
+Heartbeat done. Key takeaways:
+
+- **Build:** Passing
+- **Git:** 8 commits behind origin (all heartbeat auto-commits) -- `git pull` to sync
+- **Stale branches:** `feature/overview` and `feature/ga4-landing-pages` are candidates for cleanup
+- **2 stashes** can likely be dropped
+- **Google auth** still expired since Feb 26 -- re-auth needed to restore calendar/email checks
+Done. Quick summary:
+
+- **Build:** Passing
+- **8 commits behind origin** -- all just automated heartbeat commits, safe to `git pull`
+- **Google auth** still expired since Feb 26 -- calendar/email checks won't work until re-authed
+- **2 stale branches** and **2 stashes** could be cleaned up when convenient
+Heartbeat complete. Summary:
+
+- **Build:** Passing
+- **8 commits behind origin** (heartbeat-only) -- `git pull` to sync
+- **Working tree:** Clean
+- **Google auth:** Still expired since Feb 26, blocking calendar/email checks
+- **Cleanup:** 2 stale branches + 2 old stashes to consider dropping
+Heartbeat done. Quick summary:
+
+- **Build:** Passing
+- **8 behind origin** -- just heartbeat commits, `git pull` to sync
+- **Google auth expired** since Feb 26 -- calendar/email checks unavailable until you re-auth
+- **2 stashes + 2 stale branches** could be cleaned up
+- Nothing else urgent.
+Heartbeat done. Quick summary:
+
+- **Build:** Passing
+- **8 commits behind origin** (all heartbeat commits) — `git pull` to sync
+- **Google auth expired** since Feb 26 — calendar/email checks unavailable
+- **2 stale branches** and **2 stashes** you could clean up when convenient
+Heartbeat done. Quick summary:
+
+- **Build:** Passing
+- **8 commits behind origin** -- `git pull` to sync
+- **Google auth still expired** since Feb 26 -- calendar/email checks unavailable
+- **2 stale branches** and **2 stashes** could be cleaned up
+- No other issues. Working tree is clean.
+Heartbeat check complete. Summary:
+
+- **Build:** Passing
+- **8 commits behind** origin/main — `git pull` to sync
+- **Google auth** still expired since Feb 26 — calendar/email checks unavailable
+- **2 stale branches** and **2 stashes** could be cleaned up
+- No other issues found
+Done. Quick summary:
+
+- **Build:** Passing
+- **Local main:** 8 behind origin -- `git pull` needed
+- **Google auth:** Still expired since Feb 26
+- **Stale branches:** 2 candidates to clean up
+- **Stashes:** 2 old WIP, safe to drop
+
+Nothing urgent beyond syncing with origin.
+Done. Summary:
+
+- **Build:** Passing
+- **Action needed:** You're 8 commits behind origin (heartbeat auto-commits). Run `git pull`. Google auth still expired since Feb 26.
+- **Cleanup:** 2 droppable stashes, 2 stale branches worth reviewing.
+- **No calendar/email** until Google re-auth.
+Done. Quick summary:
+
+- **Build:** Passing
+- **Action needed:** `git pull` — you're 8 commits behind origin
+- **Working tree:** Clean
+- **Cleanup:** 2 stale branches + 2 old stashes can be tidied up
+- **No urgent issues**
+Heartbeat done. Key findings:
+
+- **Build:** Passing
+- **Action needed:** You're 8 commits behind `origin/main` — run `git pull`
+- **Working tree:** Clean (just heartbeat logs)
+- **Cleanup:** 2 stale branches + 2 old stashes could be dropped
+- **No issues or failures detected**
+Done. Key finding: you're now **12 commits behind origin/main** (up from 8). Run `git pull` to sync. Build is passing, working tree is clean.
+Done. Key finding: **local main is 12 commits behind origin** — run `git pull` to sync. Build is passing, working tree is clean. Two old stashes and two stale branches could be cleaned up.
+Done. Quick summary:
+
+- **Build:** Passing
+- **12 behind origin/main** — all heartbeat overnight commits, nothing code-related. `git pull` to sync.
+- **Working tree:** clean (just heartbeat logs)
+- **Stale branches & 2 stashes** flagged for cleanup
+Heartbeat check done. Everything looks the same as last check:
+
+- **Build:** Passing
+- **Local main:** 12 commits behind origin (all heartbeat commits) — `git pull` when ready
+- **Working tree:** Clean
+- **2 stale stashes** and **2 old feature branches** available to clean up
+- No new issues detected
+Heartbeat done. Summary:
+
+- **Build:** Passing
+- **Behind origin:** 12 commits (all heartbeat-only) — `git pull` to sync
+- **Working tree:** Clean
+- **Cleanup:** 2 stale stashes, 2 old feature branches worth reviewing
+
+Nothing urgent.
+Heartbeat done. Summary:
+
+- **Build:** Passing
+- **12 commits behind origin** — all heartbeat commits, `git pull` to sync
+- **Working tree:** Clean (just heartbeat logs)
+- **2 stashes** and **2 stale branches** could be cleaned up
+- Nothing urgent.
+Heartbeat done. Summary:
+
+- **Build:** Passing
+- **Local main:** 12 commits behind origin (all heartbeat commits) — `git pull` to sync
+- **Working tree:** Clean
+- **Stale branches:** `feature/ga4-landing-pages`, `feature/overview` — consider cleanup
+- **2 stashes** safe to drop
+
+No urgent issues.
+Heartbeat done. Summary:
+
+- **Build:** Passing
+- **12 commits behind origin** — all heartbeat commits, just run `git pull`
+- **Working tree:** Clean
+- **2 stale branches** and **2 stashes** you could clean up
+- Nothing urgent.
+Done. Summary:
+
+- **Build:** Passing
+- **Action needed:** `git pull` — you're 12 commits behind origin (all heartbeat commits)
+- **Cleanup:** 2 stale stashes, 2 old feature branches
+- **Working tree:** Clean besides heartbeat logs
+Heartbeat done. Summary:
+
+- **Build:** Passing
+- **Action needed:** `git pull` to sync 12 heartbeat commits from origin
+- **Cleanup:** 2 stale stashes, 2 old feature branches could be dropped
+- Everything else looks clean.
+Heartbeat done. Summary:
+
+- **Build:** Passing
+- **Main branch:** 12 behind origin (all heartbeat commits) — `git pull` to sync
+- **Working tree:** Clean aside from heartbeat logs
+- **Cleanup:** 2 droppable stashes, 2 stale feature branches
+- **No urgent issues**
+Heartbeat done. Summary:
+
+- **Build:** Passing
+- **12 commits behind origin** — all heartbeat commits, `git pull` to sync
+- **Working tree:** Clean (just heartbeat logs)
+- **Cleanup:** 2 stale stashes + 2 old feature branches to consider dropping
+Done. Quick summary:
+
+- **Build:** Passing
+- **Action needed:** `git pull` to sync 12 heartbeat commits from origin
+- **Cleanup:** 2 stale stashes + 2 old feature branches could be dropped
+- **No calendar/email** (no Google auth configured)
+Heartbeat done. Summary:
+
+- **Build:** Passing
+- **Action needed:** `git pull` — you're 12 commits behind origin (all heartbeat commits)
+- **Cleanup:** 2 stale stashes + 2 old feature branches to consider dropping
+- **No calendar/email** (no Google auth configured)
+**Heartbeat done.** Quick summary:
+
+- **Build:** Passing
+- **Action needed:** `git pull` — you're 12 commits behind origin (all heartbeat commits)
+- **Cleanup:** 2 stale stashes + 2 old feature branches could be dropped
+- **No calendar/email** (no Google auth configured)
+
+Nothing urgent.
+Done. Quick summary:
+
+- **Build:** Passing
+- **Attention:** Local is 12 commits behind origin (all heartbeat commits) — `git pull` to sync
+- **Working tree:** Clean aside from heartbeat logs
+- **Cleanup:** 2 stale stashes + 2 old feature branches could be dropped
+Done. Quick summary:
+
+- **Build:** Passing
+- **Action needed:** `git pull` — you're 12 commits behind origin (all heartbeat commits)
+- **Cleanup:** 2 stale stashes + 2 old feature branches could be dropped
+- **No calendar/email** (no Google auth)
+Heartbeat done. Summary:
+
+- **Build:** Passing
+- **12 commits behind origin** (all heartbeat commits) — `git pull` to sync
+- **Working tree:** Clean
+- **2 stale branches** and **2 stashes** you could clean up
+- No calendar/email (no auth configured)
+Done. Briefing written to `briefing/heartbeat-today.md`.
+
+**Summary:** Build is passing, working tree is clean. You're still 12 commits behind origin (all heartbeat commits) — `git pull` when ready. Two old stashes and two stale feature branches are still hanging around if you want to clean up.
+Heartbeat done. Summary:
+
+- **Build:** Passing
+- **12 commits behind origin** — all heartbeat auto-commits, safe to `git pull`
+- **Working tree:** Clean
+- **Cleanup:** 2 stale stashes + 2 old feature branches could be dropped
+- **No urgent issues**
+Heartbeat done. Summary:
+
+- **Build:** Passing (2.5s, 29 routes)
+- **Action needed:** `git pull` — you're 12 commits behind origin (all heartbeat commits)
+- **Cleanup:** 2 stale stashes + 2 old feature branches could be dropped
+- **No email/calendar** — no Google auth configured
+Heartbeat complete. Summary:
+
+- **Build:** PASSING (2.6s, 29 routes)
+- **Local main:** 12 commits behind origin (all heartbeat commits) — `git pull` to sync
+- **Working tree:** clean
+- **Cleanup:** 2 stale stashes + 2 old feature branches still around
+Heartbeat done. Summary:
+
+- **Build:** Passing (3.2s, 0 errors)
+- **Git:** 12 commits behind origin (all heartbeat commits) — `git pull` to sync
+- **Working tree:** Clean
+- **Cleanup:** 2 stale stashes, 2 old feature branches
+- **No urgent issues**
+Heartbeat done. Summary:
+
+- **Build:** Passing
+- **Branch:** 12 behind origin (heartbeat commits only) — `git pull` to sync
+- **Working tree:** Clean aside from heartbeat logs
+- **Cleanup:** 2 droppable stashes, 2 stale feature branches
+- **No urgent issues**
+Done. Key findings:
+
+- **12 commits behind origin** — run `git pull` to sync
+- **175 TS errors** in `week7/src/hooks/useDataInsights.ts` — not blocking but worth attention
+- Working tree is clean, 2 stale stashes and 2 stale branches could be cleaned up
+Heartbeat done. Key updates:
+
+- **TS errors dropped from 175 → 7** — all same issue in `useDataInsights.ts` (string indexing on union type)
+- **12 commits behind origin** — all heartbeat commits, `git pull` to sync
+- **Working tree clean**, 2 old stashes still around
+- No unmerged feature branches left
+Done. Key findings:
+
+- **12 commits behind origin** — run `git pull`
+- **175 TS errors** across 42 files (previous report said 7 — that was wrong). Top offenders: `page.tsx`, `useDataInsights.ts`, `test-tracker/route.ts`
+- Working tree is clean, 2 stale stashes
+Done. Quick summary:
+
+- **12 behind origin** — just heartbeat commits, `git pull` to sync
+- **175 TS errors** — unchanged, not blocking dev
+- **Working tree clean** — only heartbeat logs modified
+- **2 stale stashes** — safe to drop when ready
+- No calendar/email integration configured
+The background task completed — it confirmed the same 175 TS errors count I already captured. The heartbeat briefing is up to date, nothing new to add.
+Heartbeat done. Key findings:
+
+- **12 commits behind origin** — run `git pull` to sync (all heartbeat commits)
+- **175 TS errors** — unchanged, not blocking dev
+- **Working tree clean** aside from heartbeat logs
+- **2 stashes** sitting around if you want to clean up
+Heartbeat done. Quick summary:
+
+- **12 commits behind origin** (all heartbeat commits) — `git pull` to sync
+- **175 TS errors** still present (unchanged, not blocking)
+- **Working tree:** clean aside from heartbeat logs
+- **2 stashes** could be cleaned up
+- No calendar/email access configured
+Done. Quick summary:
+
+- **12 commits behind origin** (all heartbeat commits) — `git pull` to sync
+- **175 TS errors** still present, not blocking dev
+- Working tree is clean (only heartbeat logs modified)
+- 2 old stashes safe to drop
+- No calendar/email integration configured
+Heartbeat done. Key findings:
+
+- **12 commits behind origin** (all heartbeat commits) — `git pull` to sync
+- **175 TS errors** still present (unchanged, not blocking)
+- **Working tree clean** aside from heartbeat logs
+- **2 stashes** sitting around, safe to drop
+- Last real work: FB date/campaign matching debug in test tracker
+Heartbeat written to `briefing/heartbeat-today.md`. Quick summary:
+
+- **12 commits behind origin** (all heartbeat commits) — `git pull` to sync
+- **175 TS errors** still present (unchanged, not blocking)
+- Working tree clean, last commit was FB date sample debugging
+- 2 old stashes sitting around if you want to clean up
+Done. Briefing written to `briefing/heartbeat-today.md`. Quick summary:
+
+- **12 commits behind origin** (all heartbeat commits) — `git pull` to sync
+- **175 TS errors** still present, not blocking dev
+- **Working tree clean** aside from heartbeat logs
+- **2 stashes** safe to drop
+- No calendar/email access configured
+Done. Summary: no changes since yesterday — same 175 TS errors, still 12 commits behind origin (heartbeat-only), 2 stale stashes. Nothing urgent.
+Heartbeat check done. No changes from last run — everything is stable:
+
+- **12 commits behind origin** (all heartbeat commits, just `git pull`)
+- **175 TS errors** (unchanged, not blocking)
+- **Working tree clean**, 2 old stashes you can drop
+- No new issues flagged
+Heartbeat done. Quick summary:
+
+- **12 behind origin** — run `git pull` to sync
+- **175 TS errors** — unchanged, not blocking
+- **Working tree** clean (just heartbeat logs)
+- **2 stashes** sitting around, safe to drop
+- No calendar/email integration configured
+
+Nothing urgent today.
+Heartbeat done. Key findings:
+
+- **12 commits behind origin** — all heartbeat commits, `git pull` to sync
+- **175 TS errors** — unchanged, not blocking
+- **Working tree clean** (just heartbeat logs)
+- **2 stashes** still sitting around, safe to drop
+Heartbeat done. Quick summary:
+
+- **12 commits behind origin** — all heartbeat-related, `git pull` to sync
+- **175 TS errors** — unchanged, not blocking anything
+- **Working tree clean** (just heartbeat logs modified)
+- **2 stashes** sitting around if you want to drop them
+Done. Quick summary:
+
+- **14 commits behind origin** (was 12 last check) — all heartbeat commits, `git pull` to sync
+- **175 TS errors** — unchanged, not blocking anything
+- **Working tree clean** aside from heartbeat logs
+- **2 stale stashes** safe to drop
+- No calendar/email (no Google auth)
+Heartbeat done. Summary:
+
+- **14 commits behind origin** — consider `git pull`
+- **175 TS errors** — unchanged, not blocking
+- **Working tree clean** (just heartbeat logs)
+- **2 stashes** you could drop
+- No calendar/email access configured
+Heartbeat done. Key findings:
+
+- **14 commits behind origin** — run `git pull` to sync
+- **175 TS errors** — unchanged, not blocking
+- **2 stashes** on main you could drop
+- No calendar/email (no Google auth configured)
+Heartbeat updated. Key findings:
+
+- **14 commits behind origin** (all heartbeat commits) — `git pull` to sync
+- **175 TS errors** — unchanged, not blocking anything
+- **Working tree clean** aside from heartbeat logs
+- **2 stashes** still hanging around, safe to drop
+Heartbeat done. Key findings:
+
+- **14 commits behind origin** — you should `git pull`
+- **175 TS errors** — same as before, not blocking
+- **2 stale stashes** you can drop
+- Working tree is clean, no calendar/email integration
+Heartbeat done. Status is essentially unchanged from last check:
+
+- **14 behind origin** — `git pull` when ready
+- **175 TS errors** — same count, not blocking anything
+- **Working tree clean** (just heartbeat logs)
+- **2 old stashes** you could drop
+- No new remote activity
+Heartbeat updated. Two things need attention:
+
+- **14 commits behind origin** — `git pull` to sync
+- **175 TS errors** — unchanged, not blocking dev server
+- 2 old stashes safe to drop when convenient
+Done. Key findings:
+
+- **14 commits behind origin** — you should `git pull`
+- **175 TS errors** — same count as before, not new
+- Working tree is clean, 2 old stashes you could drop
+- No Google auth for calendar/email checks
+Done. Quick summary:
+
+- **14 commits behind origin** — you should `git pull`
+- **175 TS errors** — unchanged, not blocking anything
+- **Working tree** is clean
+- **2 old stashes** you could drop
+- No changes since last heartbeat — project is stable
+Done. Key findings:
+
+- **14 commits behind origin** — you should `git pull`
+- **175 TS errors** — same as before, not blocking anything
+- **2 stashes** sitting on main if you want to clean those up
+- Working tree is clean otherwise
+Heartbeat done. Key findings:
+
+- **14 commits behind origin** — you should `git pull`
+- **175 TS errors** — same as before, not blocking anything
+- Working tree is clean, 2 old stashes you could drop
+- No calendar/email integration configured
+Heartbeat written to `briefing/heartbeat-today.md`. Key findings:
+
+- **14 commits behind origin** — you should `git pull`
+- **175 TS errors** — same as before, not blocking
+- **2 stale stashes** — safe to drop when ready
+- Working tree is clean otherwise
+Heartbeat done. Key findings:
+
+- **14 commits behind origin** — you should `git pull`
+- **175 TS errors** — same as before, not blocking
+- **2 old stashes** — safe to drop whenever
+- Working tree is clean otherwise
+Done. Quick summary:
+
+- **14 behind origin** — all automated heartbeat commits, safe to pull
+- **175 TS errors** — unchanged from last check
+- **Working tree** is clean
+- **2 stashes** still sitting around if you want to drop them
+Done. Quick summary:
+
+- **14 behind origin** (all heartbeat commits, safe to pull)
+- **175 TS errors** — unchanged, not blocking anything
+- **Working tree:** clean
+- **2 stale stashes** you could drop
+Heartbeat done. Quick summary:
+
+- **14 behind origin** — safe to pull (just heartbeat commits)
+- **175 TS errors** — same as before, not blocking anything
+- **Working tree** is clean aside from heartbeat logs
+- **2 stale stashes** you could drop when convenient
+Heartbeat updated. Key findings:
+
+- **15 behind origin** (was 14) — all automated, safe to pull
+- **175 TS errors** — unchanged
+- **Working tree:** clean aside from heartbeat logs
+- **2 stashes** still lingering, safe to drop when ready
+Heartbeat done. Quick summary:
+
+- **15 behind origin** — safe to `git pull` (automated heartbeat commits)
+- **175 TS errors** — same as before, not blocking anything
+- **Working tree clean** — only heartbeat logs modified
+- **2 stashes** still sitting around if you want to drop them
+- No new issues detected since last check
+Done. Quick summary:
+
+- **15 behind origin** — safe to pull (just heartbeat commits)
+- **175 TS errors** — same as before, not blocking anything
+- **Working tree clean** — only heartbeat log files modified
+- **2 stashes** sitting around if you want to clean up
+- No calendar/email (no Google auth)
+Heartbeat done. Quick summary:
+
+- **15 behind origin** — safe to pull (automated heartbeat commits)
+- **175 TS errors** — unchanged, not blocking anything
+- **Working tree:** clean
+- **2 stashes** you could drop if you want to tidy up
+Heartbeat done. No changes from earlier today:
+
+- **15 behind origin** — safe to pull (automated heartbeat commits)
+- **175 TS errors** — unchanged, not blocking dev
+- **Working tree:** clean
+- **2 stashes** you could drop
+
+Nothing urgent.
+Done. No changes from yesterday's state — same 175 TS errors, still 15 commits behind origin (all heartbeat commits, safe to pull), 2 stale stashes. Nothing urgent.
+Heartbeat done. No changes from last check:
+
+- **15 behind origin** — safe to pull (all heartbeat commits)
+- **175 TS errors** — unchanged, not blocking
+- **Working tree:** clean
+- **2 stashes** still sitting around if you want to drop them
+Heartbeat done. No changes from last check — same state:
+
+- **15 behind origin** (safe to pull)
+- **175 TS errors** (unchanged, non-blocking)
+- **Working tree clean** aside from heartbeat logs
+- **2 old stashes** you could drop
+
+Nothing urgent.
+Done. Quick summary:
+
+- **15 behind origin** — all heartbeat commits, safe to pull
+- **175 TS errors** — unchanged, not blocking anything
+- **Working tree clean** (just heartbeat logs modified)
+- **2 stale stashes** you could drop
+- No calendar/email (no Google auth)
+Heartbeat done. No changes from last check — 175 TS errors (stable), 15 commits behind origin (safe to pull), 2 old stashes you could drop. Nothing urgent.
+Done. Quick summary:
+
+- **15 behind origin** — all heartbeat overnight commits, safe to pull
+- **175 TS errors** — same as before, not blocking anything
+- **Working tree clean** aside from heartbeat logs
+- **2 stashes** you could drop when convenient
+- No calendar/email integration configured
+Heartbeat done. Key findings:
+
+- **15 commits behind origin** — all heartbeat commits, safe to pull
+- **175 TS errors** — unchanged, not blocking dev
+- **2 stashes** on main you could drop
+- Working tree is clean (just heartbeat logs modified)
+- No calendar/email integration configured
+**Heartbeat done.** No changes since last check — same 175 TS errors, still 15 behind origin (all heartbeat commits), 2 droppable stashes. Nothing urgent.
+Done. Quick summary:
+
+- **15 behind origin** — all heartbeat commits, `git pull` when ready
+- **175 TS errors** — unchanged, not blocking anything
+- **Working tree** is clean (just heartbeat logs)
+- **2 stale stashes** you could drop
+- No calendar/email integration configured
+Heartbeat done. No changes from last check:
+
+- **15 behind origin** — all heartbeat commits, safe to pull
+- **175 TS errors** — unchanged, not blocking anything
+- **Working tree:** clean
+- **2 stashes** still hanging around, safe to drop whenever
+
+Nothing urgent today.
+Heartbeat written to `briefing/heartbeat-today.md`. Quick summary:
+
+- **15 behind origin** — safe to pull (all heartbeat commits)
+- **175 TS errors** — unchanged, not blocking anything
+- **Working tree** clean, 2 old stashes you could drop
+- No calendar/email access configured
+Heartbeat done. Quick summary:
+
+- **15 behind origin** — all overnight heartbeat commits, safe to pull
+- **175 TS errors** — same as before, not blocking anything
+- **Working tree clean** — only heartbeat logs modified
+- **2 stale stashes** you could drop when convenient
+Heartbeat done. Quick summary:
+
+- **15 behind origin** — safe to pull (all heartbeat commits)
+- **175 TS errors** — same as before, not blocking anything
+- **Working tree clean** aside from heartbeat logs
+- **2 stale stashes** you could drop when convenient
+- No calendar/email (no Google auth)
+Heartbeat written to `briefing/heartbeat-today.md`. Quick summary:
+
+- **15 behind origin** — safe to pull (all heartbeat commits)
+- **175 TS errors** — unchanged, not blocking anything
+- **Working tree** clean, no new commits since yesterday
+- **2 old stashes** you could drop
+
+Nothing urgent.
+Heartbeat done. Key findings:
+
+- **16 commits behind origin** (up from 15) — all heartbeat commits, safe to pull
+- **175 TS errors** — unchanged
+- **Working tree:** clean (only heartbeat logs modified)
+- No new local commits since last check
+Heartbeat updated. Quick summary:
+
+- **16 behind origin** — safe to pull (just heartbeat commits)
+- **175 TS errors** — same as before, not blocking anything
+- **Working tree clean** — only heartbeat logs modified
+- **2 stashes** sitting around if you want to drop them
+
+Nothing urgent.
+Heartbeat done. Quick summary:
+
+- **16 behind origin** — safe to pull (all heartbeat commits)
+- **175 TS errors** — same as before, not blocking anything
+- **Working tree:** clean aside from heartbeat logs
+- **2 stale stashes** you could drop
+- No new surprises since last check
+Heartbeat done. Quick summary:
+
+- **16 behind origin** — safe to pull (all heartbeat commits)
+- **175 TS errors** — unchanged, not blocking anything
+- **Working tree** clean, no new commits since last check
+- **2 stashes** still sitting around if you want to drop them
+Heartbeat done. Key findings:
+
+- **16 behind origin** — safe to `git pull` (all heartbeat commits)
+- **175 TS errors** — unchanged, not blocking anything
+- **Working tree clean** (just heartbeat logs)
+- **2 old stashes** you can drop when convenient
+- No changes since last check — project state is stable
+Heartbeat done. Summary:
+
+- **16 behind origin** — safe to pull (all heartbeat commits)
+- **175 TS errors** — unchanged, not blocking anything
+- **Working tree:** clean besides heartbeat logs
+- **2 stale stashes** you can drop when convenient
+- No urgent action needed
+Done. Quick summary:
+
+- **16 behind origin** — safe to pull (just heartbeat commits)
+- **175 TS errors** — same as yesterday, no regression
+- **Working tree clean** — only heartbeat logs modified
+- No calendar/email (no Google auth)
+Done. Quick summary:
+
+- **16 behind origin** (heartbeat commits only, safe to pull)
+- **175 TS errors** — unchanged, not blocking anything
+- **Working tree clean** aside from heartbeat logs
+- **2 stashes** still sitting around if you want to drop them
+Heartbeat done. No changes from the previous check — everything is stable:
+
+- **16 behind origin** (safe heartbeat commits, `git pull` when ready)
+- **175 TS errors** (unchanged, not blocking)
+- **2 old stashes** you can drop
+- Working tree is clean
+Heartbeat done. No changes from prior check — state is stable:
+
+- **16 behind origin** (heartbeat commits only, safe to pull)
+- **175 TS errors** (unchanged, non-blocking)
+- **2 old stashes** you can drop when ready
+- Working tree clean, no urgent items
+Heartbeat updated. Quick summary:
+
+- **16 behind origin** — safe to pull (all heartbeat commits)
+- **175 TS errors** — unchanged, not blocking anything
+- **2 stashes** on main you could drop
+- Working tree is clean. Nothing urgent.
+Heartbeat complete. No changes from last check — state is stable:
+
+- **16 behind origin** (heartbeat commits only, safe to pull)
+- **175 TS errors** (unchanged, non-blocking)
+- **2 old stashes** you could drop
+- Working tree clean otherwise
+Heartbeat complete. No changes from last check — everything is stable:
+
+- **16 behind origin** (heartbeat commits only, safe to pull)
+- **175 TS errors** (unchanged, non-blocking)
+- **Working tree clean** aside from heartbeat logs
+- **2 old stashes** you can drop when convenient
+Done. Quick summary:
+
+- **16 behind origin** (all heartbeat commits — safe to pull)
+- **175 TS errors** (unchanged, not blocking)
+- **2 stashes** you could drop
+- Working tree is clean aside from heartbeat logs
+- No calendar/email access configured
+Heartbeat written to `briefing/heartbeat-today.md`. Quick summary:
+
+- **16 behind origin** (all heartbeat commits, safe to pull)
+- **175 TS errors** (unchanged, not blocking)
+- **2 stale stashes** you could drop
+- Working tree clean, nothing urgent
+Done. Quick summary:
+
+- **16 behind origin** — all overnight heartbeat commits, safe to pull
+- **TS errors:** 175 (unchanged)
+- **Working tree:** clean
+- **2 stale stashes** you could drop
+
+Nothing urgent.
+Heartbeat done. Quick summary:
+
+- **16 behind origin** — safe to pull (overnight heartbeat commits only)
+- **Working tree:** clean
+- **TS errors:** 175 (unchanged)
+- **2 stashes** on main you could drop
+- No calendar/email integration configured
+
+Nothing urgent today.
+Heartbeat written to `briefing/heartbeat-today.md`. Quick summary:
+
+- **16 behind origin** — safe to pull (just heartbeat commits)
+- **1 untracked file** (`PROJECT-STATUS.md`) — commit or ignore
+- **175 TS errors** — unchanged, not blocking
+- **2 old stashes** — safe to drop
+- No calendar/email (no Google auth)
+
+Nothing urgent.
+Heartbeat done. Quick summary:
+
+- **16 behind origin** — safe to pull
+- **175 TS errors** — unchanged, not blocking
+- **1 untracked file** (`PROJECT-STATUS.md`) — needs commit or gitignore
+- **2 old stashes** — safe to drop
+- Nothing urgent.

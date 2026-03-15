@@ -1,20 +1,24 @@
-# Heartbeat - 2026-02-26
+# Heartbeat - 2026-03-15
 
 ## Attention Needed
-- `src/app/tests/page.tsx` has uncommitted changes (tests page redesign). Commit when ready.
+- **16 commits behind origin** — all heartbeat/overnight commits, safe to `git pull`
+- **Untracked file:** `PROJECT-STATUS.md` — commit or gitignore
 
 ## Project Pulse
-- **Build: PASSING** — all routes compile, no errors.
-- **Latest commit:** `redesign tests page` (e8f0d24)
-- **Working tree:** 1 modified source file (`tests/page.tsx`), plus heartbeat logs.
-- **Branch:** main, up to date with origin.
+- **Latest commit:** `debug: include fb date samples and align matching` (b89d7c8)
+- **Working tree:** clean (heartbeat logs + 1 untracked file)
+- **Branch:** main — 16 behind origin, 0 ahead
+- **TS errors:** 175 (unchanged, not blocking dev server)
+
+## Recent Work (last 5 commits)
+- FB date sample debugging and campaign matching alignment
+- Test tracker: funnel metrics, campaign matching details, no-date FB match samples
 
 ## Cleanup Candidates
-- 2 stashes on main — old WIP, safe to drop.
-- 1 idle branch: `feature/overview` (unmerged).
+- 2 stashes on main — old WIP, safe to drop
 
 ## Calendar / Email
-- Unavailable (Google auth expired since ~Feb 20 — re-auth needed).
+- Unavailable (no Google auth configured)
 
 ## Drafts Created
 - None

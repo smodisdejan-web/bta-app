@@ -12,6 +12,15 @@ import {
 
 export const dynamic = 'force-dynamic'
 
+// Manual mapping: campaign name → streak_sync SOURCE PLACEMENT prefix
+// Used when sourceMatchesCampaign() fuzzy matching is too broad (e.g., CRO-001)
+const STREAK_PREFIX_MAP: Record<string, string> = {
+  'Dalmatinčki - Sail Smarter - CRO-001 Control': 'dalmatincki_sail-smarter_',
+  'Test - Dalmatinčki - Sail Smarter - CRO-001 Test': 'dalmatincki_smart-luxury-sailing_',
+}
+
+const SPEND_ANOMALY_THRESHOLD = 1000
+
 type VariantMetrics = {
   spend: number
   clicks: number
@@ -110,6 +119,9 @@ function aggregateVariant(
     const rowDate = getRowDate(row)
     if (!rowDate) return false
     if (startDate && rowDate < startDate) return false
+    // Filter out Mixed Analytics spend anomalies
+    const rowSpend = parseFloat(String(row.spend)) || 0
+    if (rowSpend > SPEND_ANOMALY_THRESHOLD) return false
     return true
   })
   debug.fbMatched = fbFiltered.length
@@ -129,6 +141,14 @@ function aggregateVariant(
       const d = parseDate(lead.inquiry_date)
       if (!d || d < startDate) return false
     }
+    // If we have an explicit prefix mapping, use it (exact prefix match, PAID_SOCIAL only)
+    const streakPrefix = STREAK_PREFIX_MAP[campaign]
+    if (streakPrefix) {
+      const sp = (lead.source_placement || '').toLowerCase()
+      const cat = ((lead as any).source_category || (lead as any).latest_source_category || '').toUpperCase()
+      return sp.startsWith(streakPrefix) && cat === 'PAID_SOCIAL'
+    }
+    // Otherwise fall back to existing fuzzy matching (for LF-001 etc.)
     return sourceMatchesCampaign(lead.source_placement, campaign)
   })
   debug.streakMatched = streakFiltered.length
