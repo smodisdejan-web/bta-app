@@ -130,7 +130,7 @@ function aggregateVariant(
   })
   debug.fbMatched = fbFiltered.length
 
-  const isLfCampaign = campaign.toLowerCase().startsWith('lf')
+  const isLfCampaign = campaign.toLowerCase().startsWith('lf') || campaign.toLowerCase().endsWith('- lf')
   const spend = sumSafe(fbFiltered.map((r) => parseFloat(String(r.spend)) || 0))
   const clicks = sumSafe(fbFiltered.map((r) => parseFloat(String(r.clicks)) || 0))
   const lpViews = sumSafe(fbFiltered.map((r) => parseFloat(String(r.lp_views)) || 0))
