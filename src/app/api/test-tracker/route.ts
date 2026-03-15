@@ -19,6 +19,8 @@ const STREAK_PREFIX_MAP: Record<string, string> = {
   'Test - Dalmatinčki - Sail Smarter - CRO-001 Test': 'dalmatincki_smart-luxury-sailing_',
   'Smart Spirit - 25 Off - CBO': '25off',
   'Test - Smart Spirit - Family - CBO': 'family',
+  'Smart Spirit - 25 Off - CBO - LF': 'smart spirit - 25 off - cbo - lf',
+  'Test - Smart Spirit - Family - CBO - LF': 'test - smart spirit - family - cbo - lf',
 }
 
 const SPEND_ANOMALY_THRESHOLD = 1000
@@ -150,9 +152,13 @@ function aggregateVariant(
       const cat = ((lead as any).source_category || (lead as any).latest_source_category || '').toUpperCase()
       if (cat !== 'PAID_SOCIAL') return false
       // Trailing '_' → exact prefix match (CRO-001 style)
-      // No trailing '_' → keyword match within a shared prefix (SS-001 style)
+      // Contains spaces → exact full match (SS-002 style)
+      // No spaces, no trailing '_' → keyword match within a shared prefix (SS-001 style)
       if (streakMapValue.endsWith('_')) {
         return sp.startsWith(streakMapValue)
+      }
+      if (streakMapValue.includes(' ')) {
+        return sp === streakMapValue
       }
       return sp.startsWith('smart_spirit_') && sp.includes(streakMapValue)
     }
