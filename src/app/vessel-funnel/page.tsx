@@ -315,6 +315,7 @@ export default function VesselFunnelPage() {
                   <thead className="sticky top-0 bg-white">
                     <tr className="border-b text-left text-[11px] uppercase text-gray-500">
                       <th className="py-2 px-2">Inquiry</th>
+                      <th className="py-2 px-2">Source</th>
                       <th className="py-2 px-2">Name</th>
                       <th className="py-2 px-2">Country</th>
                       <th className="py-2 px-2">AI</th>
@@ -338,6 +339,7 @@ export default function VesselFunnelPage() {
                         )}
                       >
                         <td className="py-2 px-2 text-gray-700">{formatDate(lead.inquiry_date)}</td>
+                        <td className="py-2 px-2 text-gray-500 text-[11px] max-w-[160px] truncate" title={lead.source}>{lead.source}</td>
                         <td className="py-2 px-2 font-medium text-gray-900">{truncated(lead.name)}</td>
                         <td className="py-2 px-2 text-gray-700">{lead.country || '—'}</td>
                         <td className="py-2 px-2">
