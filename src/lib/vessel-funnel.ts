@@ -138,7 +138,7 @@ export async function loadVesselFunnel(vesselId: string, days: number): Promise<
     return budgetMin >= profile.budgetMin && groupOk && destOk
   })
 
-  const assigned = streakInRange.filter((lead) => vesselAssigned(lead, profile))
+  const assigned = leadsForVessel.filter((lead) => vesselAssigned(lead, profile))
   const bookingsForVessel = filterBookings(bookings, profile, days)
 
   const revenue = bookingsForVessel.reduce((sum, b) => sum + (b.rvc || 0), 0)
