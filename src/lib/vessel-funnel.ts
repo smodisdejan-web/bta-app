@@ -74,9 +74,12 @@ function normalize(str: string): string {
 
 function leadMatchesProfile(lead: StreakLeadRow, profile: VesselProfile): boolean {
   const sp = normalize(lead.source_placement)
+  const name = profile.name.toLowerCase()
   // Match on source_placement only (campaign origin), not vessel field (CRM assignment)
-  // Check both UTM pattern (underscores) and vessel name (spaces) to handle both formats
-  return sp.includes(profile.utmPattern.toLowerCase()) || sp.includes(profile.name.toLowerCase())
+  // Normalize separators: campaigns use mixed formats (underscores, hyphens, spaces)
+  return sp.includes(profile.utmPattern.toLowerCase())
+    || sp.includes(name)
+    || sp.includes(name.replace(/\s+/g, '-'))
 }
 
 function adsetMatchesProfile(adset: FbAdsetRow, profile: VesselProfile): boolean {
