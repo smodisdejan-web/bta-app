@@ -308,7 +308,13 @@ export default function VesselFunnelPage() {
             <Card>
               <div className="mb-3 flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-gray-900">Leads</h3>
-                <span className="text-sm text-gray-500">{leads.length} rows</span>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3 text-xs text-gray-500">
+                    <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-full bg-blue-500" />Lead Form</span>
+                    <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-full bg-gray-300" />Landing Page</span>
+                  </div>
+                  <span className="text-sm text-gray-500">{leads.length} rows</span>
+                </div>
               </div>
               <div className="overflow-x-auto">
                 <table className="min-w-full text-[13px]">
@@ -339,7 +345,12 @@ export default function VesselFunnelPage() {
                         )}
                       >
                         <td className="py-2 px-2 text-gray-700">{formatDate(lead.inquiry_date)}</td>
-                        <td className="py-2 px-2 text-gray-500 text-[11px] max-w-[160px] truncate" title={lead.source}>{lead.source}</td>
+                        <td className="py-2 px-2 text-[11px] max-w-[180px]" title={lead.source}>
+                          <span className={cn('inline-flex items-center gap-1.5 max-w-full', lead.source?.includes('lf') || lead.source?.includes('lead_form') || lead.source?.includes('lead form') ? 'text-blue-600' : 'text-gray-400')}>
+                            <span className={cn('inline-block h-1.5 w-1.5 rounded-full shrink-0', lead.source?.includes('lf') || lead.source?.includes('lead_form') || lead.source?.includes('lead form') ? 'bg-blue-500' : 'bg-gray-300')} />
+                            <span className="truncate">{lead.source}</span>
+                          </span>
+                        </td>
                         <td className="py-2 px-2 font-medium text-gray-900">{truncated(lead.name)}</td>
                         <td className="py-2 px-2 text-gray-700">{lead.country || '—'}</td>
                         <td className="py-2 px-2">
