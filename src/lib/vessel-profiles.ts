@@ -12,6 +12,17 @@ export interface VesselProfile {
 
 export const VESSEL_PROFILES: VesselProfile[] = [
   {
+    id: 'smart-spirit',
+    name: 'Smart Spirit',
+    budgetMin: 10000,
+    maxGuests: 8,
+    destinations: ['Croatia', 'Flexible'],
+    utmPattern: 'smart_spirit',
+    bookingPattern: 'SMART SPIRIT',
+    specs: '29m · 8 guests · Croatia',
+    priceFrom: 'from €18.5k/week',
+  },
+  {
     id: 'belgin-sultan',
     name: 'Belgin Sultan',
     budgetMin: 20000,
@@ -65,17 +76,6 @@ export const VESSEL_PROFILES: VesselProfile[] = [
     bookingPattern: 'NOCTURNO',
     specs: '48m · 12 guests · Croatia',
     priceFrom: 'from €85k/week',
-  },
-  {
-    id: 'smart-spirit',
-    name: 'Smart Spirit',
-    budgetMin: 10000,
-    maxGuests: 8,
-    destinations: ['Croatia', 'Flexible'],
-    utmPattern: 'smart_spirit',
-    bookingPattern: 'SMART SPIRIT',
-    specs: '29m · 8 guests · Croatia',
-    priceFrom: 'from €18.5k/week',
   },
   {
     id: 'dalmatino',
