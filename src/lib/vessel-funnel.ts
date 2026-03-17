@@ -73,11 +73,10 @@ function normalize(str: string): string {
 }
 
 function leadMatchesProfile(lead: StreakLeadRow, profile: VesselProfile): boolean {
-  const sourceMatch = normalize(lead.source_placement).includes(profile.utmPattern.toLowerCase())
-  const vesselField = normalize(lead.vessel || '')
-  const nameMatch = vesselField.includes(profile.name.toLowerCase())
-  const bookingMatch = vesselField.includes(profile.bookingPattern.toLowerCase())
-  return sourceMatch || nameMatch || bookingMatch
+  const sp = normalize(lead.source_placement)
+  // Match on source_placement only (campaign origin), not vessel field (CRM assignment)
+  // Check both UTM pattern (underscores) and vessel name (spaces) to handle both formats
+  return sp.includes(profile.utmPattern.toLowerCase()) || sp.includes(profile.name.toLowerCase())
 }
 
 function adsetMatchesProfile(adset: FbAdsetRow, profile: VesselProfile): boolean {
