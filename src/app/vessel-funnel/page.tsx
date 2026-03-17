@@ -190,7 +190,10 @@ export default function VesselFunnelPage() {
                 value={data.counts.bookings.toLocaleString()}
                 subtitle={data.counts.revenue > 0 ? formatCurrency(data.counts.revenue) : '—'}
                 icon={<TrendingUp className="h-4 w-4" />}
-                hint="Confirmed bookings for this vessel"
+                hint="Campaign-attributed bookings: leads from this vessel's campaigns that converted to a booking"
+                extra={data.allVesselBookings > data.counts.bookings ? (
+                  <span className="text-[10px] text-gray-400 mt-1 block">{data.allVesselBookings} total ({formatCurrency(data.allVesselRevenue)}) from all campaigns</span>
+                ) : undefined}
               />
             </div>
 
@@ -366,7 +369,7 @@ function InfoIcon({ text }: { text: string }) {
   )
 }
 
-function KpiCard({ title, value, subtitle, icon, hint }: { title: string; value: string; subtitle?: string; icon?: React.ReactNode; hint: string }) {
+function KpiCard({ title, value, subtitle, icon, hint, extra }: { title: string; value: string; subtitle?: string; icon?: React.ReactNode; hint: string; extra?: React.ReactNode }) {
   return (
     <Card>
       <div className="flex items-start justify-between">
@@ -377,6 +380,7 @@ function KpiCard({ title, value, subtitle, icon, hint }: { title: string; value:
           </p>
           <div className="text-2xl font-semibold text-gray-900">{value}</div>
           {subtitle && <p className="text-xs text-gray-500">{subtitle}</p>}
+          {extra}
         </div>
         {icon && <div className="text-[#B39262]">{icon}</div>}
       </div>

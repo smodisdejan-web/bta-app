@@ -44,14 +44,8 @@ export type VesselFunnelResult = {
   funnelSteps: { label: string; value: number }[]
   whyNot: WhyNotBreakdown[]
   leads: VesselLead[]
-  adsets: {
-    spend: number
-    impressions: number
-    clicks: number
-    ctr: number
-    cpc: number
-    costPerBooking: number
-  }
+  allVesselBookings: number
+  allVesselRevenue: number
 }
 
 function parseBudgetMin(budgetRange: string): number {
@@ -142,20 +136,19 @@ export async function loadVesselFunnel(vesselId: string, days: number): Promise<
   })
 
   const assigned = leadsForVessel.filter((lead) => vesselAssigned(lead, profile))
-  const bookingsForVessel = filterBookings(bookings, profile, days)
 
+  // All bookings for this vessel (regardless of campaign origin)
+  const allBookingsForVessel = filterBookings(bookings, profile, days)
+  const allVesselRevenue = allBookingsForVessel.reduce((sum, b) => sum + (b.rvc || 0), 0)
+
+  // Campaign-attributed bookings: match booking email to campaign lead email
+  const campaignEmails = new Set(
+    leadsForVessel.map((l) => (l.name || '').toLowerCase().trim()).filter(Boolean)
+  )
+  const bookingsForVessel = allBookingsForVessel.filter((b) =>
+    campaignEmails.has((b.client_email || '').toLowerCase().trim())
+  )
   const revenue = bookingsForVessel.reduce((sum, b) => sum + (b.rvc || 0), 0)
-
-  // Ad set metrics (filtered by date window and vessel name)
-  const adsetsForVessel = fbAdsets.filter((ad) => {
-    if (!inRange(ad.date_start, days)) return false
-    return adsetMatchesProfile(ad, profile)
-  })
-  const adSpend = adsetsForVessel.reduce((sum, a) => sum + (a.spend || 0), 0)
-  const adClicks = adsetsForVessel.reduce((sum, a) => sum + (a.clicks || 0), 0)
-  const adImpr = adsetsForVessel.reduce((sum, a) => sum + (a.impressions || 0), 0)
-  const adCtr = adImpr > 0 ? (adClicks / adImpr) * 100 : 0
-  const adCpc = adClicks > 0 ? adSpend / adClicks : 0
 
   const whyNotMap = new Map<string, number>()
   leadsForVessel.forEach((lead) => {
@@ -192,8 +185,6 @@ export async function loadVesselFunnel(vesselId: string, days: number): Promise<
     revenue,
   }
 
-  const costPerBooking = counts.bookings > 0 ? adSpend / counts.bookings : 0
-
   const safeDiv = (num: number, den: number) => (den > 0 ? (num / den) * 100 : 0)
 
   const rates: FunnelRates = {
@@ -219,13 +210,7 @@ export async function loadVesselFunnel(vesselId: string, days: number): Promise<
     funnelSteps,
     whyNot,
     leads,
-    adsets: {
-      spend: adSpend,
-      impressions: adImpr,
-      clicks: adClicks,
-      ctr: adCtr,
-      cpc: adCpc,
-      costPerBooking,
-    },
+    allVesselBookings: allBookingsForVessel.length,
+    allVesselRevenue,
   }
 }
