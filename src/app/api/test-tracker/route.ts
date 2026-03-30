@@ -21,6 +21,8 @@ const STREAK_PREFIX_MAP: Record<string, string> = {
   'Test - Smart Spirit - Family - CBO': 'family',
   'Smart Spirit - 25 Off - CBO - LF': 'smart spirit - 25 off - cbo - lf',
   'Test - Smart Spirit - Family - CBO - LF': 'test - smart spirit - family - cbo - lf',
+  'Landing Unmatched Value - Objections crusher ads': 'landing_unmatched_value_1_',
+  'Test - Landing Unmatched Value Forma 2 - Objections crusher ads': 'landing_unmatched_value_2_',
 }
 
 const SPEND_ANOMALY_THRESHOLD = 1000

@@ -448,7 +448,7 @@ function TestCard({ test }: { test: TestTrackerRow }) {
   const confidenceText = test.stat_confidence || 'Low'
 
   const dangerZone = target ? target * 2.5 : null
-  const isStale = test.status.toLowerCase() === 'running' && (test.days_running || 0) > 14
+  const isStale = test.status.toLowerCase() === 'running' && days > 14
   const daysTone = isStale ? 'text-red-600 font-semibold' : 'text-gray-500'
 
   return (
@@ -463,7 +463,7 @@ function TestCard({ test }: { test: TestTrackerRow }) {
         </div>
         <div className={cn('flex items-center gap-1 text-sm', daysTone)}>
           {isStale ? '⚠️' : null}
-          <span>{(test.days_running ?? days) || 0} days</span>
+          <span>{days} days</span>
         </div>
       </div>
 
@@ -512,7 +512,7 @@ function TestCard({ test }: { test: TestTrackerRow }) {
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-gray-700">
         <div className="flex items-center gap-2">
           <span className={cn('h-2 w-2 rounded-full', confidenceTone)} />
-          <span>{confidenceText || 'Low'} confidence · ~{(test.days_running ?? days) || 0} days of data</span>
+          <span>{confidenceText || 'Low'} confidence · ~{days} days of data</span>
         </div>
         <div className="text-[#B39262]">
           → {test.next_action || 'Next action pending'}
