@@ -101,6 +101,14 @@ function barColor(value: number | null, target: number | null) {
   return 'bg-red-500'
 }
 
+function barColorCost(value: number | null, target: number | null) {
+  if (value === null || target === null) return 'bg-gray-200'
+  if (value <= target) return 'bg-green-500'
+  if (value <= target * 1.5) return 'bg-yellow-400'
+  if (value <= target * 2.5) return 'bg-orange-500'
+  return 'bg-red-500'
+}
+
 function formatMetricValue(key: keyof VariantMetrics, value: number | null | undefined) {
   if (value === null || value === undefined) return '—'
   if (['spend', 'cpl', 'cpql', 'rvc'].includes(key)) return formatCurrencyTerse(value)
@@ -432,12 +440,13 @@ function TestCard({ test }: { test: TestTrackerRow }) {
 
   const verdict = (() => {
     if (kpiA === null || kpiB === null) return { text: '⏳ Too early to determine a winner', tone: 'bg-gray-100 text-gray-800' }
+    const pctDiff = Math.abs(((kpiA - kpiB) / Math.max(kpiA, kpiB)) * 100).toFixed(0)
     if (lowerBetter) {
-      if (kpiA < kpiB) return { text: `🏆 Variant A leads — ${formatValue(Math.abs(kpiA - kpiB), test.kpi_name)} lower ${test.kpi_name}`, tone: 'bg-green-100 text-green-900' }
-      if (kpiB < kpiA) return { text: `🏆 Variant B leads — ${formatValue(Math.abs(kpiA - kpiB), test.kpi_name)} lower ${test.kpi_name}`, tone: 'bg-green-100 text-green-900' }
+      if (kpiA < kpiB) return { text: `🏆 Variant A leads — ${pctDiff}% lower ${test.kpi_name}`, tone: 'bg-green-100 text-green-900' }
+      if (kpiB < kpiA) return { text: `🏆 Variant B leads — ${pctDiff}% lower ${test.kpi_name}`, tone: 'bg-green-100 text-green-900' }
     } else {
-      if (kpiA > kpiB) return { text: `🏆 Variant A leads — ${formatValue(Math.abs(kpiA - kpiB), test.kpi_name)} higher ${test.kpi_name}`, tone: 'bg-green-100 text-green-900' }
-      if (kpiB > kpiA) return { text: `🏆 Variant B leads — ${formatValue(Math.abs(kpiA - kpiB), test.kpi_name)} higher ${test.kpi_name}`, tone: 'bg-green-100 text-green-900' }
+      if (kpiA > kpiB) return { text: `🏆 Variant A leads — ${pctDiff}% higher ${test.kpi_name}`, tone: 'bg-green-100 text-green-900' }
+      if (kpiB > kpiA) return { text: `🏆 Variant B leads — ${pctDiff}% higher ${test.kpi_name}`, tone: 'bg-green-100 text-green-900' }
     }
     return { text: '⏳ Too early to determine a winner', tone: 'bg-gray-100 text-gray-800' }
   })()
@@ -463,7 +472,7 @@ function TestCard({ test }: { test: TestTrackerRow }) {
         </div>
         <div className={cn('flex items-center gap-1 text-sm', daysTone)}>
           {isStale ? '⚠️' : null}
-          <span>{days} days</span>
+          <span>{days}d{test.start_date ? ` · since ${new Date(test.start_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : ''}</span>
         </div>
       </div>
 
@@ -545,16 +554,21 @@ function VariantCard({
   metrics?: VariantMetrics
   otherMetrics?: VariantMetrics
 }) {
+  const lowerBetter = isCostMetric(kpiName)
   const width = Math.max(5, Math.min(100, ((value ?? 0) / maxVal) * 100))
-  const color = barColor(value, target)
+  const color = lowerBetter ? barColorCost(value, target) : barColor(value, target)
   const better = isLeader
   const ratioToTarget = value !== null && target ? value / target : null
   const baselineDelta = deltaPct(value, baseline)
   const targetDelta =
     ratioToTarget !== null
-      ? ratioToTarget > 1
-        ? `${ratioToTarget.toFixed(1)}× above target`
-        : `${(1 - ratioToTarget).toFixed(1)}× below target`
+      ? lowerBetter
+        ? ratioToTarget <= 1
+          ? `${((1 - ratioToTarget) * 100).toFixed(0)}% under target`
+          : `${((ratioToTarget - 1) * 100).toFixed(0)}% over target`
+        : ratioToTarget > 1
+          ? `${ratioToTarget.toFixed(1)}× above target`
+          : `${(1 - ratioToTarget).toFixed(1)}× below target`
       : ''
   const contextualDelta =
     baselineDelta !== '—' || targetDelta
@@ -616,7 +630,9 @@ function VariantCard({
       <div className="mt-3 space-y-3">
         <MetricsSection title="Delivery" metrics={deliveryMetrics} metricsData={metrics} other={otherMetrics} />
         <MetricsSection title="Lead Quality" metrics={leadQualityMetrics} metricsData={metrics} other={otherMetrics} />
-        <MetricsSection title="Revenue" metrics={revenueMetrics} metricsData={metrics} other={otherMetrics} />
+        {(metrics?.bookings || otherMetrics?.bookings || metrics?.rvc || otherMetrics?.rvc) ? (
+          <MetricsSection title="Revenue" metrics={revenueMetrics} metricsData={metrics} other={otherMetrics} />
+        ) : null}
       </div>
     </div>
   )
