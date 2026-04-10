@@ -76,6 +76,7 @@ export default function VesselFunnelPage() {
         if (!res.ok) throw new Error(`Request failed ${res.status}`)
         const json = (await res.json()) as VesselFunnelResult
         setData(json)
+        setShowAllLeads(false)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load vessel funnel')
       } finally {
@@ -102,6 +103,7 @@ export default function VesselFunnelPage() {
     )
   }, [data])
   const leads = useMemo(() => data?.leads || [], [data])
+  const [showAllLeads, setShowAllLeads] = useState(false)
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -345,7 +347,7 @@ export default function VesselFunnelPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {leads.map((lead, idx) => (
+                    {(showAllLeads ? leads : leads.slice(0, 5)).map((lead, idx) => (
                       <tr
                         key={`${lead.source}-${idx}`}
                         className={cn(
@@ -384,6 +386,14 @@ export default function VesselFunnelPage() {
                   </tbody>
                 </table>
               </div>
+              {leads.length > 5 && (
+                <button
+                  onClick={() => setShowAllLeads(!showAllLeads)}
+                  className="mt-3 w-full rounded-lg border border-gray-200 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition"
+                >
+                  {showAllLeads ? 'Show less' : `See more (${leads.length - 5} more)`}
+                </button>
+              )}
             </Card>
           </div>
         ) : null}
