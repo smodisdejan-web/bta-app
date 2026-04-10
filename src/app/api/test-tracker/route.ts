@@ -97,6 +97,7 @@ function sumSafe(values: Array<number | undefined | null>) {
 function aggregateVariant(
   campaignRaw: string,
   startDate: Date | null,
+  endDate: Date | null,
   fbRows: FbEnrichedRow[],
   streakRows: StreakLeadRow[],
   debug: { fbMatched: number; streakMatched: number }
@@ -125,6 +126,7 @@ function aggregateVariant(
     const rowDate = getRowDate(row)
     if (!rowDate) return false
     if (startDate && rowDate < startDate) return false
+    if (endDate && rowDate > endDate) return false
     // Filter out Mixed Analytics spend anomalies
     const rowSpend = parseFloat(String(row.spend)) || 0
     if (rowSpend > SPEND_ANOMALY_THRESHOLD) return false
@@ -137,10 +139,11 @@ function aggregateVariant(
   const lpViews = sumSafe(fbFiltered.map((r) => parseFloat(String(r.lp_views)) || 0))
 
   const streakFiltered = streakRows.filter((lead) => {
+    const d = parseDate(lead.inquiry_date)
     if (startDate) {
-      const d = parseDate(lead.inquiry_date)
       if (!d || d < startDate) return false
     }
+    if (endDate && d && d > endDate) return false
     // If we have an explicit mapping, use it instead of fuzzy matching
     const streakMapValue = STREAK_PREFIX_MAP[campaign]
     if (streakMapValue) {
@@ -218,6 +221,7 @@ export async function GET() {
       const campaignA = campaigns[0] || ''
       const campaignB = campaigns[1] || ''
       const startDate = parseDate(test.start_date)
+      const endDate = parseDate(test.end_date)
 
       const debugA = { fbMatched: 0, streakMatched: 0 }
       const debugB = { fbMatched: 0, streakMatched: 0 }
@@ -262,14 +266,14 @@ export async function GET() {
           frozen = true
         } catch {
           variants = {
-            A: aggregateVariant(campaignA, startDate, fbRows, streakRows, debugA),
-            B: aggregateVariant(campaignB, startDate, fbRows, streakRows, debugB),
+            A: aggregateVariant(campaignA, startDate, endDate, fbRows, streakRows, debugA),
+            B: aggregateVariant(campaignB, startDate, endDate, fbRows, streakRows, debugB),
           }
         }
       } else {
         variants = {
-          A: aggregateVariant(campaignA, startDate, fbRows, streakRows, debugA),
-          B: aggregateVariant(campaignB, startDate, fbRows, streakRows, debugB),
+          A: aggregateVariant(campaignA, startDate, endDate, fbRows, streakRows, debugA),
+          B: aggregateVariant(campaignB, startDate, endDate, fbRows, streakRows, debugB),
         }
       }
 
