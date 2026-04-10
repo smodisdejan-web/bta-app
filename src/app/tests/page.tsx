@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useMemo, useState } from 'react'
-import { Crown, FlaskConical, Hourglass, Trophy } from 'lucide-react'
+import { ChevronRight, FlaskConical, Hourglass, Trophy } from 'lucide-react'
 import { DM_Sans, DM_Serif_Display } from 'next/font/google'
 
 import type { TestTrackerRow } from '@/lib/sheetsData'
@@ -341,43 +341,13 @@ export default function TestsPage() {
         <section className="mt-10 mb-12">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-gray-900">Done</h2>
-            <button
-              onClick={() => setShowDone((s) => !s)}
-              className="text-sm text-[#B39262] hover:underline"
-            >
-              {showDone ? 'Hide' : 'Show'}
-            </button>
+            <span className="text-sm text-gray-500">{doneTests.length} completed</span>
           </div>
-          {showDone && (
-            <div className="mt-3 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-              <table className="min-w-full text-sm">
-                <thead className="bg-gray-50 text-left text-xs uppercase text-gray-500">
-                  <tr>
-                    <th className="px-4 py-3">Test ID</th>
-                    <th className="px-4 py-3">Test Name</th>
-                    <th className="px-4 py-3">Winner</th>
-                    <th className="px-4 py-3">KPI A</th>
-                    <th className="px-4 py-3">KPI B</th>
-                    <th className="px-4 py-3">Confidence</th>
-                    <th className="px-4 py-3">Learning</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {doneTests.map((t) => (
-                    <tr key={t.test_id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 font-semibold text-gray-800">{t.test_id}</td>
-                      <td className="px-4 py-3 text-gray-800">{t.test_name}</td>
-                      <td className="px-4 py-3 text-gray-700">{winnerBadge(t.winner)}</td>
-                      <td className="px-4 py-3 text-gray-700">{formatValue(t.kpi_a ?? null, t.kpi_name)}</td>
-                      <td className="px-4 py-3 text-gray-700">{formatValue(t.kpi_b ?? null, t.kpi_name)}</td>
-                      <td className="px-4 py-3 text-gray-700">{t.stat_confidence || '—'}</td>
-                      <td className="px-4 py-3 text-gray-600">{t.learning || '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <div className="mt-3 space-y-2">
+            {doneTests.map((test) => (
+              <DoneCard key={test.test_id} test={test} />
+            ))}
+          </div>
         </section>
       </div>
     </div>
@@ -634,6 +604,100 @@ function VariantCard({
           <MetricsSection title="Revenue" metrics={revenueMetrics} metricsData={metrics} other={otherMetrics} />
         ) : null}
       </div>
+    </div>
+  )
+}
+
+function DoneCard({ test }: { test: TestWithVariants }) {
+  const [open, setOpen] = useState(false)
+  const target = parseTarget(test.success_criteria)
+  const baseline = parseNumber(test.baseline)
+  const kpiA = parseNumber(test.kpi_a)
+  const kpiB = parseNumber(test.kpi_b)
+  const maxVal = Math.max(baseline ?? 0, kpiA ?? 0, kpiB ?? 0, target ?? 0, 1)
+  const days = test.days_running || daysSince(test.start_date) || 0
+  const lowerBetter = isCostMetric(test.kpi_name)
+
+  const leadingVariant = (() => {
+    if (kpiA === null || kpiB === null) return null
+    if (lowerBetter) {
+      if (kpiA < kpiB) return 'A'
+      if (kpiB < kpiA) return 'B'
+      return null
+    }
+    if (kpiA > kpiB) return 'A'
+    if (kpiB > kpiA) return 'B'
+    return null
+  })()
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+      <button
+        onClick={() => setOpen((s) => !s)}
+        className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-gray-50 transition-colors"
+      >
+        <ChevronRight
+          className={cn('h-4 w-4 text-gray-400 transition-transform flex-shrink-0', open && 'rotate-90')}
+        />
+        <span className="text-sm font-semibold text-[#B39262] flex-shrink-0">{test.test_id}</span>
+        <span className="text-sm text-gray-900 truncate flex-1">{test.test_name}</span>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {winnerBadge(test.winner)}
+          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
+            {test.stat_confidence || 'Low'}
+          </span>
+        </div>
+      </button>
+
+      {open && (
+        <div className="border-t border-gray-100 px-5 pb-5">
+          <div className="mt-4">
+            <p className={cn('text-xl text-gray-900', dmSerif.className)}>{test.test_name}</p>
+            <p className="mt-1 text-sm text-gray-600">{test.hypothesis}</p>
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-gray-50 p-3 text-sm text-gray-700 md:grid-cols-4">
+            <div><span className="font-semibold">Metric</span><div>{test.kpi_name || '—'}</div></div>
+            <div><span className="font-semibold">Baseline</span><div>{formatValue(baseline, test.kpi_name)}</div></div>
+            <div><span className="font-semibold">Target</span><div>{target ? formatValue(target, test.kpi_name) : test.success_criteria || '—'}</div></div>
+            <div><span className="font-semibold">Duration</span><div>{days}d{test.start_date ? ` · ${new Date(test.start_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : ''}{test.end_date ? ` – ${new Date(test.end_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : ''}</div></div>
+          </div>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <VariantCard
+              label="Variant A"
+              variantLabel={test.variant_a || 'Variant A'}
+              value={kpiA}
+              baseline={baseline}
+              target={target}
+              maxVal={maxVal}
+              kpiName={test.kpi_name}
+              isLeader={leadingVariant === 'A'}
+              metrics={test.variants?.A}
+              otherMetrics={test.variants?.B}
+            />
+            <VariantCard
+              label="Variant B"
+              variantLabel={test.variant_b || 'Variant B'}
+              value={kpiB}
+              baseline={baseline}
+              target={target}
+              maxVal={maxVal}
+              kpiName={test.kpi_name}
+              isLeader={leadingVariant === 'B'}
+              metrics={test.variants?.B}
+              otherMetrics={test.variants?.A}
+            />
+          </div>
+
+          {test.learning && (
+            <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+              <div className="text-xs font-semibold uppercase tracking-wide text-amber-700 mb-1">Learning</div>
+              <p className="text-sm text-amber-900">{test.learning}</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
