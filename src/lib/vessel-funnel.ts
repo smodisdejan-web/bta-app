@@ -81,6 +81,10 @@ function normalize(str: string): string {
 
 function leadMatchesProfile(lead: StreakLeadRow, profile: VesselProfile): boolean {
   const sp = normalize(lead.source_placement)
+  // If vessel has explicit campaign definitions, only match those (startsWith)
+  if (profile.campaigns && profile.campaigns.length > 0) {
+    return profile.campaigns.some(c => sp.startsWith(c.pattern.toLowerCase()))
+  }
   const name = profile.name.toLowerCase()
   // Match on source_placement only (campaign origin), not vessel field (CRM assignment)
   // Normalize separators: campaigns use mixed formats (underscores, hyphens, spaces)
