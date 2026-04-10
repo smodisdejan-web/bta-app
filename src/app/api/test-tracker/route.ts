@@ -132,15 +132,9 @@ function aggregateVariant(
   })
   debug.fbMatched = fbFiltered.length
 
-  const isLfCampaign = campaign.toLowerCase().startsWith('lf') || campaign.toLowerCase().endsWith('- lf')
   const spend = sumSafe(fbFiltered.map((r) => parseFloat(String(r.spend)) || 0))
   const clicks = sumSafe(fbFiltered.map((r) => parseFloat(String(r.clicks)) || 0))
   const lpViews = sumSafe(fbFiltered.map((r) => parseFloat(String(r.lp_views)) || 0))
-  const leads = sumSafe(
-    fbFiltered.map((r) =>
-      isLfCampaign ? parseFloat(String(r.fb_form_leads)) || 0 : parseFloat(String(r.landing_leads)) || 0
-    )
-  )
 
   const streakFiltered = streakRows.filter((lead) => {
     if (startDate) {
@@ -184,6 +178,7 @@ function aggregateVariant(
     }
   }
 
+  const leads = streakFiltered.length
   const qualityRate = leads > 0 ? (ql / leads) * 100 : 0
   const cpl = leads > 0 ? spend / leads : null
   const cpql = ql > 0 ? spend / ql : null
@@ -273,7 +268,7 @@ export async function GET() {
             if (!camp) return false
             if (camp !== campaignA.trim()) return false
             if (startDate) {
-              const d = parseDate(row.date)
+              const d = parseDate((row as any).date_iso ?? (row as any).date ?? (row as any).date_start)
               if (!d || d < startDate) return false
             }
             return true
@@ -283,7 +278,7 @@ export async function GET() {
             if (!camp) return false
             if (camp !== campaignB.trim()) return false
             if (startDate) {
-              const d = parseDate(row.date)
+              const d = parseDate((row as any).date_iso ?? (row as any).date ?? (row as any).date_start)
               if (!d || d < startDate) return false
             }
             return true
