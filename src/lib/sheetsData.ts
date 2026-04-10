@@ -1637,6 +1637,7 @@ export interface TestTrackerRow {
   stat_confidence: string
   learning: string
   next_action: string
+  frozen_variants: string
 }
 
 export async function fetchTestTracker(
@@ -1673,6 +1674,7 @@ export async function fetchTestTracker(
       stat_confidence: String(row[idx('Stat Confidence')] ?? ''),
       learning: String(row[idx('Learning')] ?? ''),
       next_action: String(row[idx('Next Action')] ?? ''),
+      frozen_variants: String(row[idx('Frozen Variants')] ?? ''),
     })
     return rows.map(mapRow)
   } catch (error) {

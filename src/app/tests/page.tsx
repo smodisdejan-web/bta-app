@@ -36,6 +36,8 @@ type TestWithVariants = TestTrackerRow & {
     A: VariantMetrics
     B: VariantMetrics
   }
+  frozen?: boolean
+  sheetRowIndex?: number
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -610,6 +612,8 @@ function VariantCard({
 
 function DoneCard({ test }: { test: TestWithVariants }) {
   const [open, setOpen] = useState(false)
+  const [freezing, setFreezing] = useState(false)
+  const [frozenState, setFrozenState] = useState(test.frozen ?? false)
   const target = parseTarget(test.success_criteria)
   const baseline = parseNumber(test.baseline)
   const kpiA = parseNumber(test.kpi_a)
@@ -696,6 +700,42 @@ function DoneCard({ test }: { test: TestWithVariants }) {
               <p className="text-sm text-amber-900">{test.learning}</p>
             </div>
           )}
+
+          <div className="mt-4 flex items-center justify-between">
+            {frozenState ? (
+              <span className="text-xs text-green-700 bg-green-50 border border-green-200 rounded-full px-3 py-1">
+                Frozen — data locked
+              </span>
+            ) : (
+              <button
+                disabled={freezing || !test.variants || !test.sheetRowIndex}
+                onClick={async () => {
+                  if (!test.variants || !test.sheetRowIndex) return
+                  setFreezing(true)
+                  try {
+                    const res = await fetch('/api/test-tracker/freeze', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ rowIndex: test.sheetRowIndex, variants: test.variants }),
+                    })
+                    if (!res.ok) {
+                      const data = await res.json().catch(() => ({}))
+                      alert(`Freeze failed: ${data.error || res.statusText}`)
+                    } else {
+                      setFrozenState(true)
+                    }
+                  } catch (err) {
+                    alert(`Freeze failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
+                  } finally {
+                    setFreezing(false)
+                  }
+                }}
+                className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-3 py-1 hover:bg-blue-100 transition-colors disabled:opacity-50"
+              >
+                {freezing ? 'Freezing...' : 'Freeze data'}
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>

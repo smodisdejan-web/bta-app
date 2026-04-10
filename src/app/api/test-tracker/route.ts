@@ -209,7 +209,8 @@ export async function GET() {
     const fbDataRaw = fbRows.map((r) => [r.campaign_name, (r as any).date_iso ?? (r as any).date ?? (r as any).date_start, r.spend])
     const streakDataRaw = streakRows.map((r) => [r.inquiry_date, r.source_placement])
 
-    const tests: TestWithVariants[] = testsRaw.map((test) => {
+    const tests: TestWithVariants[] = testsRaw.map((test, index) => {
+      const sheetRowIndex = index + 2 // row 1 = header, data starts at row 2
       const campaigns = (test.campaigns || '')
         .split(',')
         .map((c) => c.trim())
@@ -250,14 +251,33 @@ export async function GET() {
         .slice(0, 10)
         .map((row) => String(row[1]))
 
-      const variants = {
-        A: aggregateVariant(campaignA, startDate, fbRows, streakRows, debugA),
-        B: aggregateVariant(campaignB, startDate, fbRows, streakRows, debugB),
+      // Use frozen data for done/killed tests if available
+      const isDone = ['done', 'killed'].includes(test.status.toLowerCase())
+      let variants: { A: VariantMetrics; B: VariantMetrics }
+      let frozen = false
+
+      if (isDone && test.frozen_variants) {
+        try {
+          variants = JSON.parse(test.frozen_variants)
+          frozen = true
+        } catch {
+          variants = {
+            A: aggregateVariant(campaignA, startDate, fbRows, streakRows, debugA),
+            B: aggregateVariant(campaignB, startDate, fbRows, streakRows, debugB),
+          }
+        }
+      } else {
+        variants = {
+          A: aggregateVariant(campaignA, startDate, fbRows, streakRows, debugA),
+          B: aggregateVariant(campaignB, startDate, fbRows, streakRows, debugB),
+        }
       }
 
       return {
         ...test,
         variants,
+        frozen,
+        sheetRowIndex,
         _debug: {
           campaignA,
           campaignB,
