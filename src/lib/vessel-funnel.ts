@@ -1,7 +1,7 @@
 import { fetchBookings, fetchFbAdsets, fetchStreakSync } from './sheetsData'
 import type { BookingRecord, FbAdsetRow, StreakLeadRow } from './sheetsData'
 import { fetchSheet } from './sheetsData'
-import { VESSEL_PROFILES, VesselProfile } from './vessel-profiles'
+import { VESSEL_PROFILES, VesselProfile, CampaignSub } from './vessel-profiles'
 
 export type FunnelCounts = {
   leads: number
@@ -37,6 +37,18 @@ export type VesselLead = {
 
 export type WhyNotBreakdown = { reason: string; count: number }
 
+export type CampaignBreakdownRow = {
+  key: string
+  label: string
+  leads: number
+  ql: number
+  vesselQl: number
+  bookings: number
+  revenue: number
+  leadToQl: number
+  vesselQlToBooking: number
+}
+
 export type VesselFunnelResult = {
   profile: VesselProfile
   counts: FunnelCounts
@@ -46,6 +58,7 @@ export type VesselFunnelResult = {
   leads: VesselLead[]
   allVesselBookings: number
   allVesselRevenue: number
+  campaignBreakdown?: CampaignBreakdownRow[]
 }
 
 function parseBudgetMin(budgetRange: string): number {
@@ -203,6 +216,58 @@ export async function loadVesselFunnel(vesselId: string, days: number): Promise<
 
   const whyNot: WhyNotBreakdown[] = Array.from(whyNotMap.entries()).map(([reason, count]) => ({ reason, count }))
 
+  // Campaign breakdown (if vessel has sub-campaigns defined)
+  let campaignBreakdown: CampaignBreakdownRow[] | undefined
+  if (profile.campaigns && profile.campaigns.length > 0) {
+    const subs = profile.campaigns
+    // Classify a lead into the first matching sub-campaign (order matters: more specific first)
+    // Uses startsWith to avoid general campaigns (e.g. "landing_gulet_alessandro...")
+    // matching dedicated campaign patterns (e.g. "alessandro_warm...")
+    const classifyLead = (lead: StreakLeadRow): string => {
+      const sp = normalize(lead.source_placement)
+      for (const sub of subs) {
+        if (sp.startsWith(sub.pattern.toLowerCase())) return sub.key
+      }
+      return '_other'
+    }
+
+    const buckets = new Map<string, StreakLeadRow[]>()
+    for (const sub of subs) buckets.set(sub.key, [])
+    buckets.set('_other', [])
+    for (const lead of leadsForVessel) {
+      const key = classifyLead(lead)
+      buckets.get(key)!.push(lead)
+    }
+
+    campaignBreakdown = [...subs.map(s => s.key), '_other']
+      .filter(key => (buckets.get(key)?.length ?? 0) > 0)
+      .map(key => {
+        const sub = subs.find(s => s.key === key)
+        const bucket = buckets.get(key)!
+        const bQl = bucket.filter(l => (l.ai_score || 0) >= 50)
+        const bVesselQl = bQl.filter(l => {
+          const budgetMin = parseBudgetMin(l.budget_range || '')
+          const groupOk = l.size_of_group ? l.size_of_group <= profile.maxGuests : false
+          const destOk = matchesDestination(l.destination, profile.destinations)
+          return budgetMin >= profile.budgetMin && groupOk && destOk
+        })
+        const bEmails = new Set(bucket.map(l => (l.name || '').toLowerCase().trim()).filter(Boolean))
+        const bBookings = allBookingsForVessel.filter(b => bEmails.has((b.client_email || '').toLowerCase().trim()))
+        const bRevenue = bBookings.reduce((sum, b) => sum + (b.rvc || 0), 0)
+        return {
+          key,
+          label: sub?.label || 'General',
+          leads: bucket.length,
+          ql: bQl.length,
+          vesselQl: bVesselQl.length,
+          bookings: bBookings.length,
+          revenue: bRevenue,
+          leadToQl: bucket.length > 0 ? (bQl.length / bucket.length) * 100 : 0,
+          vesselQlToBooking: bVesselQl.length > 0 ? (bBookings.length / bVesselQl.length) * 100 : 0,
+        }
+      })
+  }
+
   return {
     profile,
     counts,
@@ -212,5 +277,6 @@ export async function loadVesselFunnel(vesselId: string, days: number): Promise<
     leads,
     allVesselBookings: allBookingsForVessel.length,
     allVesselRevenue,
+    campaignBreakdown,
   }
 }

@@ -13,7 +13,7 @@ import {
   Cell,
 } from 'recharts'
 import { VESSEL_PROFILES } from '@/lib/vessel-profiles'
-import type { VesselFunnelResult, VesselLead } from '@/lib/vessel-funnel'
+import type { VesselFunnelResult, VesselLead, CampaignBreakdownRow } from '@/lib/vessel-funnel'
 import { cn } from '@/lib/utils'
 import { Loader2, Ship, TrendingUp, AlertCircle, Check, Info } from 'lucide-react'
 
@@ -61,8 +61,8 @@ function truncated(text?: string, max = 25) {
 }
 
 export default function VesselFunnelPage() {
-  const [vesselId, setVesselId] = useState(VESSEL_PROFILES[0].id)
-  const [days, setDays] = useState<number>(90)
+  const [vesselId, setVesselId] = useState('alessandro-i')
+  const [days, setDays] = useState<number>(30)
   const [data, setData] = useState<VesselFunnelResult | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
@@ -205,6 +205,48 @@ export default function VesselFunnelPage() {
               <RateCard label="Revenue / Lead" value={data.rates.revenuePerLead} money hint="Total booking revenue divided by number of leads" />
             </div>
 
+
+            {/* Campaign Breakdown */}
+            {data.campaignBreakdown && data.campaignBreakdown.length > 0 && (
+              <Card>
+                <div className="mb-3 flex items-center justify-between">
+                  <div className="flex items-center gap-1">
+                    <h3 className="text-lg font-semibold text-gray-900">Campaign Breakdown</h3>
+                    <InfoIcon text="Performance comparison between campaigns feeding into this vessel's funnel" />
+                  </div>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-[13px]">
+                    <thead>
+                      <tr className="border-b text-left text-[11px] uppercase text-gray-500">
+                        <th className="py-2 px-3">Campaign</th>
+                        <th className="py-2 px-3 text-right">Leads</th>
+                        <th className="py-2 px-3 text-right">QL</th>
+                        <th className="py-2 px-3 text-right">Lead→QL</th>
+                        <th className="py-2 px-3 text-right">Vessel QL</th>
+                        <th className="py-2 px-3 text-right">Bookings</th>
+                        <th className="py-2 px-3 text-right">VQL→Book</th>
+                        <th className="py-2 px-3 text-right">Revenue</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.campaignBreakdown.map((row, idx) => (
+                        <tr key={row.key} className={cn('border-b last:border-0', idx % 2 === 0 ? 'bg-white' : 'bg-[#F9FAFB]')}>
+                          <td className="py-2 px-3 font-medium text-gray-900">{row.label}</td>
+                          <td className="py-2 px-3 text-right text-gray-700">{row.leads}</td>
+                          <td className="py-2 px-3 text-right text-gray-700">{row.ql}</td>
+                          <td className="py-2 px-3 text-right text-gray-700">{formatPct(row.leadToQl)}</td>
+                          <td className="py-2 px-3 text-right text-gray-700">{row.vesselQl}</td>
+                          <td className="py-2 px-3 text-right text-gray-700">{row.bookings}</td>
+                          <td className="py-2 px-3 text-right text-gray-700">{formatPct(row.vesselQlToBooking)}</td>
+                          <td className="py-2 px-3 text-right font-medium text-gray-900">{row.revenue > 0 ? formatCurrency(row.revenue) : '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            )}
 
             {/* Charts */}
             <div className="grid gap-6 lg:grid-cols-2">

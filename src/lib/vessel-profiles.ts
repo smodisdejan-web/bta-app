@@ -1,3 +1,9 @@
+export interface CampaignSub {
+  key: string;
+  label: string;
+  pattern: string;
+}
+
 export interface VesselProfile {
   id: string;
   name: string;
@@ -8,6 +14,7 @@ export interface VesselProfile {
   bookingPattern: string;
   specs?: string;
   priceFrom?: string;
+  campaigns?: CampaignSub[];
 }
 
 export const VESSEL_PROFILES: VesselProfile[] = [
@@ -43,6 +50,10 @@ export const VESSEL_PROFILES: VesselProfile[] = [
     bookingPattern: 'ALESSANDRO',
     specs: '40m · 10 guests · Croatia',
     priceFrom: 'from €60k/week',
+    campaigns: [
+      { key: 'smarter', label: 'Smarter Way', pattern: 'alessandro_smarter' },
+      { key: 'discount', label: 'Discount', pattern: 'alessandro' },
+    ],
   },
   {
     id: 'maxita',
