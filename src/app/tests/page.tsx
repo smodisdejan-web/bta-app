@@ -389,11 +389,20 @@ function SummaryCard({
   )
 }
 
-function TestCard({ test }: { test: TestTrackerRow }) {
+function resolveKpi(kpiName: string, metrics?: VariantMetrics): number | null {
+  if (!metrics) return null
+  const lower = (kpiName || '').toLowerCase()
+  if (lower.includes('cpql')) return metrics.cpql
+  if (lower.includes('cpl')) return metrics.cpl
+  if (lower.includes('ql rate') || lower.includes('quality')) return metrics.qualityRate
+  return null
+}
+
+function TestCard({ test }: { test: TestWithVariants }) {
   const target = parseTarget(test.success_criteria)
   const baseline = parseNumber(test.baseline)
-  const kpiA = parseNumber(test.kpi_a)
-  const kpiB = parseNumber(test.kpi_b)
+  const kpiA = resolveKpi(test.kpi_name, test.variants?.A) ?? parseNumber(test.kpi_a)
+  const kpiB = resolveKpi(test.kpi_name, test.variants?.B) ?? parseNumber(test.kpi_b)
   const maxVal = Math.max(baseline ?? 0, kpiA ?? 0, kpiB ?? 0, target ?? 0, 1)
   const days = test.days_running || daysSince(test.start_date) || 0
   const lowerBetter = isCostMetric(test.kpi_name)
@@ -616,8 +625,8 @@ function DoneCard({ test }: { test: TestWithVariants }) {
   const [frozenState, setFrozenState] = useState(test.frozen ?? false)
   const target = parseTarget(test.success_criteria)
   const baseline = parseNumber(test.baseline)
-  const kpiA = parseNumber(test.kpi_a)
-  const kpiB = parseNumber(test.kpi_b)
+  const kpiA = resolveKpi(test.kpi_name, test.variants?.A) ?? parseNumber(test.kpi_a)
+  const kpiB = resolveKpi(test.kpi_name, test.variants?.B) ?? parseNumber(test.kpi_b)
   const maxVal = Math.max(baseline ?? 0, kpiA ?? 0, kpiB ?? 0, target ?? 0, 1)
   const days = test.days_running || daysSince(test.start_date) || 0
   const lowerBetter = isCostMetric(test.kpi_name)
