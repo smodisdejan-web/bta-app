@@ -23,7 +23,8 @@ const navItems = [
   },
   { label: 'GA4 Landing Pages', href: '/ga4-landing-pages' },
   { label: 'Tests', href: '/tests' },
-  { label: 'Vessel Funnel', href: '/vessel-funnel' }
+  { label: 'Vessel Funnel', href: '/vessel-funnel' },
+  { label: 'Reports', href: 'https://goolets-reports.vercel.app/', external: true }
 ] as const
 
 export function Navigation() {
@@ -62,7 +63,21 @@ export function Navigation() {
             {/* Navigation Links */}
             <div className="flex items-center space-x-1">
               {navItems.map((item) => {
-                if (!item.dropdown) {
+                if ('external' in item && item.external) {
+                  return (
+                    <a
+                      key={item.href}
+                      href={item.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-2 text-sm font-medium rounded-md transition-all text-foreground/70 hover:text-primary hover:bg-primary/5"
+                    >
+                      {item.label}
+                    </a>
+                  )
+                }
+
+                if (!('dropdown' in item) || !item.dropdown) {
                   const active = isActive(item.href)
                   return (
                     <Link
