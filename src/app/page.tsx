@@ -433,25 +433,54 @@ export default function HomePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen px-4 py-10" style={{ backgroundColor: ivory }}>
-        <div className="mx-auto max-w-7xl">
-          <p className="text-muted-foreground">Loading Command Center...</p>
+      <div className="min-h-screen px-4 py-8" style={{ backgroundColor: ivory }}>
+        <div className="mx-auto max-w-7xl space-y-6 animate-pulse">
+          <div className="flex items-center justify-between">
+            <div className="space-y-3">
+              <div className="h-3 w-36 rounded bg-[#e1d8c7]/60" />
+              <div className="h-10 w-72 rounded bg-[#e1d8c7]/80" />
+              <div className="h-3 w-56 rounded bg-[#e1d8c7]/50" />
+            </div>
+            <div className="flex gap-2">
+              {[1,2,3,4,5].map((i) => <div key={i} className="h-9 w-20 rounded-md bg-[#e1d8c7]/60" />)}
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+            <div className="h-44 rounded-xl border border-[#e1d8c7]/60 bg-white/70 lg:col-span-2" />
+            <div className="h-44 rounded-xl border border-[#e1d8c7]/60 bg-white/70" />
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+            {[1,2,3,4,5,6].map((i) => <div key={i} className="h-24 rounded-xl border border-[#e1d8c7]/60 bg-white/70" />)}
+          </div>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <div className="h-64 rounded-xl border border-[#e1d8c7]/60 bg-white/70" />
+            <div className="h-64 rounded-xl border border-[#e1d8c7]/60 bg-white/70" />
+          </div>
         </div>
+        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 text-center">
+          <p className="font-script text-lg text-[#B39262]">Preparing your insights…</p>
         </div>
+      </div>
     )
   }
 
   return (
-    <div className="min-h-screen px-4 py-8" style={{ backgroundColor: ivory }}>
-      <div className="mx-auto max-w-7xl space-y-6">
-        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+    <div className="min-h-screen" style={{ backgroundColor: ivory }}>
+      <div className="sticky top-16 z-30 border-b border-[#e1d8c7]/60 bg-[#f8f7f2]/90 backdrop-blur-md">
+        <div className="mx-auto max-w-7xl px-4 py-4 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Command Center</h1>
-            <p className="text-sm text-muted-foreground">
-              Cross-channel performance dashboard for paid marketing
-            </p>
+            <p className="text-[11px] uppercase tracking-[0.3em] text-[#B39262] mb-2">Command Center</p>
+            <h1 className="font-serif text-3xl md:text-4xl font-medium text-foreground tracking-tight leading-tight">
+              Cross-channel performance
+            </h1>
+            <div className="mt-2 flex items-center gap-3">
+              <span className="h-px w-8 bg-[#B39262]" />
+              <p className="text-sm text-muted-foreground">
+                Paid marketing intelligence · {monthRangeLabel}
+              </p>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap md:pt-1">
             {(['7d', '30d', '60d', '90d'] as const).map((option) => (
               <Button
                 key={option}
@@ -464,7 +493,7 @@ export default function HomePage() {
                 }
               >
                 {option.replace('d', ' Days')}
-                    </Button>
+              </Button>
             ))}
             <Button
               variant="outline"
@@ -474,12 +503,14 @@ export default function HomePage() {
               onClick={() => setRange(range)}
             >
               <RefreshCw className="h-4 w-4" />
-                    </Button>
+            </Button>
           </div>
         </div>
+      </div>
 
+      <div className="mx-auto max-w-7xl px-4 py-8 space-y-6">
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <Card className="border-[#e1d8c7] bg-white shadow-sm lg:col-span-2">
+          <Card className="border-[#e1d8c7] bg-white shadow-sm transition-all duration-300 hover:border-[#B39262]/50 hover:shadow-md hover:-translate-y-0.5 lg:col-span-2">
             <CardContent className="p-6 space-y-3">
               <div className="flex items-center gap-2 text-sm font-medium text-green-600">
                 <span className="h-2 w-2 rounded-full bg-green-500" />
@@ -500,7 +531,7 @@ export default function HomePage() {
                 </CardContent>
             </Card>
 
-          <Card className="border-[#e1d8c7] bg-white shadow-sm">
+          <Card className="border-[#e1d8c7] bg-white shadow-sm transition-all duration-300 hover:border-[#B39262]/50 hover:shadow-md hover:-translate-y-0.5">
             <CardContent className="p-6 space-y-4">
               <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
@@ -521,7 +552,7 @@ export default function HomePage() {
                             </div>
               <div className="space-y-2 text-sm text-gray-700">
                 {aiBullets.length === 0 ? (
-                  <p className="text-muted-foreground">Insights will appear after data loads.</p>
+                  <p className="text-muted-foreground italic">The executive summary arrives once data settles.</p>
                 ) : (
                   aiBullets.map((b, idx) => {
                     const clean = b.replace(/\*\*/g, '')
@@ -592,7 +623,7 @@ export default function HomePage() {
                     </div>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <Card className="border-[#e1d8c7] bg-white shadow-sm">
+          <Card className="border-[#e1d8c7] bg-white shadow-sm transition-all duration-300 hover:border-[#B39262]/50 hover:shadow-md hover:-translate-y-0.5">
             <CardContent className="p-6 space-y-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -616,7 +647,10 @@ export default function HomePage() {
               </div>
               <div className="space-y-2 text-sm text-gray-700">
                 {revenueBySource.length === 0 && (
-                  <p className="text-muted-foreground text-sm">No revenue data in range.</p>
+                  <div className="py-6 text-center space-y-1">
+                    <p className="font-serif text-lg text-foreground">Revenue awaits.</p>
+                    <p className="text-sm text-muted-foreground">The chart fills as deals close within this period.</p>
+                  </div>
                 )}
                 {revenueBySource.map((item) => (
                   <div key={item.name} className="flex items-center justify-between">
@@ -630,7 +664,7 @@ export default function HomePage() {
             </CardContent>
           </Card>
 
-          <Card className="border-[#e1d8c7] bg-white shadow-sm">
+          <Card className="border-[#e1d8c7] bg-white shadow-sm transition-all duration-300 hover:border-[#B39262]/50 hover:shadow-md hover:-translate-y-0.5">
             <CardContent className="p-6 space-y-4">
               <div className="flex items-center justify-between">
                             <div>
@@ -664,13 +698,18 @@ export default function HomePage() {
                     </div>
                   </div>
                 ))}
-                {topMarkets.length === 0 && <p className="text-muted-foreground text-sm">No bookings in range.</p>}
+                {topMarkets.length === 0 && (
+                  <div className="py-6 text-center space-y-1">
+                    <p className="font-serif text-lg text-foreground">Your next story starts here.</p>
+                    <p className="text-sm text-muted-foreground">Awaiting the first booking of this period.</p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
                 </div>
 
-        <Card className="border-[#e1d8c7] bg-white shadow-sm">
+        <Card className="border-[#e1d8c7] bg-white shadow-sm transition-all duration-300 hover:border-[#B39262]/50 hover:shadow-md hover:-translate-y-0.5">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
                 <div>
@@ -727,7 +766,7 @@ export default function HomePage() {
           </CardContent>
         </Card>
 
-        <Card className="border-[#e1d8c7] bg-white shadow-sm">
+        <Card className="border-[#e1d8c7] bg-white shadow-sm transition-all duration-300 hover:border-[#B39262]/50 hover:shadow-md hover:-translate-y-0.5">
           <CardContent className="p-6 space-y-4">
                                             <div className="flex items-center justify-between">
               <div>
@@ -737,7 +776,10 @@ export default function HomePage() {
                                             </div>
             <div className="h-72">
               {leadTrend.length === 0 ? (
-                <div className="flex h-full items-center justify-center text-sm text-muted-foreground">No lead data in range.</div>
+                <div className="flex h-full flex-col items-center justify-center text-center gap-1">
+                  <p className="font-serif text-lg text-foreground">Quality emerges in time.</p>
+                  <p className="text-sm text-muted-foreground">Lead trends appear as campaigns fire.</p>
+                </div>
               ) : (
                 <ResponsiveContainer>
                   <ComposedChart data={leadTrend}>
@@ -757,7 +799,7 @@ export default function HomePage() {
           </CardContent>
         </Card>
 
-        <Card className="border-[#e1d8c7] bg-white shadow-sm">
+        <Card className="border-[#e1d8c7] bg-white shadow-sm transition-all duration-300 hover:border-[#B39262]/50 hover:shadow-md hover:-translate-y-0.5">
           <CardContent className="p-6 space-y-4">
             <div className="flex items-center justify-between">
               <div>
@@ -866,7 +908,7 @@ function normalizeCountry(country: string) {
 
 function MetricCard({ title, value, subtitle, icon, accent }: MetricCardProps) {
                                 return (
-    <Card className="border-[#e1d8c7] bg-white shadow-sm">
+    <Card className="border-[#e1d8c7] bg-white shadow-sm transition-all duration-300 hover:border-[#B39262]/50 hover:shadow-md hover:-translate-y-0.5">
       <CardContent className="p-4 space-y-3">
                                             <div className="flex items-center justify-between">
           <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{title}</div>
@@ -883,7 +925,7 @@ function MetricCard({ title, value, subtitle, icon, accent }: MetricCardProps) {
 
 function ChannelCard({ title, icon, metrics }: ChannelCardProps) {
   return (
-    <Card className="border-[#e1d8c7] bg-white shadow-sm">
+    <Card className="border-[#e1d8c7] bg-white shadow-sm transition-all duration-300 hover:border-[#B39262]/50 hover:shadow-md hover:-translate-y-0.5">
       <CardContent className="p-6 space-y-4">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#fbf9f4] text-lg">{icon}</div>

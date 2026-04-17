@@ -1,0 +1,8 @@
+<svg viewBox="0 0 240 80" xmlns="http://www.w3.org/2000/svg" fill="none">
+  <g stroke="#FAF8F5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="40" cy="40" r="34"/>
+    <path d="M38 14 L38 66 M38 14 C22 14 14 24 14 40 C14 56 22 66 38 66"/>
+    <path d="M42 14 L42 66 M42 14 C58 14 66 24 66 40 C66 56 58 66 42 66"/>
+  </g>
+  <text x="96" y="52" font-family="'Cormorant Garamond', Georgia, serif" font-size="34" font-weight="500" fill="#FAF8F5" letter-spacing="4">GOOLETS</text>
+</svg>

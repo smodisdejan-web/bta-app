@@ -6,9 +6,9 @@ const config: Config = {
   theme: {
   	extend: {
   		fontFamily: {
-  			serif: ['Sigvar-Serial', 'Georgia', 'serif'],
-  			sans: ['Inter', 'system-ui', 'sans-serif'],
-  			script: ['Hamilton Script', 'cursive']
+  			serif: ['var(--font-serif-display)', 'Cormorant Garamond', 'Georgia', 'serif'],
+  			sans: ['var(--font-inter)', 'Inter', 'system-ui', 'sans-serif'],
+  			script: ['var(--font-script)', 'Dancing Script', 'cursive']
   		},
   		backgroundImage: {
   			'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',

@@ -1,11 +1,29 @@
-// src/app/layout.tsx 
+// src/app/layout.tsx
 import './globals.css'
-import { Inter } from 'next/font/google'
+import { Inter, Cormorant_Garamond, Dancing_Script } from 'next/font/google'
 import { SettingsProvider } from '@/lib/contexts/SettingsContext'
 import { Navigation } from '@/components/Navigation'
 import { Toaster } from '@/components/ui/toaster'
 
-const inter = Inter({ subsets: ['latin'] })
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display: 'swap',
+})
+
+const cormorant = Cormorant_Garamond({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-serif-display',
+  display: 'swap',
+})
+
+const dancingScript = Dancing_Script({
+  subsets: ['latin'],
+  weight: ['400', '600'],
+  variable: '--font-script',
+  display: 'swap',
+})
 
 export default function RootLayout({
   children,
@@ -13,11 +31,11 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${inter.variable} ${cormorant.variable} ${dancingScript.variable}`}>
       <body className={inter.className}>
         <SettingsProvider>
           <Navigation />
-          <main className="min-h-screen bg-gray-50 pt-20 md:pt-24">
+          <main className="min-h-screen bg-background pt-16">
             {children}
           </main>
           <Toaster />
@@ -25,4 +43,4 @@ export default function RootLayout({
       </body>
     </html>
   )
-} 
+}

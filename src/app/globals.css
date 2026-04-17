@@ -2,37 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Goolets Brand Fonts */
-@layer base {
-  /* Note: Add actual font files to /public/branding/fonts/ */
-  /* Sigvar-Serial for headings */
-  @font-face {
-    font-family: 'Sigvar-Serial';
-    src: url('/branding/fonts/sigvar-serial-regular.woff2') format('woff2');
-    font-weight: 400;
-    font-style: normal;
-    font-display: swap;
-  }
-  
-  @font-face {
-    font-family: 'Sigvar-Serial';
-    src: url('/branding/fonts/sigvar-serial-semibold.woff2') format('woff2');
-    font-weight: 600;
-    font-style: normal;
-    font-display: swap;
-  }
-  
-  /* Hamilton Script for decorative accents */
-  @font-face {
-    font-family: 'Hamilton Script';
-    src: url('/branding/fonts/hamilton-script.woff2') format('woff2');
-    font-weight: 400;
-    font-style: normal;
-    font-display: swap;
-  }
-  
-  /* Inter is loaded via next/font/google in layout.tsx */
-}
+/* Goolets Brand Fonts
+   All fonts loaded via next/font/google in layout.tsx:
+   - Cormorant Garamond → --font-serif-display (headings, luxury feel)
+   - Dancing Script     → --font-script (decorative accents)
+   - Inter              → --font-inter (body, UI)
+*/
 
 @layer base {
   :root {

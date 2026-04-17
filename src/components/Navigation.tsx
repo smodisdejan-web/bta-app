@@ -27,6 +27,18 @@ const navItems = [
   { label: 'Reports', href: 'https://goolets-reports.vercel.app/', external: true }
 ] as const
 
+function BrandMark({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg" fill="none" className={className} aria-hidden>
+      <g stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="40" cy="40" r="34"/>
+        <path d="M38 14 L38 66 M38 14 C22 14 14 24 14 40 C14 56 22 66 38 66"/>
+        <path d="M42 14 L42 66 M42 14 C58 14 66 24 66 40 C66 56 58 66 42 66"/>
+      </g>
+    </svg>
+  )
+}
+
 export function Navigation() {
   const pathname = usePathname()
   const [openDropdown, setOpenDropdown] = useState(false)
@@ -44,6 +56,9 @@ export function Navigation() {
     }
   }, [])
 
+  // Hide navigation on auth/unlock screens — they own the full viewport
+  if (pathname === '/unlock') return null
+
   const isActive = (href: string) => pathname === href || (href === '/overview' && pathname === '/')
   const isGoogleActive = ['/google-ads', '/terms', '/ad-groups', '/budget-pacing', '/landing-pages', '/data-insights'].includes(pathname)
 
@@ -52,15 +67,14 @@ export function Navigation() {
       <div className="container mx-auto px-6 h-16 flex items-center">
         <div className="flex items-center justify-between w-full">
           <div className="flex items-center space-x-8">
-            {/* Logo - Goolets branding */}
-            <Link href="/" className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
-              <div className="flex flex-col">
-                <span className="font-bold text-xl text-foreground tracking-tight">GOOLETS</span>
-                <span className="text-xs text-muted-foreground font-sans uppercase tracking-wider">AI Agent</span>
+            <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+              <BrandMark className="h-8 w-8 text-foreground" />
+              <div className="flex flex-col leading-none">
+                <span className="font-serif text-xl text-foreground tracking-[0.25em] font-medium">GOOLETS</span>
+                <span className="text-[10px] text-muted-foreground uppercase tracking-[0.3em] mt-1">AI Agent</span>
               </div>
             </Link>
 
-            {/* Navigation Links */}
             <div className="flex items-center space-x-1">
               {navItems.map((item) => {
                 if ('external' in item && item.external) {
@@ -109,7 +123,7 @@ export function Navigation() {
                       <ChevronDown className="h-4 w-4" />
                     </button>
                     {openDropdown && (
-                      <div className="absolute left-0 mt-2 min-w-[180px] rounded-lg border border-gray-200 bg-white shadow-lg py-2">
+                      <div className="absolute left-0 mt-2 min-w-[180px] rounded-lg border border-border bg-card shadow-lg py-2">
                         {item.dropdown.map((sub) => {
                           const subActive = isActive(sub.href)
                           return (
@@ -118,7 +132,7 @@ export function Navigation() {
                               href={sub.href}
                               className={cn(
                                 'block px-4 py-2 text-sm transition-colors',
-                                subActive ? 'text-[#B39262]' : 'text-foreground/80 hover:bg-gray-50 hover:text-foreground'
+                                subActive ? 'text-primary' : 'text-foreground/80 hover:bg-muted hover:text-foreground'
                               )}
                               onClick={() => setOpenDropdown(false)}
                             >
@@ -134,7 +148,6 @@ export function Navigation() {
             </div>
           </div>
 
-          {/* Settings */}
           <Link
             href="/settings"
             className={cn(
