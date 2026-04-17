@@ -23,6 +23,8 @@ const STREAK_PREFIX_MAP: Record<string, string> = {
   'Test - Smart Spirit - Family - CBO - LF': 'test - smart spirit - family - cbo - lf',
   'Landing Unmatched Value - Objections crusher ads': 'landing_unmatched_value_1_',
   'Test - Landing Unmatched Value Forma 2 - Objections crusher ads': 'landing_unmatched_value_2_',
+  'Alessandro I - The Smarter Way - CBO - New': 'alessandro_smarter_',
+  'Alessandro I Discount - CBO - New': 'alessandro_tier',
 }
 
 const SPEND_ANOMALY_THRESHOLD = 1000
@@ -152,14 +154,16 @@ function aggregateVariant(
       if (cat !== 'PAID_SOCIAL') return false
       // Trailing '_' → exact prefix match (CRO-001 style)
       // Contains spaces → exact full match (SS-002 style)
-      // No spaces, no trailing '_' → keyword match within a shared prefix (SS-001 style)
+      // SS-001 keyword match within smart_spirit_ prefix (e.g. '25off', 'family')
+      // Generic startsWith fallback (e.g. 'alessandro_tier' matches 'alessandro_tier1_...')
       if (streakMapValue.endsWith('_')) {
         return sp.startsWith(streakMapValue)
       }
       if (streakMapValue.includes(' ')) {
         return sp === streakMapValue
       }
-      return sp.startsWith('smart_spirit_') && sp.includes(streakMapValue)
+      if (sp.startsWith('smart_spirit_') && sp.includes(streakMapValue)) return true
+      return sp.startsWith(streakMapValue)
     }
     // Otherwise fall back to existing fuzzy matching (for LF-001 etc.)
     return sourceMatchesCampaign(lead.source_placement, campaign)
