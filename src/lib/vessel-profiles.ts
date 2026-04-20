@@ -52,7 +52,7 @@ export const VESSEL_PROFILES: VesselProfile[] = [
     priceFrom: 'from €60k/week',
     campaigns: [
       { key: 'smarter', label: 'Smarter Way', pattern: 'alessandro_smarter' },
-      { key: 'discount_lf', label: 'Discount LF', pattern: 'alessandro - discount - cbo - lf' },
+      { key: 'discount_lf', label: 'Discount LF', pattern: 'alessandro - discount - cbo - lead form' },
       { key: 'discount', label: 'Discount LP', pattern: 'alessandro' },
     ],
   },
