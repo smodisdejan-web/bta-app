@@ -102,97 +102,53 @@ async function callGemini(prompt: string, context: string): Promise<LLMResponse>
 }
 
 /**
- * Call OpenAI API
+ * Call OpenAI API — DEPRECATED: routes to Claude Haiku 4.5.
+ * Kept for backwards compatibility with the UI's "gpt-4" provider option.
  */
 async function callOpenAI(prompt: string, context: string): Promise<LLMResponse> {
-  // This function should only be called from server-side code
-  // Import dynamically to avoid client bundle inclusion
-  const { getOpenAI, hasOpenAIKey } = await import('@/lib/ai')
-  
-  if (!hasOpenAIKey()) {
+  return callClaude(prompt, context)
+}
+
+/**
+ * Call Anthropic Claude (Haiku 4.5)
+ */
+async function callClaude(prompt: string, context: string): Promise<LLMResponse> {
+  const { getAnthropic, hasAnthropicKey } = await import('@/lib/ai')
+
+  if (!hasAnthropicKey()) {
     return {
       text: '',
-      error: 'OpenAI API key not configured.\n\n📝 Setup Instructions:\n1. Get your API key: https://platform.openai.com/api-keys\n2. Add to .env.local: OPENAI_API_KEY=your_key_here\n3. Restart your dev server\n\n💰 Note: OpenAI charges per token. Consider trying Gemini Pro (free tier) first!'
+      error: 'Anthropic Claude API key not configured.\n\n📝 Setup Instructions:\n1. Get your API key: https://console.anthropic.com/\n2. Add to .env.local: ANTHROPIC_API_KEY=your_key_here\n3. Restart your dev server'
     }
   }
 
   try {
-    const openai = getOpenAI()
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4',
-      messages: [
-        {
-          role: 'system',
-          content: 'You are a data analyst helping to analyze advertising campaign data. Provide clear, actionable insights.'
-        },
-        {
-          role: 'user',
-          content: `${context}\n\nUser request: ${prompt}`
-        }
-      ],
-      temperature: 0.7
+    const anthropic = getAnthropic()
+    const response = await anthropic.messages.create({
+      model: 'claude-haiku-4-5',
+      max_tokens: 1024,
+      system: 'You are a data analyst helping to analyze advertising campaign data. Provide clear, actionable insights.',
+      messages: [{ role: 'user', content: `${context}\n\nUser request: ${prompt}` }]
     })
-    
-    const text = completion.choices?.[0]?.message?.content || ''
-    const tokenUsage = completion.usage ? {
-      inputTokens: completion.usage.prompt_tokens || 0,
-      outputTokens: completion.usage.completion_tokens || 0,
-      totalTokens: completion.usage.total_tokens || 0
+
+    const text = response.content
+      .filter((b: any) => b.type === 'text')
+      .map((b: any) => b.text)
+      .join('')
+
+    const tokenUsage = response.usage ? {
+      inputTokens: response.usage.input_tokens || 0,
+      outputTokens: response.usage.output_tokens || 0,
+      totalTokens: (response.usage.input_tokens || 0) + (response.usage.output_tokens || 0)
     } : undefined
 
     return { text, tokenUsage }
   } catch (error: any) {
     return {
       text: '',
-      error: error?.message || 'OpenAI API error occurred'
+      error: error?.message || 'Anthropic API error occurred'
     }
   }
-}
-
-/**
- * Call Anthropic Claude API
- */
-async function callClaude(prompt: string, context: string): Promise<LLMResponse> {
-  const apiKey = process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY
-  
-  if (!apiKey) {
-    return {
-      text: '',
-      error: 'Anthropic Claude API key not configured.\n\n📝 Setup Instructions:\n1. Get your API key: https://console.anthropic.com/\n2. Add to .env.local: NEXT_PUBLIC_ANTHROPIC_API_KEY=your_key_here\n3. Restart your dev server\n\n💡 Consider trying Gemini Pro (free tier) if you want to test without costs!'
-    }
-  }
-
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01'
-    },
-    body: JSON.stringify({
-      model: 'claude-3-sonnet-20240229',
-      max_tokens: 1024,
-      messages: [{
-        role: 'user',
-        content: `${context}\n\nUser request: ${prompt}`
-      }]
-    })
-  })
-
-  if (!response.ok) {
-    throw new Error(`Claude API error: ${response.statusText}`)
-  }
-
-  const data = await response.json()
-  const text = data.content?.[0]?.text || ''
-  
-  const tokenUsage = data.usage ? {
-    inputTokens: data.usage.input_tokens || 0,
-    outputTokens: data.usage.output_tokens || 0,
-    totalTokens: (data.usage.input_tokens || 0) + (data.usage.output_tokens || 0)
-  } : undefined
-
-  return { text, tokenUsage }
 }
 
 // --- BEGIN getSheetData shim for landing-pages ---

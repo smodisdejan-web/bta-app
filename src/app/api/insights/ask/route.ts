@@ -1,6 +1,7 @@
 // src/app/api/insights/ask/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import { getOpenAI, hasOpenAIKey } from '@/lib/ai'
+import Anthropic from '@anthropic-ai/sdk'
+import { getAnthropic, hasAnthropicKey } from '@/lib/ai'
 import { getDateRangeSync as getDateRange } from '@/lib/overview-data'
 import { OverviewFilters } from '@/lib/overview-types'
 import {
@@ -241,37 +242,46 @@ Question: ${prompt}
 
 Provide up to 5 key insights as bullet points. Start each with an emoji matching sentiment (📈 positive, 📉 negative, 💡 opportunity, ⚠️ warning).`
 
-    if (!hasOpenAIKey()) {
+    if (!hasAnthropicKey()) {
       return NextResponse.json({
-        error: 'Missing OPENAI_API_KEY',
+        error: 'Missing ANTHROPIC_API_KEY',
         bullets: [
-          'AI insights require OPENAI_API_KEY to be configured.',
-          'Please set OPENAI_API_KEY in your environment variables.'
+          'AI insights require ANTHROPIC_API_KEY to be configured.',
+          'Please set ANTHROPIC_API_KEY in your environment variables.'
         ]
       }, { status: 500 })
     }
 
     try {
-      const openai = getOpenAI()
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        temperature: 0.3,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ]
+      const anthropic = getAnthropic()
+      const response = await anthropic.messages.create({
+        model: 'claude-haiku-4-5',
+        max_tokens: 1024,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userPrompt }]
       })
-      const text = completion.choices?.[0]?.message?.content?.trim() || ''
+      const text = response.content
+        .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+        .map(b => b.text)
+        .join('')
+        .trim()
       const bullets = text
         .split('\n')
         .map(line => line.replace(/^[-•*]\s*/, '').trim())
-        .filter(line => line.length > 0)
+        .filter(line => line.length > 0 && /^[📈📉💡⚠️]/.test(line))
         .slice(0, 5)
       return NextResponse.json({ bullets, context: aiContext })
     } catch (aiError) {
+      if (aiError instanceof Anthropic.RateLimitError) {
+        console.error('[insights/ask] rate limited', aiError)
+        return NextResponse.json(
+          { error: 'Rate limited by Anthropic API', details: `${aiError}` },
+          { status: 429 }
+        )
+      }
       console.error('[insights/ask] AI generation failed:', aiError)
       return NextResponse.json(
-        { error: 'Failed to generate insights via OpenAI', details: `${aiError}` },
+        { error: 'Failed to generate insights via Anthropic', details: `${aiError}` },
         { status: 500 }
       )
     }

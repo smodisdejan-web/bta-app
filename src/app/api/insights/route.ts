@@ -1,44 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getOpenAI, hasOpenAIKey } from '@/lib/ai'
+import Anthropic from '@anthropic-ai/sdk'
+import { getAnthropic, hasAnthropicKey } from '@/lib/ai'
 
 export const runtime = 'nodejs'
 
 export async function POST(req: NextRequest) {
   try {
-    const { prompt, model } = await req.json()
+    const { prompt } = await req.json()
 
     if (!prompt || typeof prompt !== 'string') {
       return NextResponse.json({ error: 'Missing "prompt" (string).' }, { status: 400 })
     }
-    if (!hasOpenAIKey()) {
-      return NextResponse.json({ error: 'OPENAI_API_KEY not configured on server.' }, { status: 400 })
-    }
-    
-    const openai = getOpenAI()
-
-    // Extract model ID from provider:model format or use as-is
-    let modelId = 'gpt-4o-mini'
-    if (model && typeof model === 'string') {
-      // Handle provider:model format (e.g., "openai:gpt-4o-mini")
-      if (model.includes(':')) {
-        modelId = model.split(':')[1]
-      } else {
-        modelId = model
-      }
+    if (!hasAnthropicKey()) {
+      return NextResponse.json({ error: 'ANTHROPIC_API_KEY not configured on server.' }, { status: 400 })
     }
 
-    const completion = await openai.chat.completions.create({
-      model: modelId,
-      temperature: 0.3,
-      messages: [
-        { role: 'system', content: 'You are a PPC analyst. Return concise, actionable insights tied to Google Ads performance, in 3–6 bullet points.' },
-        { role: 'user', content: prompt }
-      ]
+    const anthropic = getAnthropic()
+    const response = await anthropic.messages.create({
+      model: 'claude-haiku-4-5',
+      max_tokens: 1024,
+      system: 'You are a PPC analyst. Return concise, actionable insights tied to Google Ads performance, in 3–6 bullet points.',
+      messages: [{ role: 'user', content: prompt }]
     })
 
-    const text =
-      completion.choices?.[0]?.message?.content?.trim() ||
-      'No insight generated.'
+    const text = response.content
+      .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+      .map(b => b.text)
+      .join('')
+      .trim() || 'No insight generated.'
 
     return NextResponse.json({ text })
   } catch (err: any) {
@@ -49,4 +38,3 @@ export async function POST(req: NextRequest) {
     )
   }
 }
-
