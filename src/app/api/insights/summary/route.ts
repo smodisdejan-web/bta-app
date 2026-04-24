@@ -270,7 +270,7 @@ Return 3-5 key insights as bullet points — ONE per line, NO preamble, NO heade
     try {
       const anthropic = getAnthropic()
       const response = await anthropic.messages.create({
-        model: 'claude-haiku-4-5',
+        model: 'claude-sonnet-4-6',
         max_tokens: 1024,
         system: [
           {

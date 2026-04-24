@@ -262,7 +262,7 @@ Provide up to 5 key insights as bullet points. Start each with an emoji matching
     try {
       const anthropic = getAnthropic()
       const response = await anthropic.messages.create({
-        model: 'claude-haiku-4-5',
+        model: 'claude-sonnet-4-6',
         max_tokens: 1024,
         system: [
           {
