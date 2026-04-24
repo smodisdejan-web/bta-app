@@ -18,6 +18,9 @@ const nextConfig = {
   async rewrites() {
     return [];
   },
+  outputFileTracingIncludes: {
+    '/api/insights/**': ['./src/lib/knowledge/**/*.md'],
+  },
 };
 
 

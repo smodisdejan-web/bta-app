@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { getAnthropic, hasAnthropicKey } from '@/lib/ai'
+import { getGooletsKnowledge } from '@/lib/knowledge'
 import { getDateRangeSync as getDateRange } from '@/lib/overview-data'
 import { OverviewFilters } from '@/lib/overview-types'
 import {
@@ -226,7 +227,8 @@ export async function POST(req: NextRequest) {
       topMarkets
     }
 
-    const systemPrompt = `You are a senior marketing analyst for Goolets, a luxury yacht charter company. 
+    const knowledge = getGooletsKnowledge()
+    const systemPrompt = `You are a senior marketing analyst for Goolets, a luxury yacht charter company.
 Analyze the marketing performance data and provide 3-5 bullet point insights.
 
 Focus on:
@@ -238,11 +240,16 @@ Focus on:
 
 Rules:
 - Be specific with numbers (e.g., "3.23x vs 1.64x" not "significantly higher")
-- Be actionable (e.g., "consider shifting 20% budget to Google" not "Google is performing well")
+- Be actionable — use the CPQL Zone Framework (SCALE/MAINTAIN/OPTIMIZE/CUT) and Campaign Priorities from the knowledge base
+- Reference specific campaigns, countries, or zones when relevant
 - Prioritize insights by business impact
 - Keep each bullet to 1-2 sentences
 - Use € for currency
-- This is a luxury business with 3-6 month sales cycles - context matters`
+- This is a luxury business with 3-6 month sales cycles - context matters
+
+# GOOLETS KNOWLEDGE BASE
+
+${knowledge}`
 
     const userPrompt = `Here is the marketing data for the last ${aiContext.dateRange}:
 
@@ -265,7 +272,13 @@ Return 3-5 key insights as bullet points — ONE per line, NO preamble, NO heade
       const response = await anthropic.messages.create({
         model: 'claude-haiku-4-5',
         max_tokens: 1024,
-        system: systemPrompt,
+        system: [
+          {
+            type: 'text',
+            text: systemPrompt,
+            cache_control: { type: 'ephemeral' }
+          }
+        ],
         messages: [{ role: 'user', content: userPrompt }]
       })
       const text = response.content

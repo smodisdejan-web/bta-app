@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { getAnthropic, hasAnthropicKey } from '@/lib/ai'
+import { getGooletsKnowledge } from '@/lib/knowledge'
 import { getDateRangeSync as getDateRange } from '@/lib/overview-data'
 import { OverviewFilters } from '@/lib/overview-types'
 import {
@@ -229,10 +230,16 @@ export async function POST(req: NextRequest) {
       topMarkets
     }
 
-    const systemPrompt = `You are a senior marketing analyst for Goolets, a luxury yacht charter company. 
+    const knowledge = getGooletsKnowledge()
+    const systemPrompt = `You are a senior marketing analyst for Goolets, a luxury yacht charter company.
 Answer the user's question with concise, actionable insights based on the provided data.
 Focus on revenue/bookings, channel efficiency, lead quality trends, market opportunities, and cost efficiency (CAC/CPQL).
-Keep each bullet to 1-2 sentences, use € for currency, and consider 3-6 month sales cycles.`
+Use the CPQL Zone Framework (SCALE/MAINTAIN/OPTIMIZE/CUT), campaign priorities, and country priorities from the knowledge base when relevant.
+Keep each bullet to 1-2 sentences, use € for currency, and consider 3-6 month sales cycles.
+
+# GOOLETS KNOWLEDGE BASE
+
+${knowledge}`
 
     const userPrompt = `Here is the marketing data for the last ${aiContext.dateRange}:
 
@@ -257,7 +264,13 @@ Provide up to 5 key insights as bullet points. Start each with an emoji matching
       const response = await anthropic.messages.create({
         model: 'claude-haiku-4-5',
         max_tokens: 1024,
-        system: systemPrompt,
+        system: [
+          {
+            type: 'text',
+            text: systemPrompt,
+            cache_control: { type: 'ephemeral' }
+          }
+        ],
         messages: [{ role: 'user', content: userPrompt }]
       })
       const text = response.content
