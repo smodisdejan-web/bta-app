@@ -20,13 +20,22 @@ export const runtime = 'nodejs'
 
 export async function POST(req: NextRequest) {
   try {
-    const { filters, sheetUrl } = await req.json()
-    
+    const { filters, sheetUrl, metrics: clientMetrics } = await req.json()
+
     if (!filters) {
       return NextResponse.json({ error: 'Missing filters' }, { status: 400 })
     }
-    
+
     const days = filters.dateRange === '7d' ? 7 : filters.dateRange === '30d' ? 30 : filters.dateRange === '60d' ? 60 : 90
+
+    // Fast path: client passed the exact metrics shown on the page. Use them
+    // verbatim so the AI summary can never contradict the KPI cards.
+    if (clientMetrics && typeof clientMetrics === 'object') {
+      return runAiSummary({ ...clientMetrics, dateRange: `${days} days` })
+    }
+
+    // Legacy path: no client metrics — recompute from sheets (kept for
+    // backwards compatibility with any external caller).
     const { start, end } = getDateRange(filters.dateRange, filters.customStart, filters.customEnd)
     const sheets = sheetUrl || process.env.NEXT_PUBLIC_SHEETS_URL || ''
 
@@ -227,8 +236,19 @@ export async function POST(req: NextRequest) {
       topMarkets
     }
 
-    const knowledge = getGooletsKnowledge()
-    const systemPrompt = `You are a senior marketing analyst for Goolets, a luxury yacht charter company.
+    return runAiSummary(aiContext)
+  } catch (err: any) {
+    console.error('[insights/summary] error', err)
+    return NextResponse.json(
+      { error: err?.message || 'Failed to generate summary.' },
+      { status: 500 }
+    )
+  }
+}
+
+async function runAiSummary(aiContext: Record<string, any>) {
+  const knowledge = getGooletsKnowledge()
+  const systemPrompt = `You are a senior marketing analyst for Goolets, a luxury yacht charter company.
 Analyze the marketing performance data and provide 3-5 bullet point insights.
 
 Focus on:
@@ -238,11 +258,18 @@ Focus on:
 4. Market opportunities - which countries show best potential
 5. Cost efficiency - CAC/CPQL changes, budget optimization
 
-Rules:
+CRITICAL — data integrity rules (violating these destroys user trust):
+- Use ONLY the metrics present in the USER payload. Do NOT invent, round, or extrapolate numbers.
+- Every number you cite MUST appear in the payload. If a figure (spend, leads, revenue, close rate, ROAS) is not in the payload, do not mention it.
+- Do NOT reference a country, campaign, or channel unless it is present in the payload (topMarkets[].country, revenueBySource[].name, or the facebook/google blocks).
+- The knowledge base describes strategic priorities (e.g. Australia target market) but does NOT constitute current performance data. Never claim a country is "winning" or "losing" unless the payload's topMarkets entry for that country proves it.
+- If the payload shows facebook.spend = 0 and facebook.bookings > 0, that is a DATA GAP, not a campaign insight — flag it as "verify tracking" not as performance.
+- When referencing a country, use the exact spelling and capitalization from topMarkets[].country.
+
+Style rules:
 - Be specific with numbers (e.g., "3.23x vs 1.64x" not "significantly higher")
 - Be actionable — use the CPQL Zone Framework (SCALE/MAINTAIN/OPTIMIZE/CUT) and Campaign Priorities from the knowledge base
-- Reference specific campaigns, countries, or zones when relevant
-- Prioritize insights by business impact
+- Prioritize insights by business impact (revenue first, then efficiency, then quality trends)
 - Keep each bullet to 1-2 sentences
 - Use € for currency
 - This is a luxury business with 3-6 month sales cycles - context matters
@@ -251,68 +278,61 @@ Rules:
 
 ${knowledge}`
 
-    const userPrompt = `Here is the marketing data for the last ${aiContext.dateRange}:
+  const userPrompt = `Here is the marketing data for the last ${aiContext.dateRange}. These numbers are the ground truth — they are the SAME numbers displayed on the user's dashboard right now. Do not contradict them.
 
 ${JSON.stringify(aiContext, null, 2)}
 
 Return 3-5 key insights as bullet points — ONE per line, NO preamble, NO header, NO closing remarks. Start each bullet with an emoji that matches the sentiment (📈 positive, 📉 negative, 💡 opportunity, ⚠️ warning) followed by a short bold label, then the insight. Output ONLY the bullets, nothing else.`
 
-    if (!hasAnthropicKey()) {
-      return NextResponse.json({
-        bullets: [
-          'AI insights require ANTHROPIC_API_KEY to be configured.',
-          'Please set ANTHROPIC_API_KEY in your environment variables.',
-          'Alternatively, review spend, ROAS, and quality lead trends manually.'
-        ]
-      })
-    }
+  if (!hasAnthropicKey()) {
+    return NextResponse.json({
+      bullets: [
+        'AI insights require ANTHROPIC_API_KEY to be configured.',
+        'Please set ANTHROPIC_API_KEY in your environment variables.',
+        'Alternatively, review spend, ROAS, and quality lead trends manually.'
+      ]
+    })
+  }
 
-    try {
-      const anthropic = getAnthropic()
-      const response = await anthropic.messages.create({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 1024,
-        system: [
-          {
-            type: 'text',
-            text: systemPrompt,
-            cache_control: { type: 'ephemeral' }
-          }
-        ],
-        messages: [{ role: 'user', content: userPrompt }]
-      })
-      const text = response.content
-        .filter((b): b is Anthropic.TextBlock => b.type === 'text')
-        .map(b => b.text)
-        .join('')
-        .trim()
-      const bullets = text
-        .split('\n')
-        .map(line => line.replace(/^[-•*]\s*/, '').trim())
-        .filter(line => line.length > 0 && /^[📈📉💡⚠️]/.test(line))
-        .slice(0, 5)
-      return NextResponse.json({ bullets, context: aiContext })
-    } catch (err) {
-      if (err instanceof Anthropic.RateLimitError) {
-        console.error('[insights/summary] rate limited', err)
-        return NextResponse.json({
-          bullets: ['Rate limited by Anthropic API. Please try again in a moment.']
-        })
-      }
-      console.error('[insights/summary] AI call failed', err)
+  try {
+    const anthropic = getAnthropic()
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 1024,
+      system: [
+        {
+          type: 'text',
+          text: systemPrompt,
+          cache_control: { type: 'ephemeral' }
+        }
+      ],
+      messages: [{ role: 'user', content: userPrompt }]
+    })
+    const text = response.content
+      .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+      .map(b => b.text)
+      .join('')
+      .trim()
+    const bullets = text
+      .split('\n')
+      .map(line => line.replace(/^[-•*]\s*/, '').trim())
+      .filter(line => line.length > 0 && /^[📈📉💡⚠️]/.test(line))
+      .slice(0, 5)
+    return NextResponse.json({ bullets, context: aiContext })
+  } catch (err) {
+    if (err instanceof Anthropic.RateLimitError) {
+      console.error('[insights/summary] rate limited', err)
       return NextResponse.json({
-        bullets: [
-          'Unable to generate insights. Please try again.',
-          'If the issue persists, verify ANTHROPIC_API_KEY and network access.'
-        ]
+        bullets: ['Rate limited by Anthropic API. Please try again in a moment.']
       })
     }
-  } catch (err: any) {
-    console.error('[insights/summary] error', err)
-    return NextResponse.json(
-      { error: err?.message || 'Failed to generate summary.' },
-      { status: 500 }
-    )
+    console.error('[insights/summary] AI call failed', err)
+    return NextResponse.json({
+      bullets: [
+        'Unable to generate insights. Please try again.',
+        'If the issue persists, verify ANTHROPIC_API_KEY and network access.'
+      ]
+    })
   }
 }
 
