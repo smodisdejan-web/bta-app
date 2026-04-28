@@ -4,13 +4,24 @@ import { fetchGoogleAds, calculateGoogleTotals } from '@/lib/google-ads'
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
-  const days = parseInt(searchParams.get('days') || '7', 10)
+  const startParam = searchParams.get('start')
+  const endParam = searchParams.get('end')
 
-  const end = new Date()
-  const start = new Date(end)
-  start.setDate(end.getDate() - days + 1)
-  start.setHours(0, 0, 0, 0)
-  end.setHours(23, 59, 59, 999)
+  let start: Date
+  let end: Date
+  if (startParam && endParam) {
+    start = new Date(startParam)
+    start.setHours(0, 0, 0, 0)
+    end = new Date(endParam)
+    end.setHours(23, 59, 59, 999)
+  } else {
+    const days = parseInt(searchParams.get('days') || '7', 10)
+    end = new Date()
+    start = new Date(end)
+    start.setDate(end.getDate() - days + 1)
+    start.setHours(0, 0, 0, 0)
+    end.setHours(23, 59, 59, 999)
+  }
 
   // Facebook data (same helpers as FB page)
   const fbData = await fetchFacebookAds()

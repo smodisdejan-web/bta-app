@@ -26,12 +26,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing filters' }, { status: 400 })
     }
 
-    const days = filters.dateRange === '7d' ? 7 : filters.dateRange === '30d' ? 30 : filters.dateRange === '60d' ? 60 : 90
+    const days = filters.dateRange === '7d' ? 7 : filters.dateRange === '30d' ? 30 : filters.dateRange === '60d' ? 60 : filters.dateRange === '90d' ? 90 : 30
 
     // Fast path: client passed the exact metrics shown on the page. Use them
     // verbatim so the AI summary can never contradict the KPI cards.
     if (clientMetrics && typeof clientMetrics === 'object') {
-      return runAiSummary({ ...clientMetrics, dateRange: `${days} days` })
+      const dateRange = clientMetrics.dateRange || `${days} days`
+      return runAiSummary({ ...clientMetrics, dateRange })
     }
 
     // Legacy path: no client metrics — recompute from sheets (kept for

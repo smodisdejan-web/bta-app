@@ -64,8 +64,10 @@ const grayBar = '#D1D5DB'
 const darkGold = '#8B7355'
 const emerald = '#047857'
 
+type Range = '7d' | '30d' | '60d' | '90d' | 'mtd' | 'lastMonth'
+
 export default function HomePage() {
-  const [range, setRange] = useState<'7d' | '30d' | '60d' | '90d'>('30d')
+  const [range, setRange] = useState<Range>('30d')
   const [cacMode, setCacMode] = useState<'leads' | 'deals'>('leads')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -78,19 +80,21 @@ export default function HomePage() {
   const [prefill, setPrefill] = useState('')
   const [apiTotals, setApiTotals] = useState<any>(null)
 
-  const days = useMemo(() => Number(range.replace('d', '')), [range])
+  const dateBounds = useMemo(() => computeDateBounds(range), [range])
+  const days = useMemo(() => {
+    const ms = dateBounds.end.getTime() - dateBounds.start.getTime()
+    return Math.max(1, Math.round(ms / 86_400_000) + 1)
+  }, [dateBounds])
 
   // Fetch combined totals from API when range changes
   useEffect(() => {
-    const daysNum = range === '7d' ? 7 : range === '30d' ? 30 : range === '60d' ? 60 : 90
-    fetch(`/api/dashboard-totals?days=${daysNum}`)
+    const startISO = dateBounds.start.toISOString().slice(0, 10)
+    const endISO = dateBounds.end.toISOString().slice(0, 10)
+    fetch(`/api/dashboard-totals?start=${startISO}&end=${endISO}`)
       .then((res) => res.json())
-      .then((data) => {
-        console.log('API totals:', data)
-        setApiTotals(data)
-      })
+      .then((data) => setApiTotals(data))
       .catch((e) => console.error('API totals fetch failed', e))
-  }, [range])
+  }, [dateBounds])
 
   useEffect(() => {
     const load = async () => {
@@ -128,20 +132,12 @@ export default function HomePage() {
     return fetchTab(tab, sheetUrl).then((res) => [res.headers, ...res.rows])
   }
 
-  const dateBounds = useMemo(() => {
-    const end = new Date()
-    end.setHours(23, 59, 59, 999)
-    const start = new Date(end)
-    start.setDate(start.getDate() - (days - 1))
-    start.setHours(0, 0, 0, 0)
-    return { start, end }
-  }, [days])
-
   const monthRangeLabel = useMemo(() => {
     const { start, end } = dateBounds
     const fmt = (d: Date) => d.toLocaleString('default', { month: 'short', year: 'numeric' })
+    if (range === 'mtd' || range === 'lastMonth') return fmt(start)
     return `${fmt(start)} - ${fmt(end)}`
-  }, [dateBounds])
+  }, [dateBounds, range])
 
   const monthsInRange = useMemo(() => getMonthsInRange(range), [range])
 
@@ -404,10 +400,20 @@ export default function HomePage() {
   }, [leadsFiltered, dateBounds, days])
 
   const handleAsk = async (prompt: string) => {
+    const startISO = dateBounds.start.toISOString().slice(0, 10)
+    const endISO = dateBounds.end.toISOString().slice(0, 10)
     const res = await fetch('/api/insights/ask', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, filters: { dateRange: range }, sheetUrl: getSheetsUrl() })
+      body: JSON.stringify({
+        prompt,
+        filters: {
+          dateRange: range === 'mtd' || range === 'lastMonth' ? 'custom' : range,
+          customStart: startISO,
+          customEnd: endISO
+        },
+        sheetUrl: getSheetsUrl()
+      })
     })
     if (!res.ok) throw new Error('Failed to generate insights')
     return res.json()
@@ -417,7 +423,7 @@ export default function HomePage() {
   // diverges from the KPI cards. All numbers below come from the same memos
   // that render the visible UI — no server-side recomputation.
   const aiMetricsPayload = useMemo(() => ({
-    dateRange: range,
+    dateRange: rangeLabel(range),
     totalSpend: totals.spend,
     totalLeads: totals.leads,
     totalQualityLeads: totals.qualityLeads,
@@ -456,11 +462,17 @@ export default function HomePage() {
   useEffect(() => {
     const loadSummary = async () => {
       try {
+        const startISO = dateBounds.start.toISOString().slice(0, 10)
+        const endISO = dateBounds.end.toISOString().slice(0, 10)
         const res = await fetch('/api/insights/summary', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            filters: { dateRange: range },
+            filters: {
+              dateRange: range === 'mtd' || range === 'lastMonth' ? 'custom' : range,
+              customStart: startISO,
+              customEnd: endISO
+            },
             sheetUrl: getSheetsUrl(),
             metrics: aiMetricsPayload
           })
@@ -473,7 +485,7 @@ export default function HomePage() {
       }
     }
     loadSummary()
-  }, [range, aiMetricsPayload])
+  }, [range, dateBounds, aiMetricsPayload])
 
   if (loading) {
     return (
@@ -525,18 +537,25 @@ export default function HomePage() {
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap md:pt-1">
-            {(['7d', '30d', '60d', '90d'] as const).map((option) => (
+            {([
+              { key: '7d', label: '7 Days' },
+              { key: '30d', label: '30 Days' },
+              { key: '60d', label: '60 Days' },
+              { key: '90d', label: '90 Days' },
+              { key: 'mtd', label: 'This Month' },
+              { key: 'lastMonth', label: 'Last Month' }
+            ] as const).map((option) => (
               <Button
-                key={option}
-                variant={option === range ? 'default' : 'outline'}
-                onClick={() => setRange(option)}
+                key={option.key}
+                variant={option.key === range ? 'default' : 'outline'}
+                onClick={() => setRange(option.key)}
                 className={
-                  option === range
+                  option.key === range
                     ? 'bg-[#B39262] text-white hover:bg-[#9c7f54]'
                     : 'border-[#e1d8c7] bg-white text-gray-700 hover:bg-[#f2ede3]'
                 }
               >
-                {option.replace('d', ' Days')}
+                {option.label}
               </Button>
             ))}
             <Button
@@ -908,8 +927,18 @@ function weekLabel(d: Date) {
   return `${start.toLocaleDateString()}`
 }
 
-function getMonthsInRange(range: '7d' | '30d' | '60d' | '90d'): string[] {
+function getMonthsInRange(range: Range): string[] {
   const now = new Date()
+  const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+
+  if (range === 'mtd') {
+    return [fmt(now)]
+  }
+  if (range === 'lastMonth') {
+    const d = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    return [fmt(d)]
+  }
+
   const months: string[] = []
   let numMonths = 1
   if (range === '30d') numMonths = 2
@@ -918,10 +947,46 @@ function getMonthsInRange(range: '7d' | '30d' | '60d' | '90d'): string[] {
 
   for (let i = 0; i < numMonths; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-    const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-    months.push(monthStr)
+    months.push(fmt(d))
   }
   return months
+}
+
+function computeDateBounds(range: Range): { start: Date; end: Date } {
+  const now = new Date()
+  if (range === 'mtd') {
+    const start = new Date(now.getFullYear(), now.getMonth(), 1)
+    start.setHours(0, 0, 0, 0)
+    const end = new Date(now)
+    end.setHours(23, 59, 59, 999)
+    return { start, end }
+  }
+  if (range === 'lastMonth') {
+    const start = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    start.setHours(0, 0, 0, 0)
+    const end = new Date(now.getFullYear(), now.getMonth(), 0)
+    end.setHours(23, 59, 59, 999)
+    return { start, end }
+  }
+  const days = Number(range.replace('d', ''))
+  const end = new Date()
+  end.setHours(23, 59, 59, 999)
+  const start = new Date(end)
+  start.setDate(start.getDate() - (days - 1))
+  start.setHours(0, 0, 0, 0)
+  return { start, end }
+}
+
+function rangeLabel(range: Range): string {
+  const now = new Date()
+  if (range === 'mtd') {
+    return `${now.toLocaleString('en-US', { month: 'long', year: 'numeric' })} (MTD)`
+  }
+  if (range === 'lastMonth') {
+    const d = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    return d.toLocaleString('en-US', { month: 'long', year: 'numeric' })
+  }
+  return `Last ${range.replace('d', ' days')}`
 }
 
 function calcRate(numerator: number, denominator: number) {
