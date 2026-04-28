@@ -381,14 +381,20 @@ export default function HomePage() {
   }, [totals])
 
   const leadTrend = useMemo(() => {
-    const { start } = dateBounds
     const groupByWeek = days > 7
-    const map = new Map<string, { totalLeads: number; qualityLeads: number; avgAi: number; count: number; label: string }>()
+    const today = new Date()
+    today.setHours(23, 59, 59, 999)
+
+    const map = new Map<string, { totalLeads: number; qualityLeads: number; avgAi: number; count: number; label: string; bucketEnd: Date }>()
     leadsFiltered.forEach((l) => {
       const d = new Date(l.inquiry_date)
       const key = groupByWeek ? weekKey(d) : d.toISOString().slice(0, 10)
       const label = groupByWeek ? weekLabel(d) : d.toLocaleDateString()
-      const entry = map.get(key) || { totalLeads: 0, qualityLeads: 0, avgAi: 0, count: 0, label }
+      const bucketStart = new Date(groupByWeek ? weekKey(d) : d.toISOString().slice(0, 10))
+      const bucketEnd = new Date(bucketStart)
+      bucketEnd.setDate(bucketEnd.getDate() + (groupByWeek ? 6 : 0))
+      bucketEnd.setHours(23, 59, 59, 999)
+      const entry = map.get(key) || { totalLeads: 0, qualityLeads: 0, avgAi: 0, count: 0, label, bucketEnd }
       entry.totalLeads += 1
       if (l.ai_score >= 50) entry.qualityLeads += 1
       entry.avgAi += l.ai_score || 0
@@ -396,14 +402,29 @@ export default function HomePage() {
       map.set(key, entry)
     })
     return Array.from(map.values())
-      .map((v) => ({
-        label: v.label,
-        totalLeads: v.totalLeads,
-        qualityLeads: v.qualityLeads,
-        avgAiScore: v.count > 0 ? Math.round((v.avgAi / v.count) * 10) / 10 : 0
-      }))
+      .map((v) => {
+        const isPartial = v.bucketEnd.getTime() > today.getTime()
+        const rawRate = v.totalLeads > 0 ? (v.qualityLeads / v.totalLeads) * 100 : 0
+        return {
+          label: v.label,
+          totalLeads: v.totalLeads,
+          qualityLeads: v.qualityLeads,
+          qlRate: isPartial ? null : Math.round(rawRate * 10) / 10,
+          qlRateDisplay: Math.round(rawRate * 10) / 10,
+          avgAiScore: v.count > 0 ? Math.round((v.avgAi / v.count) * 10) / 10 : 0,
+          isPartial
+        }
+      })
       .sort((a, b) => new Date(a.label).getTime() - new Date(b.label).getTime())
-  }, [leadsFiltered, dateBounds, days])
+  }, [leadsFiltered, days])
+
+  const qlRateDelta = useMemo(() => {
+    const completes = leadTrend.filter((p) => !p.isPartial && p.totalLeads > 0)
+    if (completes.length < 2) return null
+    const last = completes[completes.length - 1].qlRateDisplay
+    const prev = completes[completes.length - 2].qlRateDisplay
+    return Math.round((last - prev) * 10) / 10
+  }, [leadTrend])
 
   const handleAsk = async (prompt: string) => {
     const startISO = dateBounds.start.toISOString().slice(0, 10)
@@ -872,12 +893,29 @@ export default function HomePage() {
 
         <Card className="border-[#e1d8c7] bg-white shadow-sm transition-all duration-300 hover:border-[#B39262]/50 hover:shadow-md hover:-translate-y-0.5">
           <CardContent className="p-6 space-y-4">
-                                            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-2">
               <div>
                 <p className="text-sm font-semibold">Lead Quality Trend</p>
-                <p className="text-xs text-muted-foreground">Total Leads, Quality Leads, Avg AI Score</p>
-                                                </div>
-                                            </div>
+                <p className="text-xs text-muted-foreground">QL rate over time · volume in background</p>
+              </div>
+              {qlRateDelta !== null && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">WoW</span>
+                  <span
+                    className={
+                      'rounded px-2 py-1 text-xs font-semibold ' +
+                      (qlRateDelta > 0
+                        ? 'bg-emerald-50 text-emerald-700'
+                        : qlRateDelta < 0
+                        ? 'bg-rose-50 text-rose-700'
+                        : 'bg-gray-100 text-gray-700')
+                    }
+                  >
+                    {qlRateDelta > 0 ? '↑' : qlRateDelta < 0 ? '↓' : '→'} {Math.abs(qlRateDelta).toFixed(1)}pp
+                  </span>
+                </div>
+              )}
+            </div>
             <div className="h-72">
               {leadTrend.length === 0 ? (
                 <div className="flex h-full flex-col items-center justify-center text-center gap-1">
@@ -886,16 +924,39 @@ export default function HomePage() {
                 </div>
               ) : (
                 <ResponsiveContainer>
-                  <ComposedChart data={leadTrend}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="label" />
-                    <YAxis yAxisId="left" />
-                    <YAxis yAxisId="right" orientation="right" domain={[0, 100]} />
-                    <Tooltip />
-                    <Legend />
-                    <Bar yAxisId="left" dataKey="totalLeads" name="Total Leads" fill={grayBar} />
-                    <Bar yAxisId="left" dataKey="qualityLeads" name="Quality Leads" fill={gold} />
-                    <Line yAxisId="right" type="monotone" dataKey="avgAiScore" name="Avg AI Score" stroke={darkGold} strokeWidth={2} />
+                  <ComposedChart data={leadTrend} margin={{ top: 10, right: 16, bottom: 0, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#efe8d8" vertical={false} />
+                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#6b7280' }} />
+                    <YAxis
+                      yAxisId="left"
+                      domain={[0, 100]}
+                      tickFormatter={(v) => `${v}%`}
+                      tick={{ fontSize: 11, fill: '#6b7280' }}
+                      width={42}
+                    />
+                    <YAxis yAxisId="right" orientation="right" hide />
+                    <Tooltip
+                      formatter={(value: any, name: string, item: any) => {
+                        if (name === 'QL Rate') {
+                          if (item?.payload?.isPartial) return [`${item.payload.qlRateDisplay}% (partial)`, name]
+                          return [`${value}%`, name]
+                        }
+                        return [value, name]
+                      }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                    <Bar yAxisId="right" dataKey="totalLeads" name="Total Leads" fill={grayBar} fillOpacity={0.45} radius={[3, 3, 0, 0]} />
+                    <Line
+                      yAxisId="left"
+                      type="monotone"
+                      dataKey="qlRate"
+                      name="QL Rate"
+                      stroke={gold}
+                      strokeWidth={3}
+                      dot={{ fill: gold, r: 4 }}
+                      activeDot={{ r: 6 }}
+                      connectNulls={false}
+                    />
                   </ComposedChart>
                 </ResponsiveContainer>
               )}
