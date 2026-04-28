@@ -67,7 +67,7 @@ const emerald = '#047857'
 type Range = '7d' | '30d' | '60d' | '90d' | 'mtd' | 'lastMonth'
 
 export default function HomePage() {
-  const [range, setRange] = useState<Range>('30d')
+  const [range, setRange] = useState<Range>('mtd')
   const [cacMode, setCacMode] = useState<'leads' | 'deals'>('leads')
   const [marketsSort, setMarketsSort] = useState<'revenue' | 'ql' | 'bookings'>('revenue')
   const [loading, setLoading] = useState(false)
