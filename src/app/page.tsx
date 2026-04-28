@@ -69,6 +69,7 @@ type Range = '7d' | '30d' | '60d' | '90d' | 'mtd' | 'lastMonth'
 export default function HomePage() {
   const [range, setRange] = useState<Range>('30d')
   const [cacMode, setCacMode] = useState<'leads' | 'deals'>('leads')
+  const [marketsSort, setMarketsSort] = useState<'revenue' | 'ql' | 'bookings'>('revenue')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [bookings, setBookings] = useState<BookingRecord[]>([])
@@ -347,15 +348,20 @@ export default function HomePage() {
       map.set(country, entry)
     })
 
-    return Array.from(map.entries())
+    const all = Array.from(map.entries())
       .map(([country, data]) => {
         const closeRate = data.ql > 0 ? (data.bookings / data.ql) * 100 : 0
         return { country, revenue: data.revenue, bookings: data.bookings, qualityLeads: data.ql, closeRate }
       })
       .filter((m) => m.revenue > 0 || m.qualityLeads > 0 || m.bookings > 0)
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 8)
-  }, [filteredBookings, qualityByCountry])
+
+    const sortKey =
+      marketsSort === 'ql' ? (m: typeof all[number]) => m.qualityLeads
+      : marketsSort === 'bookings' ? (m: typeof all[number]) => m.bookings
+      : (m: typeof all[number]) => m.revenue
+
+    return all.sort((a, b) => sortKey(b) - sortKey(a)).slice(0, 8)
+  }, [filteredBookings, qualityByCountry, marketsSort])
 
   const funnel = useMemo(() => {
     const steps = [
@@ -729,14 +735,48 @@ export default function HomePage() {
 
           <Card className="border-[#e1d8c7] bg-white shadow-sm transition-all duration-300 hover:border-[#B39262]/50 hover:shadow-md hover:-translate-y-0.5">
             <CardContent className="p-6 space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-2">
                             <div>
                   <p className="text-sm font-semibold">Top Markets</p>
                   <p className="text-xs text-muted-foreground">Funnel by country</p>
                             </div>
+                <div className="flex gap-1">
+                  {([
+                    { key: 'revenue', label: 'Revenue' },
+                    { key: 'ql', label: 'QL' },
+                    { key: 'bookings', label: 'Bookings' }
+                  ] as const).map((option) => (
+                    <Button
+                      key={option.key}
+                      variant={option.key === marketsSort ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setMarketsSort(option.key)}
+                      className={
+                        option.key === marketsSort
+                          ? 'bg-[#B39262] text-white hover:bg-[#9c7f54] h-7 px-2 text-xs'
+                          : 'border-[#e1d8c7] bg-white text-gray-700 hover:bg-[#f2ede3] h-7 px-2 text-xs'
+                      }
+                    >
+                      {option.label}
+                    </Button>
+                  ))}
+                </div>
                         </div>
               <div className="space-y-3">
-                {topMarkets.map((m) => (
+                {topMarkets.map((m) => {
+                  const sortValue =
+                    marketsSort === 'ql' ? m.qualityLeads
+                    : marketsSort === 'bookings' ? m.bookings
+                    : m.revenue
+                  const maxValue =
+                    marketsSort === 'ql' ? (topMarkets[0]?.qualityLeads || 1)
+                    : marketsSort === 'bookings' ? (topMarkets[0]?.bookings || 1)
+                    : (topMarkets[0]?.revenue || 1)
+                  const sortLabel =
+                    marketsSort === 'ql' ? `${m.qualityLeads.toLocaleString()} QL`
+                    : marketsSort === 'bookings' ? `${m.bookings} bookings`
+                    : formatCurrency(m.revenue, 'EUR')
+                  return (
                   <div key={m.country} className="space-y-1">
                     <div className="grid grid-cols-4 items-center text-sm gap-2">
                       <span>{m.country}</span>
@@ -753,14 +793,15 @@ export default function HomePage() {
                         <div
                           className="h-2 rounded bg-[#B39262]"
                           style={{
-                            width: `${Math.min(100, (m.revenue / (topMarkets[0]?.revenue || 1)) * 100)}%`
+                            width: `${Math.min(100, (sortValue / maxValue) * 100)}%`
                           }}
                         />
                     </div>
-                      <span className="text-sm font-semibold">{formatCurrency(m.revenue, 'EUR')}</span>
+                      <span className="text-sm font-semibold">{sortLabel}</span>
                     </div>
                   </div>
-                ))}
+                  )
+                })}
                 {topMarkets.length === 0 && (
                   <div className="py-6 text-center space-y-1">
                     <p className="font-serif text-lg text-foreground">Your next story starts here.</p>
