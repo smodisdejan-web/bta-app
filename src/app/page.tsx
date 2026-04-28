@@ -413,13 +413,57 @@ export default function HomePage() {
     return res.json()
   }
 
-    useEffect(() => {
+  // Build the EXACT metrics payload shown on the page so the AI summary never
+  // diverges from the KPI cards. All numbers below come from the same memos
+  // that render the visible UI — no server-side recomputation.
+  const aiMetricsPayload = useMemo(() => ({
+    dateRange: range,
+    totalSpend: totals.spend,
+    totalLeads: totals.leads,
+    totalQualityLeads: totals.qualityLeads,
+    avgAiScore: totals.avgAi,
+    totalBookings: totals.bookings,
+    totalRevenue: totals.revenue,
+    overallROAS: roasValue,
+    overallCAC: cacValue,
+    cacMode,
+    facebook: {
+      spend: channelFb.spend,
+      leads: channelFb.leads,
+      qualityLeads: channelFb.quality,
+      qlRate: channelFb.qRate,
+      cpql: channelFb.cpql,
+      bookings: channelFb.bookings,
+      revenue: channelFb.revenue,
+      roas: channelFb.roas
+    },
+    google: {
+      spend: channelGoogle.spend,
+      leads: channelGoogle.leads,
+      qualityLeads: channelGoogle.quality,
+      qlRate: channelGoogle.qRate,
+      cpql: channelGoogle.cpql,
+      bookings: channelGoogle.bookings,
+      revenue: channelGoogle.revenue,
+      roas: channelGoogle.roas
+    },
+    revenueBySource,
+    topMarkets,
+    leadTrend,
+    funnel
+  }), [range, totals, roasValue, cacValue, cacMode, channelFb, channelGoogle, revenueBySource, topMarkets, leadTrend, funnel])
+
+  useEffect(() => {
     const loadSummary = async () => {
       try {
         const res = await fetch('/api/insights/summary', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ filters: { dateRange: range }, sheetUrl: getSheetsUrl() })
+          body: JSON.stringify({
+            filters: { dateRange: range },
+            sheetUrl: getSheetsUrl(),
+            metrics: aiMetricsPayload
+          })
         })
         if (!res.ok) return
         const data = await res.json()
@@ -429,7 +473,7 @@ export default function HomePage() {
       }
     }
     loadSummary()
-  }, [range])
+  }, [range, aiMetricsPayload])
 
   if (loading) {
     return (
