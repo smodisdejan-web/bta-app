@@ -405,8 +405,12 @@ export default function HomePage() {
     return withRates
   }, [totals])
 
+  const groupByWeek = useMemo(
+    () => days > 7 && range !== 'mtd' && range !== 'lastMonth',
+    [days, range]
+  )
+
   const leadTrend = useMemo(() => {
-    const groupByWeek = days > 7
     const today = new Date()
     today.setHours(23, 59, 59, 999)
 
@@ -441,7 +445,7 @@ export default function HomePage() {
         }
       })
       .sort((a, b) => new Date(a.label).getTime() - new Date(b.label).getTime())
-  }, [leadsFiltered, days])
+  }, [leadsFiltered, groupByWeek])
 
   const qlRateDelta = useMemo(() => {
     const completes = leadTrend.filter((p) => !p.isPartial && p.totalLeads > 0)
@@ -943,7 +947,7 @@ export default function HomePage() {
               </div>
               {qlRateDelta !== null && (
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">WoW</span>
+                  <span className="text-xs text-muted-foreground">{groupByWeek ? 'WoW' : 'DoD'}</span>
                   <span
                     className={
                       'rounded px-2 py-1 text-xs font-semibold ' +
