@@ -187,25 +187,6 @@ export default function HomePage() {
   const monthsInRange = useMemo(() => getMonthsInRange(range), [range])
 
   const filteredBookings = useMemo(() => {
-    // TEMPORARY DEBUG - remove after fixing
-    if (bookings.length > 0) {
-      console.log('=== BOOKINGS DEBUG ===')
-      console.log('monthsInRange:', JSON.stringify(monthsInRange))
-      console.log('First booking date:', bookings[0]?.booking_date)
-      console.log(
-        'Parsed month:',
-        (() => {
-          const dateStr = String(bookings[0]?.booking_date || '')
-          if (dateStr.includes('T')) {
-            const date = new Date(dateStr)
-            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
-          }
-          return dateStr.substring(0, 7)
-        })()
-      )
-    }
-    // END DEBUG
-
     return bookings.filter((b) => {
       const dateStr = String(b.booking_date || '')
       let bookingMonth: string
