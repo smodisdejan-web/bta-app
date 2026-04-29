@@ -111,7 +111,7 @@ export default function FacebookAdsPage() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
   const [viewMode, setViewMode] = useState<'campaign' | 'daily'>('campaign')
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
-  const [dateRange, setDateRange] = useState<'7d' | '30d' | '90d' | 'custom'>('30d')
+  const [dateRange, setDateRange] = useState<'7d' | '30d' | '60d' | '90d' | 'mtd' | 'lastMonth' | 'custom'>('mtd')
   const [customDateRange, setCustomDateRange] = useState<[Date, Date] | null>(null)
   const [aiBullets, setAiBullets] = useState<string[]>([])
   const [aiLoading, setAiLoading] = useState(false)
@@ -187,8 +187,20 @@ export default function FacebookAdsPage() {
       endDate = new Date(customDateRange[1])
       startDate.setHours(0, 0, 0, 0)
       endDate.setHours(23, 59, 59, 999)
+    } else if (dateRange === 'mtd') {
+      startDate = new Date(today.getFullYear(), today.getMonth(), 1)
+      startDate.setHours(0, 0, 0, 0)
+    } else if (dateRange === 'lastMonth') {
+      startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+      startDate.setHours(0, 0, 0, 0)
+      endDate = new Date(today.getFullYear(), today.getMonth(), 0)
+      endDate.setHours(23, 59, 59, 999)
     } else {
-      const days = dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : 90
+      const days =
+        dateRange === '7d' ? 7
+        : dateRange === '60d' ? 60
+        : dateRange === '90d' ? 90
+        : 30 // 30d default
       startDate = new Date(today)
       startDate.setDate(today.getDate() - days + 1)
       startDate.setHours(0, 0, 0, 0)
@@ -651,18 +663,21 @@ export default function FacebookAdsPage() {
                   <SelectItem value="daily">Daily View</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={dateRange} onValueChange={(v: '7d' | '30d' | '90d' | 'custom') => {
+              <Select value={dateRange} onValueChange={(v: '7d' | '30d' | '60d' | '90d' | 'mtd' | 'lastMonth' | 'custom') => {
                 setDateRange(v)
                 if (v !== 'custom') {
                   setCustomDateRange(null)
                 }
               }}>
-                <SelectTrigger className="w-[140px]">
+                <SelectTrigger className="w-[160px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="mtd">This Month</SelectItem>
+                  <SelectItem value="lastMonth">Last Month</SelectItem>
                   <SelectItem value="7d">Last 7 days</SelectItem>
                   <SelectItem value="30d">Last 30 days</SelectItem>
+                  <SelectItem value="60d">Last 60 days</SelectItem>
                   <SelectItem value="90d">Last 90 days</SelectItem>
                   <SelectItem value="custom">Custom range</SelectItem>
                 </SelectContent>
