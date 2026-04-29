@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { useSettings } from '@/lib/contexts/SettingsContext'
 import { fetchFacebookAds, aggregateByCampaign, calculateTotals, addAiMetrics, type FacebookAdRecord } from '@/lib/facebook-ads'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, formatCurrencyForAxis } from '@/lib/utils'
 import { COLORS } from '@/lib/config'
 import { 
   Search, 
@@ -366,6 +366,16 @@ export default function FacebookAdsPage() {
 
   // Format currency
   const fmtEUR = (n: number) => formatCurrency(n, '€')
+  const fmtEURNoCents = (n: number) => formatCurrencyForAxis(n, '€')
+
+  // Funnel-derived rates (used in arrow labels)
+  const totalLeads = totals.fbFormLeads + totals.landingLeads
+  const cpc = totals.clicks > 0 ? totals.spend / totals.clicks : 0
+  const lpRate = totals.clicks > 0 ? (totals.lpViews / totals.clicks) * 100 : 0
+  const lpToLeadsRate = totals.lpViews > 0 ? (totalLeads / totals.lpViews) * 100 : 0
+  const leadsToQualityRate = totalLeads > 0 ? ((aiTotals?.totalQuality || 0) / totalLeads) * 100 : 0
+  const qualityToBookingsRate = (aiTotals?.totalQuality || 0) > 0 ? (fbEconomics.count / (aiTotals?.totalQuality || 1)) * 100 : 0
+  const avgDealValue = fbEconomics.count > 0 ? fbEconomics.revenue / fbEconomics.count : 0
 
   // Prepare chart data (daily aggregation)
   const chartData = useMemo(() => {
@@ -570,229 +580,213 @@ export default function FacebookAdsPage() {
           </div>
         </div>
 
-        {/* KPI Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          <MetricCard
-            title="Total Spend"
-            value={fmtEUR(totals.spend)}
-            icon={DollarSign}
-            gradient
-            subtitle={`${processedData.length} ${viewMode === 'campaign' ? 'campaigns' : 'records'}`}
-          />
-          <MetricCard
-            title="Clicks"
-            value={totals.clicks.toLocaleString()}
-            icon={MousePointerClick}
-            subtitle={`Avg: ${data.length > 0 ? (totals.clicks / data.length).toFixed(1) : 0}`}
-          />
-          <MetricCard
-            title="LP Views"
-            value={totals.lpViews.toLocaleString()}
-            icon={Eye}
-            subtitle={`${data.length > 0 && totals.clicks > 0 ? ((totals.lpViews / totals.clicks) * 100).toFixed(1) : 0}% of clicks`}
-          />
-          <MetricCard
-            title="FB Form Leads"
-            value={totals.fbFormLeads.toLocaleString()}
-            icon={FileText}
-            subtitle={`${data.length > 0 && totals.lpViews > 0 ? ((totals.fbFormLeads / totals.lpViews) * 100).toFixed(1) : 0}% conversion`}
-          />
-          <MetricCard
-            title="Landing Leads"
-            value={totals.landingLeads.toLocaleString()}
-            icon={Users}
-            subtitle={`${data.length > 0 && totals.lpViews > 0 ? ((totals.landingLeads / totals.lpViews) * 100).toFixed(1) : 0}% conversion`}
-          />
+        {/* FB Conversion Funnel — volume + rates narrative */}
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <p className="text-sm font-semibold">FB Conversion Funnel</p>
+                <p className="text-xs text-muted-foreground">Spend → Clicks → LP Views → Leads → Quality Leads → Bookings → Revenue</p>
+              </div>
+            </div>
+            <div className="flex items-center justify-between gap-2 overflow-x-auto flex-nowrap">
+              {/* Spend */}
+              <div className="flex-1 min-w-[120px] bg-white rounded-lg shadow-sm border border-[#e1d8c7] p-4 text-center">
+                <div className="text-2xl font-bold text-gray-900">{fmtEURNoCents(totals.spend)}</div>
+                <div className="text-sm text-gray-500">Spend</div>
+              </div>
+              <div className="flex flex-col items-center px-2">
+                <span className="text-gray-400">→</span>
+                <span className="text-xs text-gray-500">{cpc > 0 ? `€${cpc.toFixed(2)}` : '—'}</span>
+                <span className="text-[11px] text-gray-500">CPC</span>
+              </div>
+
+              {/* Clicks */}
+              <div className="flex-1 min-w-[120px] bg-white rounded-lg shadow-sm border border-[#e1d8c7] p-4 text-center">
+                <div className="text-2xl font-bold text-gray-900">{totals.clicks.toLocaleString()}</div>
+                <div className="text-sm text-gray-500">Clicks</div>
+              </div>
+              <div className="flex flex-col items-center px-2">
+                <span className="text-gray-400">→</span>
+                <span className="text-xs text-gray-500">{totals.clicks > 0 ? `${lpRate.toFixed(1)}%` : '—'}</span>
+                <span className="text-[11px] text-gray-500">LP Rate</span>
+              </div>
+
+              {/* LP Views */}
+              <div className="flex-1 min-w-[120px] bg-white rounded-lg shadow-sm border border-[#e1d8c7] p-4 text-center">
+                <div className="text-2xl font-bold text-gray-900">{totals.lpViews.toLocaleString()}</div>
+                <div className="text-sm text-gray-500">LP Views</div>
+              </div>
+              <div className="flex flex-col items-center px-2">
+                <span className="text-gray-400">→</span>
+                <span className="text-xs text-gray-500">{totals.lpViews > 0 ? `${lpToLeadsRate.toFixed(1)}%` : '—'}</span>
+                <span className="text-[11px] text-gray-500">Conv Rate</span>
+              </div>
+
+              {/* Leads (FB Form + LP) */}
+              <div className="flex-1 min-w-[120px] bg-white rounded-lg shadow-sm border border-[#e1d8c7] p-4 text-center">
+                <div className="text-2xl font-bold text-gray-900">{totalLeads.toLocaleString()}</div>
+                <div className="text-sm text-gray-500">Leads</div>
+                <div className="text-[10px] text-gray-400 mt-1">{totals.fbFormLeads} form · {totals.landingLeads} LP</div>
+              </div>
+              <div className="flex flex-col items-center px-2">
+                <span className="text-gray-400">→</span>
+                <span className="text-xs text-gray-500">{totalLeads > 0 ? `${leadsToQualityRate.toFixed(1)}%` : '—'}</span>
+                <span className="text-[11px] text-gray-500">Q.Rate</span>
+              </div>
+
+              {/* Quality Leads */}
+              <div className="flex-1 min-w-[120px] bg-white rounded-lg shadow-sm border border-[#e1d8c7] p-4 text-center">
+                <div className="text-2xl font-bold text-gray-900">{aiTotals?.totalQuality?.toLocaleString() ?? '—'}</div>
+                <div className="text-sm text-gray-500">Quality Leads</div>
+                {aiTotals && aiTotals.totalLeadsWithAi > 0 && (
+                  <div className="text-[10px] text-gray-400 mt-1">of {aiTotals.totalLeadsWithAi} tracked · {aiTotals.totalExcellent} excellent</div>
+                )}
+              </div>
+              <div className="flex flex-col items-center px-2">
+                <span className="text-gray-400">→</span>
+                <span className="text-xs text-gray-500">{(aiTotals?.totalQuality || 0) > 0 ? `${qualityToBookingsRate.toFixed(1)}%` : '—'}</span>
+                <span className="text-[11px] text-gray-500">Close Rate</span>
+              </div>
+
+              {/* Bookings */}
+              <div className="flex-1 min-w-[120px] bg-white rounded-lg shadow-sm border border-[#e1d8c7] p-4 text-center">
+                <div className="text-2xl font-bold text-gray-900">{fbEconomics.count.toLocaleString()}</div>
+                <div className="text-sm text-gray-500">Bookings</div>
+              </div>
+              <div className="flex flex-col items-center px-2">
+                <span className="text-gray-400">→</span>
+                <span className="text-xs text-gray-500">{fbEconomics.count > 0 ? fmtEURNoCents(avgDealValue) : '—'}</span>
+                <span className="text-[11px] text-gray-500">avg deal</span>
+              </div>
+
+              {/* Revenue */}
+              <div className="flex-1 min-w-[120px] bg-white rounded-lg shadow-sm border border-[#e1d8c7] p-4 text-center">
+                <div className="text-2xl font-bold text-[#B39262]">{fmtEURNoCents(fbEconomics.revenue)}</div>
+                <div className="text-sm text-gray-500">Revenue</div>
+                {fbEconomics.revenue > 0 && (
+                  <div className="text-xs text-gray-400 mt-1">ROAS {fbEconomics.roas.toFixed(2)}x</div>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Zone Scorecards: CPQL · Quality Rate · ROAS — performance vs targets */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* CPQL */}
+          {(() => {
+            const cpqlVal = aiTotals?.avgCpql || 0
+            const cpqlZone = cpqlVal > 0 ? zoneForCac(cpqlVal) : null
+            const cpqlStyle = cpqlZone ? ZONE_STYLES[cpqlZone] : null
+            return (
+              <Card
+                style={{
+                  backgroundColor: cpqlStyle?.bg || '#fbf6ea',
+                  borderColor: cpqlStyle?.border || '#e8d5b0',
+                  borderLeftWidth: 3
+                }}
+              >
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="p-2 rounded-lg bg-white/70">
+                      <Zap className="h-4 w-4" style={{ color: cpqlStyle?.text || '#b48e49' }} />
+                    </div>
+                    <span className="text-sm font-medium" style={{ color: cpqlStyle?.text || '#8B7355' }}>CPQL</span>
+                  </div>
+                  <div className="text-3xl font-bold" style={{ color: cpqlStyle?.text || '#8B4513' }}>
+                    {cpqlVal > 0 ? `€${cpqlVal.toFixed(2)}` : '—'}
+                  </div>
+                  <div className="flex items-center justify-between mt-2 gap-2">
+                    <div className="text-xs text-gray-600">€96 SCALE · €150 OPTIMIZE · €240 CUT</div>
+                    {cpqlStyle && (
+                      <span
+                        className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wide"
+                        style={{ backgroundColor: cpqlStyle.border, color: '#fff' }}
+                      >
+                        {cpqlStyle.label}
+                      </span>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })()}
+
+          {/* Quality Rate */}
+          {(() => {
+            const qrVal = aiTotals?.avgQualityRate || 0
+            const qrZone = (aiTotals?.totalLeadsWithAi || 0) > 0 ? zoneForQlRate(qrVal) : null
+            const qrStyle = qrZone ? ZONE_STYLES[qrZone] : null
+            return (
+              <Card
+                style={{
+                  borderColor: qrStyle?.border || '#e5e7eb',
+                  borderLeftWidth: qrStyle ? 3 : 1
+                }}
+              >
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="p-2 rounded-lg bg-blue-100">
+                      <TrendingUp className="h-4 w-4 text-blue-600" />
+                    </div>
+                    <span className="text-sm font-medium text-gray-600">Quality Rate</span>
+                  </div>
+                  <div className="text-3xl font-bold text-gray-900">{qrVal}%</div>
+                  <div className="flex items-center justify-between mt-1 gap-2">
+                    <div className="text-xs text-gray-500">of {aiTotals?.totalLeadsWithAi || 0} tracked</div>
+                    {qrStyle && (
+                      <span
+                        className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wide"
+                        style={{ backgroundColor: qrStyle.bg, color: qrStyle.text }}
+                      >
+                        {qrStyle.label}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[10px] text-gray-400 mt-1">Target: ≥45%</div>
+                </CardContent>
+              </Card>
+            )
+          })()}
+
+          {/* ROAS */}
+          {(() => {
+            const roasVal = fbEconomics.roas
+            const roasZone = fbEconomics.revenue > 0 ? zoneForRoas(roasVal) : null
+            const roasStyle = roasZone ? ZONE_STYLES[roasZone] : null
+            return (
+              <Card
+                style={{
+                  borderColor: roasStyle?.border || '#e5e7eb',
+                  borderLeftWidth: roasStyle ? 3 : 1
+                }}
+              >
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="p-2 rounded-lg bg-amber-100">
+                      <Target className="h-4 w-4 text-amber-600" />
+                    </div>
+                    <span className="text-sm font-medium text-gray-600">ROAS</span>
+                  </div>
+                  <div className="text-3xl font-bold text-gray-900">{fbEconomics.revenue > 0 ? `${roasVal.toFixed(2)}x` : '—'}</div>
+                  <div className="flex items-center justify-between mt-1 gap-2">
+                    <div className="text-xs text-gray-500">Revenue / Spend</div>
+                    {roasStyle && (
+                      <span
+                        className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wide"
+                        style={{ backgroundColor: roasStyle.bg, color: roasStyle.text }}
+                      >
+                        {roasStyle.label}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[10px] text-gray-400 mt-1">Target: ≥2.8x · SCALE ≥4x</div>
+                </CardContent>
+              </Card>
+            )
+          })()}
         </div>
-
-        {/* AI Quality Metrics Row */}
-        {aiTotals && aiTotals.totalLeadsWithAi > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            {/* CPQL Card */}
-            {(() => {
-              const cpqlZone = aiTotals.avgCpql > 0 ? zoneForCac(aiTotals.avgCpql) : null
-              const cpqlStyle = cpqlZone ? ZONE_STYLES[cpqlZone] : null
-              return (
-                <Card
-                  style={{
-                    backgroundColor: cpqlStyle?.bg || '#fbf6ea',
-                    borderColor: cpqlStyle?.border || '#e8d5b0',
-                    borderLeftWidth: 3
-                  }}
-                >
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="p-2 rounded-lg bg-white/70">
-                            <Zap className="h-4 w-4" style={{ color: cpqlStyle?.text || '#b48e49' }} />
-                          </div>
-                          <span className="text-sm font-medium" style={{ color: cpqlStyle?.text || '#8B7355' }}>CPQL</span>
-                          <div className="group relative">
-                            <span className="text-gray-400 cursor-help text-xs">ⓘ</span>
-                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
-                              Cost Per Quality Lead (AI Score 50+)
-                            </div>
-                          </div>
-                        </div>
-                        <div className="text-3xl font-bold" style={{ color: cpqlStyle?.text || '#8B4513' }}>€{aiTotals.avgCpql.toFixed(2)}</div>
-                        <div className="flex items-center justify-between mt-2 gap-2">
-                          <div className="text-xs text-gray-600">€96 SCALE · €150 OPTIMIZE · €240 CUT</div>
-                          {cpqlStyle && (
-                            <span
-                              className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wide"
-                              style={{ backgroundColor: cpqlStyle.border, color: '#fff' }}
-                            >
-                              {cpqlStyle.label}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )
-            })()}
-
-            {/* Quality Leads Card */}
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="p-2 rounded-lg bg-green-100">
-                    <Users className="h-4 w-4 text-green-600" />
-                  </div>
-                  <span className="text-sm font-medium text-gray-600">Quality Leads</span>
-                  <div className="group relative">
-                    <span className="text-gray-400 cursor-help text-xs">ⓘ</span>
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
-                      Leads with AI Score ≥ 50
-                    </div>
-                  </div>
-                </div>
-                <div className="text-3xl font-bold text-gray-900">{aiTotals.totalQuality}</div>
-                <div className="text-xs text-gray-500 mt-1">
-                  <span className="text-green-600 font-medium">{aiTotals.totalExcellent}</span> excellent (70+)
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Quality Rate Card */}
-            {(() => {
-              const qrZone = aiTotals.totalLeadsWithAi > 0 ? zoneForQlRate(aiTotals.avgQualityRate) : null
-              const qrStyle = qrZone ? ZONE_STYLES[qrZone] : null
-              return (
-                <Card
-                  style={{
-                    borderColor: qrStyle?.border || '#e5e7eb',
-                    borderLeftWidth: qrStyle ? 3 : 1
-                  }}
-                >
-                  <CardContent className="p-6">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="p-2 rounded-lg bg-blue-100">
-                        <TrendingUp className="h-4 w-4 text-blue-600" />
-                      </div>
-                      <span className="text-sm font-medium text-gray-600">Quality Rate</span>
-                    </div>
-                    <div className="text-3xl font-bold text-gray-900">{aiTotals.avgQualityRate}%</div>
-                    <div className="flex items-center justify-between mt-1 gap-2">
-                      <div className="text-xs text-gray-500">of tracked leads ({aiTotals.totalLeadsWithAi})</div>
-                      {qrStyle && (
-                        <span
-                          className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wide"
-                          style={{ backgroundColor: qrStyle.bg, color: qrStyle.text }}
-                        >
-                          {qrStyle.label}
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-[10px] text-gray-400 mt-1">Target: ≥45%</div>
-                  </CardContent>
-                </Card>
-              )
-            })()}
-
-            {/* Tracked Leads Card */}
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="p-2 rounded-lg bg-purple-100">
-                    <BarChart3 className="h-4 w-4 text-purple-600" />
-                  </div>
-                  <span className="text-sm font-medium text-gray-600">Tracked Leads</span>
-                </div>
-                <div className="text-3xl font-bold text-gray-900">{aiTotals.totalLeadsWithAi}</div>
-                <div className="text-xs text-gray-500 mt-1">with AI score</div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* Economic Outcome: Bookings + Revenue + ROAS (FB-attributable) */}
-        {bookings.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="p-2 rounded-lg bg-purple-100">
-                    <Trophy className="h-4 w-4 text-purple-600" />
-                  </div>
-                  <span className="text-sm font-medium text-gray-600">Bookings</span>
-                </div>
-                <div className="text-3xl font-bold text-gray-900">{fbEconomics.count}</div>
-                <div className="text-xs text-gray-500 mt-1">FB-attributable (fb_landing + fb_lead)</div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="p-2 rounded-lg bg-emerald-100">
-                    <DollarSign className="h-4 w-4 text-emerald-600" />
-                  </div>
-                  <span className="text-sm font-medium text-gray-600">Revenue</span>
-                </div>
-                <div className="text-3xl font-bold text-gray-900">{fmtEUR(fbEconomics.revenue)}</div>
-                <div className="text-xs text-gray-500 mt-1">RVC from FB-attributable bookings</div>
-              </CardContent>
-            </Card>
-
-            {(() => {
-              const roasZone = fbEconomics.revenue > 0 ? zoneForRoas(fbEconomics.roas) : null
-              const roasStyle = roasZone ? ZONE_STYLES[roasZone] : null
-              return (
-                <Card
-                  style={{
-                    borderColor: roasStyle?.border || '#e5e7eb',
-                    borderLeftWidth: roasStyle ? 3 : 1
-                  }}
-                >
-                  <CardContent className="p-6">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="p-2 rounded-lg bg-amber-100">
-                        <Target className="h-4 w-4 text-amber-600" />
-                      </div>
-                      <span className="text-sm font-medium text-gray-600">ROAS</span>
-                    </div>
-                    <div className="text-3xl font-bold text-gray-900">{fbEconomics.roas.toFixed(2)}x</div>
-                    <div className="flex items-center justify-between mt-1 gap-2">
-                      <div className="text-xs text-gray-500">Revenue / Spend</div>
-                      {roasStyle && (
-                        <span
-                          className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wide"
-                          style={{ backgroundColor: roasStyle.bg, color: roasStyle.text }}
-                        >
-                          {roasStyle.label}
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-[10px] text-gray-400 mt-1">Target: ≥2.8x · SCALE ≥4x</div>
-                  </CardContent>
-                </Card>
-              )
-            })()}
-          </div>
-        )}
 
         {/* Filters and Controls */}
         <Card>
