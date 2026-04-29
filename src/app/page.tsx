@@ -886,10 +886,21 @@ export default function HomePage() {
             <div className="flex items-center justify-between">
                 <div>
                 <p className="text-sm font-semibold">Conversion Funnel</p>
-                <p className="text-xs text-muted-foreground">LP Views → Leads → Quality Leads → Bookings → Revenue</p>
+                <p className="text-xs text-muted-foreground">Spend → LP Views → Leads → Quality Leads → Bookings → Revenue</p>
               </div>
             </div>
             <div className="mt-6 flex items-center justify-between gap-2 overflow-x-auto flex-nowrap">
+              <div className="flex-1 min-w-[140px] bg-white rounded-lg shadow-sm border border-[#e1d8c7] p-4 text-center">
+                <div className="text-2xl font-bold text-gray-900">{formatCurrencyNoCents(totals.spend, 'EUR')}</div>
+                <div className="text-sm text-gray-500">Spend</div>
+              </div>
+              <div className="flex flex-col items-center px-2">
+                <span className="text-gray-400">→</span>
+                <span className="text-xs text-gray-500">
+                  {totals.lpViews > 0 ? formatCurrency(totals.spend / totals.lpViews, 'EUR') : '—'}
+                </span>
+                <span className="text-[11px] text-gray-500">CPC</span>
+              </div>
               <div className="flex-1 min-w-[140px] bg-white rounded-lg shadow-sm border border-[#e1d8c7] p-4 text-center">
                 <div className="text-2xl font-bold text-gray-900">{totals.lpViews.toLocaleString()}</div>
                 <div className="text-sm text-gray-500">LP Views</div>
@@ -929,10 +940,15 @@ export default function HomePage() {
               </div>
               <div className="flex flex-col items-center px-2">
                 <span className="text-gray-400">→</span>
+                <span className="text-xs text-gray-500">
+                  {totals.bookings > 0 ? formatCurrencyNoCents(totals.revenue / totals.bookings, 'EUR') : '—'}
+                </span>
+                <span className="text-[11px] text-gray-500">avg deal</span>
               </div>
               <div className="flex-1 min-w-[140px] bg-white rounded-lg shadow-sm border border-[#e1d8c7] p-4 text-center">
                 <div className="text-2xl font-bold text-[#B39262]">{formatCurrencyNoCents(totals.revenue, 'EUR')}</div>
                 <div className="text-sm text-gray-500">Revenue</div>
+                <div className="text-xs text-gray-400 mt-1">ROAS {roasValue.toFixed(2)}x</div>
               </div>
             </div>
           </CardContent>
