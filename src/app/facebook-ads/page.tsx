@@ -43,7 +43,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { AiAsk } from '@/components/overview/AiAsk'
-import { ZONE_STYLES, zoneForCac, zoneForQlRate } from '@/lib/zones'
+import { ZONE_STYLES, zoneForCac, zoneForQlRate, zoneForRoas } from '@/lib/zones'
+import { fetchBookings, type BookingRecord } from '@/lib/sheetsData'
 
 // Enhanced Metric Card Component
 const MetricCard = ({ 
@@ -116,6 +117,7 @@ export default function FacebookAdsPage() {
   const [customDateRange, setCustomDateRange] = useState<[Date, Date] | null>(null)
   const [aiBullets, setAiBullets] = useState<string[]>([])
   const [aiLoading, setAiLoading] = useState(false)
+  const [bookings, setBookings] = useState<BookingRecord[]>([])
   const generateAiSummary = async () => {
     if (!settings.sheetUrl) return
     setAiLoading(true)
@@ -156,8 +158,15 @@ export default function FacebookAdsPage() {
       try {
         setLoading(true)
         setError(null)
-        const records = await fetchFacebookAds(settings.sheetUrl)
+        const [records, bookingRows] = await Promise.all([
+          fetchFacebookAds(settings.sheetUrl),
+          fetchBookings().catch((e) => {
+            console.error('fetchBookings failed in FB ads page:', e)
+            return [] as BookingRecord[]
+          })
+        ])
         setData(records)
+        setBookings(bookingRows || [])
         setLastRefresh(new Date())
       } catch (err: any) {
         console.error('Error loading Facebook Ads:', err)
@@ -308,6 +317,39 @@ export default function FacebookAdsPage() {
     })
     return result
   }, [filteredDataForTotals])
+
+  // FB-attributable bookings filtered by date range (sources: fb_landing, fb_lead)
+  const fbBookingsFiltered = useMemo(() => {
+    const { startDate, endDate } = getDateRangeBounds()
+    const start = new Date(startDate)
+    start.setHours(0, 0, 0, 0)
+    const end = new Date(endDate)
+    end.setHours(23, 59, 59, 999)
+    return bookings.filter((b) => {
+      if (!b.source?.startsWith('fb_')) return false
+      const dateStr = String(b.booking_date || '')
+      if (!dateStr) return false
+      let d: Date
+      if (dateStr.includes('T')) {
+        d = new Date(dateStr)
+      } else {
+        const parts = dateStr.split('-')
+        if (parts.length === 3) {
+          d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]))
+        } else {
+          d = new Date(dateStr)
+        }
+      }
+      return d >= start && d <= end
+    })
+  }, [bookings, dateRange, customDateRange])
+
+  const fbEconomics = useMemo(() => {
+    const revenue = fbBookingsFiltered.reduce((sum, b) => sum + (b.rvc || 0), 0)
+    const count = fbBookingsFiltered.length
+    const roas = totals.spend > 0 ? revenue / totals.spend : 0
+    return { revenue, count, roas }
+  }, [fbBookingsFiltered, totals.spend])
 
   // Calculate AI metrics totals from processed campaign data
   const aiTotals = useMemo(() => {
@@ -683,6 +725,72 @@ export default function FacebookAdsPage() {
                 <div className="text-xs text-gray-500 mt-1">with AI score</div>
               </CardContent>
             </Card>
+          </div>
+        )}
+
+        {/* Economic Outcome: Bookings + Revenue + ROAS (FB-attributable) */}
+        {bookings.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="p-2 rounded-lg bg-purple-100">
+                    <Trophy className="h-4 w-4 text-purple-600" />
+                  </div>
+                  <span className="text-sm font-medium text-gray-600">Bookings</span>
+                </div>
+                <div className="text-3xl font-bold text-gray-900">{fbEconomics.count}</div>
+                <div className="text-xs text-gray-500 mt-1">FB-attributable (fb_landing + fb_lead)</div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="p-2 rounded-lg bg-emerald-100">
+                    <DollarSign className="h-4 w-4 text-emerald-600" />
+                  </div>
+                  <span className="text-sm font-medium text-gray-600">Revenue</span>
+                </div>
+                <div className="text-3xl font-bold text-gray-900">{fmtEUR(fbEconomics.revenue)}</div>
+                <div className="text-xs text-gray-500 mt-1">RVC from FB-attributable bookings</div>
+              </CardContent>
+            </Card>
+
+            {(() => {
+              const roasZone = fbEconomics.revenue > 0 ? zoneForRoas(fbEconomics.roas) : null
+              const roasStyle = roasZone ? ZONE_STYLES[roasZone] : null
+              return (
+                <Card
+                  style={{
+                    borderColor: roasStyle?.border || '#e5e7eb',
+                    borderLeftWidth: roasStyle ? 3 : 1
+                  }}
+                >
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="p-2 rounded-lg bg-amber-100">
+                        <Target className="h-4 w-4 text-amber-600" />
+                      </div>
+                      <span className="text-sm font-medium text-gray-600">ROAS</span>
+                    </div>
+                    <div className="text-3xl font-bold text-gray-900">{fbEconomics.roas.toFixed(2)}x</div>
+                    <div className="flex items-center justify-between mt-1 gap-2">
+                      <div className="text-xs text-gray-500">Revenue / Spend</div>
+                      {roasStyle && (
+                        <span
+                          className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wide"
+                          style={{ backgroundColor: roasStyle.bg, color: roasStyle.text }}
+                        >
+                          {roasStyle.label}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[10px] text-gray-400 mt-1">Target: ≥2.8x · SCALE ≥4x</div>
+                  </CardContent>
+                </Card>
+              )
+            })()}
           </div>
         )}
 
