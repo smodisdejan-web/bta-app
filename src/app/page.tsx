@@ -20,12 +20,56 @@ import { getSheetsUrl } from '@/lib/config'
 import { formatCurrency } from '@/lib/utils'
 import { AiAsk } from '@/components/overview/AiAsk'
 
+type Zone = 'scale' | 'maintain' | 'optimize' | 'cut'
+
 type MetricCardProps = {
   title: string
   value: string
   subtitle?: string
   icon: React.ReactNode
   accent?: string
+  zone?: Zone
+  zoneLabel?: string
+  target?: string
+}
+
+// Goolets CPQL Zone Framework thresholds (from knowledge base)
+const CAC_THRESHOLDS = { scale: 96, maintain: 150, optimize: 240 } // €
+const ROAS_THRESHOLDS = { cut: 2, optimize: 2.8, maintain: 4 } // x (2.8 = ROMI break-even)
+const AI_SCORE_THRESHOLDS = { cut: 40, optimize: 48, maintain: 55 }
+const QL_RATE_THRESHOLDS = { cut: 35, optimize: 45, maintain: 55 } // %
+
+function zoneForCac(value: number): Zone {
+  if (value === 0) return 'maintain'
+  if (value < CAC_THRESHOLDS.scale) return 'scale'
+  if (value < CAC_THRESHOLDS.maintain) return 'maintain'
+  if (value < CAC_THRESHOLDS.optimize) return 'optimize'
+  return 'cut'
+}
+function zoneForRoas(value: number): Zone {
+  if (value >= ROAS_THRESHOLDS.maintain) return 'scale'
+  if (value >= ROAS_THRESHOLDS.optimize) return 'maintain'
+  if (value >= ROAS_THRESHOLDS.cut) return 'optimize'
+  return 'cut'
+}
+function zoneForAiScore(value: number): Zone {
+  if (value >= AI_SCORE_THRESHOLDS.maintain) return 'scale'
+  if (value >= AI_SCORE_THRESHOLDS.optimize) return 'maintain'
+  if (value >= AI_SCORE_THRESHOLDS.cut) return 'optimize'
+  return 'cut'
+}
+function zoneForQlRate(value: number): Zone {
+  if (value >= QL_RATE_THRESHOLDS.maintain) return 'scale'
+  if (value >= QL_RATE_THRESHOLDS.optimize) return 'maintain'
+  if (value >= QL_RATE_THRESHOLDS.cut) return 'optimize'
+  return 'cut'
+}
+
+const ZONE_STYLES: Record<Zone, { border: string; bg: string; text: string; label: string }> = {
+  scale: { border: '#047857', bg: '#ecfdf5', text: '#047857', label: 'SCALE' },
+  maintain: { border: '#B39262', bg: '#fbf6ea', text: '#8B7355', label: 'MAINTAIN' },
+  optimize: { border: '#d97706', bg: '#fef3c7', text: '#92400e', label: 'OPTIMIZE' },
+  cut: { border: '#dc2626', bg: '#fef2f2', text: '#991b1b', label: 'CUT' }
 }
 
 type ChannelMetric = {
@@ -657,13 +701,29 @@ export default function HomePage() {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
           <MetricCard title="Total Spend" value={formatCurrency(totals.spend, 'EUR')} subtitle="All channels" icon={<DollarSign className="h-4 w-4 text-[#B39262]" />} />
           <MetricCard title="Total Leads" value={totals.leads.toLocaleString()} subtitle="All sources" icon={<Users className="h-4 w-4 text-[#B39262]" />} />
-          <MetricCard title="Quality Leads" value={totals.qualityLeads.toLocaleString()} subtitle="AI ≥ 50" icon={<Sparkles className="h-4 w-4 text-[#B39262]" />} />
-          <MetricCard title="Avg AI Score" value={totals.avgAi.toFixed(1)} subtitle="avg score" icon={<Gauge className="h-4 w-4 text-[#B39262]" />} />
           <MetricCard
-            title="CAC"
+            title="Quality Leads"
+            value={`${totals.qualityLeads.toLocaleString()}${totals.leads > 0 ? ` (${Math.round((totals.qualityLeads / totals.leads) * 100)}%)` : ''}`}
+            subtitle="AI ≥ 50"
+            icon={<Sparkles className="h-4 w-4 text-[#B39262]" />}
+            zone={totals.leads > 0 ? zoneForQlRate((totals.qualityLeads / totals.leads) * 100) : undefined}
+            target=">45% of leads"
+          />
+          <MetricCard
+            title="Avg AI Score"
+            value={totals.avgAi.toFixed(1)}
+            subtitle="avg score"
+            icon={<Gauge className="h-4 w-4 text-[#B39262]" />}
+            zone={totals.leads > 0 ? zoneForAiScore(totals.avgAi) : undefined}
+            target="≥50 (QL threshold)"
+          />
+          <MetricCard
+            title={cacMode === 'deals' ? 'CAC' : 'CPQL'}
             value={formatCurrency(cacValue, 'EUR')}
-            subtitle={cacMode === 'deals' ? 'by deals' : 'by leads'}
+            subtitle={cacMode === 'deals' ? 'spend / booking' : 'spend / quality lead'}
             icon={<Target className="h-4 w-4 text-[#B39262]" />}
+            zone={cacMode === 'leads' && cacValue > 0 ? zoneForCac(cacValue) : undefined}
+            target={cacMode === 'leads' ? '€96 SCALE · €150 OPTIMIZE · €240 CUT' : undefined}
           />
           <MetricCard
             title="ROAS"
@@ -671,6 +731,8 @@ export default function HomePage() {
             subtitle="return on ad spend"
             icon={<BarChart3 className="h-4 w-4 text-[#34a853]" />}
             accent="#34a853"
+            zone={totals.spend > 0 ? zoneForRoas(roasValue) : undefined}
+            target="ROMI break-even 2.8x"
           />
             </div>
 
@@ -1117,21 +1179,40 @@ function normalizeCountry(country: string) {
   return country.toUpperCase()
 }
 
-function MetricCard({ title, value, subtitle, icon, accent }: MetricCardProps) {
-                                return (
-    <Card className="border-[#e1d8c7] bg-white shadow-sm transition-all duration-300 hover:border-[#B39262]/50 hover:shadow-md hover:-translate-y-0.5">
+function MetricCard({ title, value, subtitle, icon, accent, zone, zoneLabel, target }: MetricCardProps) {
+  const zoneStyle = zone ? ZONE_STYLES[zone] : null
+  return (
+    <Card
+      className="bg-white shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5"
+      style={{
+        borderColor: zoneStyle?.border || '#e1d8c7',
+        borderLeftWidth: zoneStyle ? 3 : 1
+      }}
+    >
       <CardContent className="p-4 space-y-3">
-                                            <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between">
           <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{title}</div>
           <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[#fbf9f4]" style={{ color: accent || gold }}>
             {icon}
-                                                </div>
-                                            </div>
+          </div>
+        </div>
         <div className="text-2xl font-semibold text-gray-900">{value}</div>
-        {subtitle ? <div className="text-xs text-muted-foreground">{subtitle}</div> : null}
-                                        </CardContent>
-                                    </Card>
-                                )
+        <div className="flex items-center justify-between gap-2 min-h-[18px]">
+          {subtitle ? <div className="text-xs text-muted-foreground">{subtitle}</div> : <span />}
+          {zoneStyle ? (
+            <span
+              className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wide"
+              style={{ backgroundColor: zoneStyle.bg, color: zoneStyle.text }}
+              title={target || undefined}
+            >
+              {zoneLabel || zoneStyle.label}
+            </span>
+          ) : null}
+        </div>
+        {target ? <div className="text-[10px] text-muted-foreground">Target: {target}</div> : null}
+      </CardContent>
+    </Card>
+  )
 }
 
 function ChannelCard({ title, icon, metrics }: ChannelCardProps) {
