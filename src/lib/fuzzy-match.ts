@@ -75,6 +75,18 @@ const RULES: Rule[] = [
     campaignTarget: 'Test - Smart Spirit - Family - CBO',
     matches: (src) => src.startsWith('smart_spirit_') && src.includes('family'),
   },
+  {
+    campaignTarget: 'Freedom ONE WEEK LEFT - CBO - Lead Form',
+    matches: (src) => src === 'freedom one week left - cbo - lead form',
+  },
+  {
+    campaignTarget: 'Freedom ONE WEEK LEFT - CBO - Copy',
+    matches: (src) => src.startsWith('freedom_warm_') || src.startsWith('freedom_interesi_'),
+  },
+  {
+    campaignTarget: 'YOLO Last Minute - CBO - Copy',
+    matches: (src) => src.startsWith('yolo_last-minute_'),
+  },
 
   {
     campaignTarget: 'Belgin Sultan - Turkey - CBO',
@@ -91,6 +103,11 @@ const RULES: Rule[] = [
       (src.startsWith('landing_attainable-luxury') ||
         src.startsWith('landing_attainable_luxury')) &&
       !src.includes('warm'),
+  },
+  {
+    // Must come BEFORE 'Landing Gulets - Scaling - CBO 150' so v2 doesn't fall through to main
+    campaignTarget: 'Test - Landing Gulets - Scaling - CBO 150',
+    matches: (src) => src.startsWith('landing_gulet_v2'),
   },
   {
     campaignTarget: 'Landing Gulets - Scaling - CBO 150',
@@ -110,7 +127,14 @@ const RULES: Rule[] = [
   },
   {
     campaignTarget: 'BOFU - Landing Attainable Luxury - Objections crusher',
-    matches: (src) => src.startsWith('landing_attainable_luxury_warm'),
+    matches: (src) =>
+      src.startsWith('landing_attainable_luxury_warm') ||
+      src.startsWith('interesi_bella_bf') ||
+      src.startsWith('warm_bella_bf') ||
+      src.startsWith('interesi_riva-') ||
+      src.startsWith('warm_riva-') ||
+      src.startsWith('interesi_ohana-') ||
+      src.startsWith('warm_ohana-'),
   },
   {
     campaignTarget: 'Early Booking - Croatia 2027 - CBO',
