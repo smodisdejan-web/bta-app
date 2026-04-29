@@ -45,7 +45,7 @@ const RULES: Rule[] = [
   },
   {
     campaignTarget: 'Alessandro I Discount - CBO - New',
-    matches: (src) => src.startsWith('alessandro_tier'),
+    matches: (src) => src.startsWith('alessandro_tier') || src.startsWith('alessandro_warm_'),
   },
   {
     campaignTarget: 'Test - Dalmatinčki - Sail Smarter - CRO-001 Test',
