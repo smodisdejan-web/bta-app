@@ -14,7 +14,11 @@ export const dynamic = 'force-dynamic'
 
 // Manual mapping: campaign name → streak_sync SOURCE PLACEMENT prefix
 // Used when sourceMatchesCampaign() fuzzy matching is too broad (e.g., CRO-001)
-const STREAK_PREFIX_MAP: Record<string, string> = {
+// Value is either a plain string prefix, or { prefix, exclude } when a control
+// shares its base prefix with the test variant (e.g. landing_gulet_ vs landing_gulet_v2_).
+type StreakPrefixRule = string | { prefix: string; exclude?: string[] }
+
+const STREAK_PREFIX_MAP: Record<string, StreakPrefixRule> = {
   'Dalmatinčki - Sail Smarter - CRO-001 Control': 'dalmatincki_sail-smarter_',
   'Test - Dalmatinčki - Sail Smarter - CRO-001 Test': 'dalmatincki_smart-luxury-sailing_',
   'Smart Spirit - 25 Off - CBO': '25off',
@@ -25,6 +29,9 @@ const STREAK_PREFIX_MAP: Record<string, string> = {
   'Test - Landing Unmatched Value Forma 2 - Objections crusher ads': 'landing_unmatched_value_2_',
   'Alessandro I - The Smarter Way - CBO - New': 'alessandro_smarter_',
   'Alessandro I Discount - CBO - New': 'alessandro_tier',
+  // CRO-003: Landing Gulets multistep vs standard form
+  'Landing Gulets  - Scaling - CBO 150': { prefix: 'landing_gulet_', exclude: ['landing_gulet_v2_'] },
+  'Test - Landing Gulets  - Scaling - CBO 150': 'landing_gulet_v2_',
 }
 
 const SPEND_ANOMALY_THRESHOLD = 1000
@@ -152,6 +159,11 @@ function aggregateVariant(
       const sp = (lead.source_placement || '').toLowerCase()
       const cat = ((lead as any).source_category || (lead as any).latest_source_category || '').toUpperCase()
       if (cat !== 'PAID_SOCIAL') return false
+      // Object form: prefix + optional exclude list (e.g. landing_gulet_ excluding landing_gulet_v2_)
+      if (typeof streakMapValue === 'object') {
+        if (!sp.startsWith(streakMapValue.prefix)) return false
+        return !(streakMapValue.exclude || []).some((ex) => sp.startsWith(ex))
+      }
       // Trailing '_' → exact prefix match (CRO-001 style)
       // Contains spaces → exact full match (SS-002 style)
       // SS-001 keyword match within smart_spirit_ prefix (e.g. '25off', 'family')
