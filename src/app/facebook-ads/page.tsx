@@ -43,6 +43,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { AiAsk } from '@/components/overview/AiAsk'
+import { ZONE_STYLES, zoneForCac, zoneForQlRate } from '@/lib/zones'
 
 // Enhanced Metric Card Component
 const MetricCard = ({ 
@@ -566,28 +567,50 @@ export default function FacebookAdsPage() {
         {aiTotals && aiTotals.totalLeadsWithAi > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             {/* CPQL Card */}
-            <Card className="bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="p-2 rounded-lg bg-amber-100">
-                        <Zap className="h-4 w-4 text-amber-600" />
-                      </div>
-                      <span className="text-sm font-medium text-amber-800">CPQL</span>
-                      <div className="group relative">
-                        <span className="text-amber-400 cursor-help text-xs">ⓘ</span>
-                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
-                          Cost Per Quality Lead (AI Score 50+)
+            {(() => {
+              const cpqlZone = aiTotals.avgCpql > 0 ? zoneForCac(aiTotals.avgCpql) : null
+              const cpqlStyle = cpqlZone ? ZONE_STYLES[cpqlZone] : null
+              return (
+                <Card
+                  style={{
+                    backgroundColor: cpqlStyle?.bg || '#fbf6ea',
+                    borderColor: cpqlStyle?.border || '#e8d5b0',
+                    borderLeftWidth: 3
+                  }}
+                >
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="p-2 rounded-lg bg-white/70">
+                            <Zap className="h-4 w-4" style={{ color: cpqlStyle?.text || '#b48e49' }} />
+                          </div>
+                          <span className="text-sm font-medium" style={{ color: cpqlStyle?.text || '#8B7355' }}>CPQL</span>
+                          <div className="group relative">
+                            <span className="text-gray-400 cursor-help text-xs">ⓘ</span>
+                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
+                              Cost Per Quality Lead (AI Score 50+)
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-3xl font-bold" style={{ color: cpqlStyle?.text || '#8B4513' }}>€{aiTotals.avgCpql.toFixed(2)}</div>
+                        <div className="flex items-center justify-between mt-2 gap-2">
+                          <div className="text-xs text-gray-600">€96 SCALE · €150 OPTIMIZE · €240 CUT</div>
+                          {cpqlStyle && (
+                            <span
+                              className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wide"
+                              style={{ backgroundColor: cpqlStyle.border, color: '#fff' }}
+                            >
+                              {cpqlStyle.label}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
-                    <div className="text-3xl font-bold text-amber-900">€{aiTotals.avgCpql.toFixed(2)}</div>
-                    <div className="text-xs text-amber-600 mt-1">Lower is better</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                  </CardContent>
+                </Card>
+              )
+            })()}
 
             {/* Quality Leads Card */}
             <Card>
@@ -612,18 +635,40 @@ export default function FacebookAdsPage() {
             </Card>
 
             {/* Quality Rate Card */}
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="p-2 rounded-lg bg-blue-100">
-                    <TrendingUp className="h-4 w-4 text-blue-600" />
-                  </div>
-                  <span className="text-sm font-medium text-gray-600">Quality Rate</span>
-                </div>
-                <div className="text-3xl font-bold text-gray-900">{aiTotals.avgQualityRate}%</div>
-                <div className="text-xs text-gray-500 mt-1">of leads are quality</div>
-              </CardContent>
-            </Card>
+            {(() => {
+              const qrZone = aiTotals.totalLeadsWithAi > 0 ? zoneForQlRate(aiTotals.avgQualityRate) : null
+              const qrStyle = qrZone ? ZONE_STYLES[qrZone] : null
+              return (
+                <Card
+                  style={{
+                    borderColor: qrStyle?.border || '#e5e7eb',
+                    borderLeftWidth: qrStyle ? 3 : 1
+                  }}
+                >
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="p-2 rounded-lg bg-blue-100">
+                        <TrendingUp className="h-4 w-4 text-blue-600" />
+                      </div>
+                      <span className="text-sm font-medium text-gray-600">Quality Rate</span>
+                    </div>
+                    <div className="text-3xl font-bold text-gray-900">{aiTotals.avgQualityRate}%</div>
+                    <div className="flex items-center justify-between mt-1 gap-2">
+                      <div className="text-xs text-gray-500">of tracked leads ({aiTotals.totalLeadsWithAi})</div>
+                      {qrStyle && (
+                        <span
+                          className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wide"
+                          style={{ backgroundColor: qrStyle.bg, color: qrStyle.text }}
+                        >
+                          {qrStyle.label}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[10px] text-gray-400 mt-1">Target: ≥45%</div>
+                  </CardContent>
+                </Card>
+              )
+            })()}
 
             {/* Tracked Leads Card */}
             <Card>
