@@ -33,6 +33,49 @@ const findCampaign = (campaigns: string[], target: string): string | null => {
 
 const RULES: Rule[] = [
   // Most specific first
+
+  // --- Explicit campaign mappings (mirrors STREAK_PREFIX_MAP in test-tracker) ---
+  {
+    campaignTarget: 'Alessandro - Discount - CBO - Lead Form',
+    matches: (src) => src === 'alessandro - discount - cbo - lead form',
+  },
+  {
+    campaignTarget: 'Alessandro I - The Smarter Way - CBO - New',
+    matches: (src) => src.startsWith('alessandro_smarter_'),
+  },
+  {
+    campaignTarget: 'Alessandro I Discount - CBO - New',
+    matches: (src) => src.startsWith('alessandro_tier'),
+  },
+  {
+    campaignTarget: 'Test - Dalmatinčki - Sail Smarter - CRO-001 Test',
+    matches: (src) => src.startsWith('dalmatincki_smart-luxury-sailing_'),
+  },
+  {
+    campaignTarget: 'Dalmatinčki - Sail Smarter - CRO-001 Control',
+    matches: (src) => src.startsWith('dalmatincki_sail-smarter_'),
+  },
+  {
+    campaignTarget: 'Landing Unmatched Value - Objections crusher ads',
+    matches: (src) => src.startsWith('landing_unmatched_value_1_'),
+  },
+  {
+    campaignTarget: 'Test - Landing Unmatched Value Forma 2 - Objections crusher ads',
+    matches: (src) => src.startsWith('landing_unmatched_value_2_'),
+  },
+  {
+    campaignTarget: 'Smart Spirit - 25 Off - CBO - LF',
+    matches: (src) => src === 'smart spirit - 25 off - cbo - lf',
+  },
+  {
+    campaignTarget: 'Smart Spirit - 25 Off - CBO',
+    matches: (src) => src.startsWith('smart_spirit_') && src.includes('25off'),
+  },
+  {
+    campaignTarget: 'Test - Smart Spirit - Family - CBO',
+    matches: (src) => src.startsWith('smart_spirit_') && src.includes('family'),
+  },
+
   {
     campaignTarget: 'Belgin Sultan - Turkey - CBO',
     matches: (src) =>
@@ -144,9 +187,13 @@ export function matchSourceToCampaign(
     if (matched) {
       const target = rule.campaignTarget;
       const targetNorm = normalize(target);
-      const found = normalizedCampaigns.find(
-        (c) => c.norm.includes(targetNorm) || c.norm.startsWith(targetNorm)
-      );
+      // Prefer exact match; fall back to includes/startsWith so short targets
+      // don't accidentally match longer campaign names (e.g. "...- CBO" vs "...- CBO - LF").
+      const found =
+        normalizedCampaigns.find((c) => c.norm === targetNorm) ||
+        normalizedCampaigns.find(
+          (c) => c.norm.includes(targetNorm) || c.norm.startsWith(targetNorm)
+        );
       if (found) return found.raw;
     }
   }
