@@ -5,19 +5,13 @@ import { useSettings } from '@/lib/contexts/SettingsContext'
 import { fetchGoogleAds, aggregateGoogleByCampaign, addGoogleAiMetrics, calculateGoogleTotals, type GoogleAdRecord } from '@/lib/google-ads'
 import { fetchStreakSyncGoogle, fetchBookings, fetchSheet, type BookingRecord, type StreakLeadRow } from '@/lib/sheetsData'
 import { getSheetsUrl } from '@/lib/config'
-import { formatCurrency } from '@/lib/utils'
-import { 
+import { formatCurrency, formatCurrencyForAxis } from '@/lib/utils'
+import { ZONE_STYLES, zoneForCac, zoneForQlRate, zoneForRoas } from '@/lib/zones'
+import {
   Search,
-  Filter,
   Download,
   TrendingUp,
-  TrendingDown,
   RefreshCw,
-  DollarSign,
-  MousePointerClick,
-  Eye,
-  Users,
-  FileText,
   ArrowUpRight,
   ArrowDownRight,
   Calendar,
@@ -44,40 +38,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
-// Simple metric card
-const MetricCard = ({
-  title,
-  value,
-  icon: Icon,
-  subtitle,
-  gradient = false
-}: {
-  title: string
-  value: string | number
-  icon: any
-  subtitle?: string
-  gradient?: boolean
-}) => {
-  return (
-    <Card className={`relative overflow-hidden transition-all hover:shadow-lg ${gradient ? 'bg-gradient-to-br from-white to-gray-50' : ''}`}>
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between">
-          <div className="flex-1">
-            <div className="flex items-center space-x-2 mb-2">
-              <div className={`p-2 rounded-lg ${gradient ? 'bg-primary/10' : 'bg-gray-100'}`}>
-                <Icon className={`h-4 w-4 ${gradient ? 'text-primary' : 'text-gray-600'}`} />
-              </div>
-              <span className="text-sm font-medium text-gray-600">{title}</span>
-            </div>
-            <div className="text-3xl font-bold text-gray-900 mb-1">{value}</div>
-            {subtitle && <div className="text-xs text-gray-500 mb-2">{subtitle}</div>}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
 export default function GoogleAdsPage() {
   const { settings } = useSettings()
   const [data, setData] = useState<GoogleAdRecord[]>([])
@@ -88,7 +48,7 @@ export default function GoogleAdsPage() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
   const [viewMode, setViewMode] = useState<'campaign' | 'daily'>('campaign')
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
-  const [dateRange, setDateRange] = useState<'7d' | '30d' | '90d' | 'custom'>('30d')
+  const [dateRange, setDateRange] = useState<'7d' | '30d' | '60d' | '90d' | 'mtd' | 'lastMonth' | 'custom'>('mtd')
   const [customDateRange, setCustomDateRange] = useState<[Date, Date] | null>(null)
   const [aiBullets, setAiBullets] = useState<string[]>([])
   const [aiLoading, setAiLoading] = useState(false)
@@ -136,7 +96,7 @@ export default function GoogleAdsPage() {
         const [records, leads, bookingRows] = await Promise.all([
           fetchGoogleAds(settings.sheetUrl || getSheetsUrl()),
           fetchStreakSyncGoogle(fetchSheet, settings.sheetUrl || getSheetsUrl()),
-          fetchBookings(fetchSheet, settings.sheetUrl || getSheetsUrl()),
+          fetchBookings(fetchSheet),
         ])
         setData(records)
         setGoogleLeadsState(leads || [])
@@ -168,8 +128,20 @@ export default function GoogleAdsPage() {
         endDate = new Date(customDateRange[1])
         startDate.setHours(0, 0, 0, 0)
         endDate.setHours(23, 59, 59, 999)
+      } else if (dateRange === 'mtd') {
+        startDate = new Date(today.getFullYear(), today.getMonth(), 1)
+        startDate.setHours(0, 0, 0, 0)
+      } else if (dateRange === 'lastMonth') {
+        startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+        startDate.setHours(0, 0, 0, 0)
+        endDate = new Date(today.getFullYear(), today.getMonth(), 0)
+        endDate.setHours(23, 59, 59, 999)
       } else {
-        const days = dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : 90
+        const days =
+          dateRange === '7d' ? 7
+          : dateRange === '60d' ? 60
+          : dateRange === '90d' ? 90
+          : 30
         startDate = new Date(today)
         startDate.setDate(today.getDate() - days + 1)
         startDate.setHours(0, 0, 0, 0)
@@ -205,10 +177,10 @@ export default function GoogleAdsPage() {
   )
 
   const conversionsFromLeads = paidSearchLeads.length
-  const valueFromBookings = useMemo(() => {
+  const googleBookingsFiltered = useMemo(() => {
     const start = kpiStart
     const end = kpiEnd
-    const campaignNames = new Set(data.map((c) => (c.campaign || '').toLowerCase()))
+    const campaignNamesLc = new Set(data.map((c) => (c.campaign || '').toLowerCase()).filter(Boolean))
     return bookingsState
       .filter((b) => {
         const rawDate = b.booking_date || b.inquiry_date
@@ -222,10 +194,20 @@ export default function GoogleAdsPage() {
         const src = (b.source || '').toLowerCase()
         const camp = (b.campaign || '').toLowerCase()
         if (src === 'google') return true
-        return Array.from(campaignNames).some((c) => c && camp.includes(c))
+        return Array.from(campaignNamesLc).some((c) => c && camp.includes(c))
       })
-      .reduce((sum, b) => sum + (b.rvc || 0), 0)
   }, [bookingsState, data, kpiStart, kpiEnd])
+
+  const valueFromBookings = useMemo(
+    () => googleBookingsFiltered.reduce((sum, b) => sum + (b.rvc || 0), 0),
+    [googleBookingsFiltered]
+  )
+
+  const googleEconomics = useMemo(() => {
+    const revenue = valueFromBookings
+    const count = googleBookingsFiltered.length
+    return { revenue, count }
+  }, [googleBookingsFiltered, valueFromBookings])
 
   const processedData = useMemo(() => {
     const { startDate, endDate } = getDateRangeBounds()
@@ -266,6 +248,8 @@ export default function GoogleAdsPage() {
   const filteredDataForTotals = useMemo(() => filterByDateRange(data), [data, dateRange, customDateRange])
   const totals = useMemo(() => calculateGoogleTotals(filteredDataForTotals), [filteredDataForTotals])
 
+  const googleRoas = totals.spend > 0 ? googleEconomics.revenue / totals.spend : 0
+
   const aiTotals = useMemo(() => {
     if (viewMode !== 'campaign') return null
     const campaigns = processedData as GoogleAdRecord[]
@@ -277,6 +261,15 @@ export default function GoogleAdsPage() {
     const avgCpql = totalQuality > 0 ? Math.round((totalSpend / totalQuality) * 100) / 100 : 0
     return { totalQuality, totalExcellent, totalLeadsWithAi, avgQualityRate, avgCpql }
   }, [processedData, viewMode])
+
+  // Funnel-derived rates (used in arrow labels)
+  const totalLeads = conversionsFromLeads
+  const cpc = totals.clicks > 0 ? totals.spend / totals.clicks : 0
+  const ctrPct = totals.impressions > 0 ? (totals.clicks / totals.impressions) * 100 : 0
+  const clicksToLeadsRate = totals.clicks > 0 ? (totalLeads / totals.clicks) * 100 : 0
+  const leadsToQualityRate = totalLeads > 0 ? ((aiTotals?.totalQuality || 0) / totalLeads) * 100 : 0
+  const qualityToBookingsRate = (aiTotals?.totalQuality || 0) > 0 ? (googleEconomics.count / (aiTotals?.totalQuality || 1)) * 100 : 0
+  const avgDealValue = googleEconomics.count > 0 ? googleEconomics.revenue / googleEconomics.count : 0
 
   const chartData = useMemo(() => {
     if (viewMode === 'campaign') return []
@@ -329,6 +322,7 @@ export default function GoogleAdsPage() {
   }, [processedData, viewMode])
 
   const fmtEUR = (n: number) => formatCurrency(n, '€')
+  const fmtEURNoCents = (n: number) => formatCurrencyForAxis(n, '€')
 
   const matchLeadToCampaign = (detail: string, campaigns: string[]): string | null => {
     const sd = (detail || '').toLowerCase().trim()
@@ -427,13 +421,26 @@ export default function GoogleAdsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-6 px-6 pb-12">
-      <div className="max-w-7xl mx-auto p-6 space-y-6">
+    <div className="min-h-screen bg-gray-50 pt-20">
+      <div className="container mx-auto px-6 py-8 space-y-6">
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="mb-2">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Google Ads</h1>
-            <p className="text-gray-600">Performance analytics and campaign insights</p>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <Sparkles className="h-6 w-6 text-primary" />
+              </div>
+              Google Ads
+            </h1>
+            <p className="text-gray-600 mt-1">Performance analytics and campaign insights</p>
+            {(() => {
+              const { startDate, endDate } = getDateRangeBounds()
+              return (
+                <p className="text-xs text-gray-500 mt-1">
+                  Showing data from {startDate.toLocaleDateString()} to {endDate.toLocaleDateString()}
+                </p>
+              )
+            })()}
           </div>
           <div className="flex gap-2">
             <Button
@@ -511,86 +518,214 @@ export default function GoogleAdsPage() {
           </div>
         </div>
 
-        {/* KPI Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-          <MetricCard title="Total Spend" value={fmtEUR(totals.spend)} icon={DollarSign} gradient />
-          <MetricCard title="Clicks" value={totals.clicks.toLocaleString()} icon={MousePointerClick} />
-          <MetricCard title="Impressions" value={totals.impressions.toLocaleString()} icon={Eye} />
-          <MetricCard title="Conversions" value={conversionsFromLeads.toLocaleString()} icon={FileText} />
-          <MetricCard title="Value" value={fmtEUR(valueFromBookings)} icon={BarChart3} />
-        </div>
+        {/* Google Conversion Funnel — volume + rates narrative */}
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <p className="text-sm font-semibold">Google Conversion Funnel</p>
+                <p className="text-xs text-muted-foreground">Spend → Impressions → Clicks → Leads → Quality Leads → Bookings → Revenue</p>
+              </div>
+            </div>
+            <div className="flex items-center justify-between gap-2 overflow-x-auto flex-nowrap">
+              {/* Spend */}
+              <div className="flex-1 min-w-[120px] bg-white rounded-lg shadow-sm border border-[#e1d8c7] p-4 text-center">
+                <div className="text-2xl font-bold text-gray-900">{fmtEURNoCents(totals.spend)}</div>
+                <div className="text-sm text-gray-500">Spend</div>
+              </div>
+              <div className="flex flex-col items-center px-2">
+                <span className="text-gray-400">→</span>
+                <span className="text-xs text-gray-500">{totals.impressions > 0 ? `€${(totals.spend / totals.impressions * 1000).toFixed(2)}` : '—'}</span>
+                <span className="text-[11px] text-gray-500">CPM</span>
+              </div>
 
-        {/* AI Quality Metrics Row */}
-        {aiTotals && aiTotals.totalLeadsWithAi > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-            <Card className="bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="p-2 rounded-lg bg-amber-100">
-                        <Zap className="h-4 w-4 text-amber-600" />
-                      </div>
-                      <span className="text-sm font-medium text-amber-800">CPQL</span>
-                      <div className="group relative">
-                        <span className="text-amber-400 cursor-help text-xs">ⓘ</span>
-                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
-                          Cost Per Quality Lead (AI Score 50+)
-                        </div>
-                      </div>
+              {/* Impressions */}
+              <div className="flex-1 min-w-[120px] bg-white rounded-lg shadow-sm border border-[#e1d8c7] p-4 text-center">
+                <div className="text-2xl font-bold text-gray-900">{totals.impressions.toLocaleString()}</div>
+                <div className="text-sm text-gray-500">Impressions</div>
+              </div>
+              <div className="flex flex-col items-center px-2">
+                <span className="text-gray-400">→</span>
+                <span className="text-xs text-gray-500">{totals.impressions > 0 ? `${ctrPct.toFixed(1)}%` : '—'}</span>
+                <span className="text-[11px] text-gray-500">CTR</span>
+              </div>
+
+              {/* Clicks */}
+              <div className="flex-1 min-w-[120px] bg-white rounded-lg shadow-sm border border-[#e1d8c7] p-4 text-center">
+                <div className="text-2xl font-bold text-gray-900">{totals.clicks.toLocaleString()}</div>
+                <div className="text-sm text-gray-500">Clicks</div>
+                <div className="text-[10px] text-gray-400 mt-1">{cpc > 0 ? `€${cpc.toFixed(2)} CPC` : '—'}</div>
+              </div>
+              <div className="flex flex-col items-center px-2">
+                <span className="text-gray-400">→</span>
+                <span className="text-xs text-gray-500">{totals.clicks > 0 ? `${clicksToLeadsRate.toFixed(1)}%` : '—'}</span>
+                <span className="text-[11px] text-gray-500">Conv Rate</span>
+              </div>
+
+              {/* Leads */}
+              <div className="flex-1 min-w-[120px] bg-white rounded-lg shadow-sm border border-[#e1d8c7] p-4 text-center">
+                <div className="text-2xl font-bold text-gray-900">{totalLeads.toLocaleString()}</div>
+                <div className="text-sm text-gray-500">Leads</div>
+                <div className="text-[10px] text-gray-400 mt-1">paid_search</div>
+              </div>
+              <div className="flex flex-col items-center px-2">
+                <span className="text-gray-400">→</span>
+                <span className="text-xs text-gray-500">{totalLeads > 0 ? `${leadsToQualityRate.toFixed(1)}%` : '—'}</span>
+                <span className="text-[11px] text-gray-500">Q.Rate</span>
+              </div>
+
+              {/* Quality Leads */}
+              <div className="flex-1 min-w-[120px] bg-white rounded-lg shadow-sm border border-[#e1d8c7] p-4 text-center">
+                <div className="text-2xl font-bold text-gray-900">{aiTotals?.totalQuality?.toLocaleString() ?? '—'}</div>
+                <div className="text-sm text-gray-500">Quality Leads</div>
+                {aiTotals && aiTotals.totalLeadsWithAi > 0 && (
+                  <div className="text-[10px] text-gray-400 mt-1">of {aiTotals.totalLeadsWithAi} tracked · {aiTotals.totalExcellent} excellent</div>
+                )}
+              </div>
+              <div className="flex flex-col items-center px-2">
+                <span className="text-gray-400">→</span>
+                <span className="text-xs text-gray-500">{(aiTotals?.totalQuality || 0) > 0 ? `${qualityToBookingsRate.toFixed(1)}%` : '—'}</span>
+                <span className="text-[11px] text-gray-500">Close Rate</span>
+              </div>
+
+              {/* Bookings */}
+              <div className="flex-1 min-w-[120px] bg-white rounded-lg shadow-sm border border-[#e1d8c7] p-4 text-center">
+                <div className="text-2xl font-bold text-gray-900">{googleEconomics.count.toLocaleString()}</div>
+                <div className="text-sm text-gray-500">Bookings</div>
+              </div>
+              <div className="flex flex-col items-center px-2">
+                <span className="text-gray-400">→</span>
+                <span className="text-xs text-gray-500">{googleEconomics.count > 0 ? fmtEURNoCents(avgDealValue) : '—'}</span>
+                <span className="text-[11px] text-gray-500">avg deal</span>
+              </div>
+
+              {/* Revenue */}
+              <div className="flex-1 min-w-[120px] bg-white rounded-lg shadow-sm border border-[#e1d8c7] p-4 text-center">
+                <div className="text-2xl font-bold text-[#B39262]">{fmtEURNoCents(googleEconomics.revenue)}</div>
+                <div className="text-sm text-gray-500">Revenue</div>
+                {googleEconomics.revenue > 0 && (
+                  <div className="text-xs text-gray-400 mt-1">ROAS {googleRoas.toFixed(2)}x</div>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Zone Scorecards: CPQL · Quality Rate · ROAS — performance vs targets */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* CPQL */}
+          {(() => {
+            const cpqlVal = aiTotals?.avgCpql || 0
+            const cpqlZone = cpqlVal > 0 ? zoneForCac(cpqlVal) : null
+            const cpqlStyle = cpqlZone ? ZONE_STYLES[cpqlZone] : null
+            return (
+              <Card
+                style={{
+                  backgroundColor: cpqlStyle?.bg || '#fbf6ea',
+                  borderColor: cpqlStyle?.border || '#e8d5b0',
+                  borderLeftWidth: 3
+                }}
+              >
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="p-2 rounded-lg bg-white/70">
+                      <Zap className="h-4 w-4" style={{ color: cpqlStyle?.text || '#b48e49' }} />
                     </div>
-                    <div className="text-3xl font-bold text-amber-900">€{aiTotals.avgCpql.toFixed(2)}</div>
-                    <div className="text-xs text-amber-600 mt-1">Lower is better</div>
+                    <span className="text-sm font-medium" style={{ color: cpqlStyle?.text || '#8B7355' }}>CPQL</span>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="p-2 rounded-lg bg-green-100">
-                    <Users className="h-4 w-4 text-green-600" />
+                  <div className="text-3xl font-bold" style={{ color: cpqlStyle?.text || '#8B4513' }}>
+                    {cpqlVal > 0 ? `€${cpqlVal.toFixed(2)}` : '—'}
                   </div>
-                  <span className="text-sm font-medium text-gray-600">Quality Leads</span>
-                  <div className="group relative">
-                    <span className="text-gray-400 cursor-help text-xs">ⓘ</span>
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
-                      Leads with AI Score ≥ 50
+                  <div className="flex items-center justify-between mt-2 gap-2">
+                    <div className="text-xs text-gray-600">€96 SCALE · €150 OPTIMIZE · €240 CUT</div>
+                    {cpqlStyle && (
+                      <span
+                        className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wide"
+                        style={{ backgroundColor: cpqlStyle.border, color: '#fff' }}
+                      >
+                        {cpqlStyle.label}
+                      </span>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })()}
+
+          {/* Quality Rate */}
+          {(() => {
+            const qrVal = aiTotals?.avgQualityRate || 0
+            const qrZone = (aiTotals?.totalLeadsWithAi || 0) > 0 ? zoneForQlRate(qrVal) : null
+            const qrStyle = qrZone ? ZONE_STYLES[qrZone] : null
+            return (
+              <Card
+                style={{
+                  borderColor: qrStyle?.border || '#e5e7eb',
+                  borderLeftWidth: qrStyle ? 3 : 1
+                }}
+              >
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="p-2 rounded-lg bg-blue-100">
+                      <TrendingUp className="h-4 w-4 text-blue-600" />
                     </div>
+                    <span className="text-sm font-medium text-gray-600">Quality Rate</span>
                   </div>
-                </div>
-                <div className="text-3xl font-bold text-gray-900">{aiTotals.totalQuality}</div>
-                <div className="text-xs text-gray-500 mt-1">
-                  <span className="text-green-600 font-medium">{aiTotals.totalExcellent}</span> excellent (70+)
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="p-2 rounded-lg bg-blue-100">
-                    <TrendingUp className="h-4 w-4 text-blue-600" />
+                  <div className="text-3xl font-bold text-gray-900">{qrVal}%</div>
+                  <div className="flex items-center justify-between mt-1 gap-2">
+                    <div className="text-xs text-gray-500">of {aiTotals?.totalLeadsWithAi || 0} tracked</div>
+                    {qrStyle && (
+                      <span
+                        className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wide"
+                        style={{ backgroundColor: qrStyle.bg, color: qrStyle.text }}
+                      >
+                        {qrStyle.label}
+                      </span>
+                    )}
                   </div>
-                  <span className="text-sm font-medium text-gray-600">Quality Rate</span>
-                </div>
-                <div className="text-3xl font-bold text-gray-900">{aiTotals.avgQualityRate}%</div>
-                <div className="text-xs text-gray-500 mt-1">of leads are quality</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="p-2 rounded-lg bg-purple-100">
-                    <BarChart3 className="h-4 w-4 text-purple-600" />
+                  <div className="text-[10px] text-gray-400 mt-1">Target: ≥45%</div>
+                </CardContent>
+              </Card>
+            )
+          })()}
+
+          {/* ROAS */}
+          {(() => {
+            const roasVal = googleRoas
+            const roasZone = googleEconomics.revenue > 0 ? zoneForRoas(roasVal) : null
+            const roasStyle = roasZone ? ZONE_STYLES[roasZone] : null
+            return (
+              <Card
+                style={{
+                  borderColor: roasStyle?.border || '#e5e7eb',
+                  borderLeftWidth: roasStyle ? 3 : 1
+                }}
+              >
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="p-2 rounded-lg bg-amber-100">
+                      <Target className="h-4 w-4 text-amber-600" />
+                    </div>
+                    <span className="text-sm font-medium text-gray-600">ROAS</span>
                   </div>
-                  <span className="text-sm font-medium text-gray-600">Tracked Leads</span>
-                </div>
-                <div className="text-3xl font-bold text-gray-900">{aiTotals.totalLeadsWithAi}</div>
-                <div className="text-xs text-gray-500 mt-1">with AI score</div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+                  <div className="text-3xl font-bold text-gray-900">{googleEconomics.revenue > 0 ? `${roasVal.toFixed(2)}x` : '—'}</div>
+                  <div className="flex items-center justify-between mt-1 gap-2">
+                    <div className="text-xs text-gray-500">Revenue / Spend</div>
+                    {roasStyle && (
+                      <span
+                        className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wide"
+                        style={{ backgroundColor: roasStyle.bg, color: roasStyle.text }}
+                      >
+                        {roasStyle.label}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[10px] text-gray-400 mt-1">Target: ≥2.8x · SCALE ≥4x</div>
+                </CardContent>
+              </Card>
+            )
+          })()}
+        </div>
 
         {/* Filters and Controls */}
         <Card className="mb-6">
@@ -614,16 +749,19 @@ export default function GoogleAdsPage() {
                   <SelectItem value="daily">Daily View</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={dateRange} onValueChange={(v: '7d' | '30d' | '90d' | 'custom') => {
+              <Select value={dateRange} onValueChange={(v: '7d' | '30d' | '60d' | '90d' | 'mtd' | 'lastMonth' | 'custom') => {
                 setDateRange(v)
                 if (v !== 'custom') setCustomDateRange(null)
               }}>
-                <SelectTrigger className="w-[140px]">
+                <SelectTrigger className="w-[160px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="mtd">This Month</SelectItem>
+                  <SelectItem value="lastMonth">Last Month</SelectItem>
                   <SelectItem value="7d">Last 7 days</SelectItem>
                   <SelectItem value="30d">Last 30 days</SelectItem>
+                  <SelectItem value="60d">Last 60 days</SelectItem>
                   <SelectItem value="90d">Last 90 days</SelectItem>
                   <SelectItem value="custom">Custom range</SelectItem>
                 </SelectContent>
