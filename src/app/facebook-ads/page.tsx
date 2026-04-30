@@ -1092,13 +1092,26 @@ export default function FacebookAdsPage() {
         {/* Data Table */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BarChart3 className="h-5 w-5" />
-              {viewMode === 'campaign' ? 'Campaign Performance' : 'Daily Performance'}
-            </CardTitle>
-            <CardDescription>
-              {processedData.length} {viewMode === 'campaign' ? 'campaigns' : 'records'} found
-            </CardDescription>
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5" />
+                  {viewMode === 'campaign' ? 'Campaign Performance' : 'Daily Performance'}
+                </CardTitle>
+                <CardDescription>
+                  {processedData.length} {viewMode === 'campaign' ? 'campaigns' : 'records'} found
+                </CardDescription>
+              </div>
+              <div className="relative w-full md:w-80">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search campaigns..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
