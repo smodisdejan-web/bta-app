@@ -1,9 +1,25 @@
 // src/app/layout.tsx
 import './globals.css'
+import type { Metadata } from 'next'
 import { Inter, Cormorant_Garamond, Dancing_Script } from 'next/font/google'
 import { SettingsProvider } from '@/lib/contexts/SettingsContext'
 import { Navigation } from '@/components/Navigation'
 import { Toaster } from '@/components/ui/toaster'
+
+export const metadata: Metadata = {
+  title: {
+    default: 'Goolets AI Agent',
+    template: '%s · Goolets AI Agent',
+  },
+  description: 'Performance analytics and campaign insights for Goolets',
+  icons: {
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+    ],
+    shortcut: '/icon.svg',
+    apple: '/icon.svg',
+  },
+}
 
 const inter = Inter({
   subsets: ['latin'],
