@@ -5,12 +5,12 @@ import { useSettings } from '@/lib/contexts/SettingsContext'
 import { fetchFacebookAds, aggregateByCampaign, calculateTotals, addAiMetrics, type FacebookAdRecord } from '@/lib/facebook-ads'
 import { formatCurrency, formatCurrencyForAxis } from '@/lib/utils'
 import { COLORS } from '@/lib/config'
-import { 
-  Search, 
-  Filter, 
-  Download, 
-  TrendingUp, 
-  TrendingDown, 
+import {
+  Search,
+  Filter,
+  Download,
+  TrendingUp,
+  TrendingDown,
   RefreshCw,
   DollarSign,
   MousePointerClick,
@@ -25,7 +25,8 @@ import {
   Zap,
   Trophy,
   Star,
-  Target
+  Target,
+  Facebook
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -482,25 +483,28 @@ export default function FacebookAdsPage() {
     <div className="min-h-screen bg-gray-50 pt-20">
       <div className="container mx-auto px-6 py-8 space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <Sparkles className="h-6 w-6 text-primary" />
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-[#1877F2] flex items-center justify-center shadow-md shadow-[#1877F2]/20">
+              <Facebook className="h-7 w-7 text-white" fill="white" strokeWidth={0} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="font-serif text-4xl tracking-tight text-gray-900">Facebook Ads</h1>
+                <span className="text-[10px] uppercase tracking-[0.25em] text-[#B39262] font-medium mt-2">Goolets</span>
               </div>
-              Facebook Ads
-            </h1>
-            <p className="text-gray-600 mt-1">
-              Performance analytics and campaign insights
-            </p>
-            {(() => {
-              const { startDate, endDate } = getDateRangeBounds()
-              return (
-                <p className="text-xs text-gray-500 mt-1">
-                  Showing data from {startDate.toLocaleDateString()} to {endDate.toLocaleDateString()}
-                </p>
-              )
-            })()}
+              <p className="text-sm text-gray-500 mt-1">
+                Performance analytics and campaign insights
+              </p>
+              {(() => {
+                const { startDate, endDate } = getDateRangeBounds()
+                return (
+                  <p className="text-xs text-gray-400 mt-1">
+                    {startDate.toLocaleDateString()} → {endDate.toLocaleDateString()}
+                  </p>
+                )
+              })()}
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <Button
