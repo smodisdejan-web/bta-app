@@ -10,7 +10,8 @@
     "test": "tsx --test tests/**/*.test.ts",
     "env:check": "node -e \"console.log('OPENAI_API_KEY', process.env.OPENAI_API_KEY ? 'set' : 'missing')\"",
     "env:sheets": "tsx scripts/check-env.ts",
-    "env:openai": "tsx scripts/check-openai-env.ts"
+    "env:openai": "tsx scripts/check-openai-env.ts",
+    "audit:fb": "tsx scripts/audit-attribution.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.88.0",

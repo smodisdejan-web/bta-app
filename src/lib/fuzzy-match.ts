@@ -14,8 +14,10 @@ const normalize = (s: string) =>
     .replace(/\s+/g, ' ')
     .trim();
 
-// Temporary debug logging for mapping issues
+// Verbose per-rule logging — opt-in via env var so the audit script doesn't drown.
+const FUZZY_DEBUG = typeof process !== 'undefined' && process.env.FUZZY_MATCH_DEBUG === '1';
 function debugMatch(sourcePlacement: string, ruleName: string, matched: boolean) {
+  if (!FUZZY_DEBUG) return;
   const srcNorm = normalize(sourcePlacement);
   console.log('INPUT:', sourcePlacement, '→ NORMALIZED:', srcNorm, 'RULE:', ruleName, 'MATCH:', matched);
 }
@@ -72,6 +74,10 @@ const RULES: Rule[] = [
     matches: (src) => src.startsWith('smart_spirit_') && src.includes('25off'),
   },
   {
+    campaignTarget: 'Test - Smart Spirit - Family - CBO - LF',
+    matches: (src) => src === 'test - smart spirit - family - cbo - lf',
+  },
+  {
     campaignTarget: 'Test - Smart Spirit - Family - CBO',
     matches: (src) => src.startsWith('smart_spirit_') && src.includes('family'),
   },
@@ -89,13 +95,25 @@ const RULES: Rule[] = [
   },
 
   {
+    // Reserved for future Belgin Sultan standalone campaign (June 2026 plan).
+    // While that campaign doesn't exist in fb_ads_enriched, this rule falls through
+    // (findCampaign returns null) and lead lands in Landing Turkey - Scaling - CBO below.
+    // Keep `belgin_sultan`-only prefix (without 'landing_turkey_' parent) — that one
+    // would only appear if Belgin gets its own UTM root convention.
     campaignTarget: 'Belgin Sultan - Turkey - CBO',
-    matches: (src) =>
-      src.startsWith('landing_turkey_belgin_sultan') || src.startsWith('belgin_sultan'),
+    matches: (src) => src.startsWith('belgin_sultan'),
   },
   {
+    // Must come BEFORE the general 'Landing Turkey - Scaling - CBO' rule
+    campaignTarget: 'Landing Turkey - Last Minute - CBO',
+    matches: (src) => src.startsWith('landing_turkey_last-minute'),
+  },
+  {
+    // Convention: all `landing_turkey_*` (esma-sultan, belgin_sultan, img, la-bella-vita,
+    // ...) are ad creatives inside the Scaling parent campaign — no exclusions for
+    // specific yacht names.
     campaignTarget: 'Landing Turkey - Scaling - CBO',
-    matches: (src) => src.startsWith('landing_turkey') && !src.includes('belgin_sultan'),
+    matches: (src) => src.startsWith('landing_turkey') && !src.includes('last-minute'),
   },
   {
     campaignTarget: 'Landing Attainable Luxury - Prospecting - Lead - CBO',
@@ -129,8 +147,8 @@ const RULES: Rule[] = [
     campaignTarget: 'BOFU - Landing Attainable Luxury - Objections crusher',
     matches: (src) =>
       src.startsWith('landing_attainable_luxury_warm') ||
-      src.startsWith('interesi_bella_bf') ||
-      src.startsWith('warm_bella_bf') ||
+      src.startsWith('interesi_bella_') ||
+      src.startsWith('warm_bella_') ||
       src.startsWith('interesi_riva-') ||
       src.startsWith('warm_riva-') ||
       src.startsWith('interesi_ohana-') ||
@@ -174,6 +192,10 @@ const RULES: Rule[] = [
     matches: (src) => src.startsWith('lp_individual-yachts'),
   },
   {
+    campaignTarget: 'LF - Individual Yachts - ABO',
+    matches: (src) => src === 'lf - individual yachts - abo',
+  },
+  {
     campaignTarget: 'Lead Form - All - All Creatives - Scaling',
     matches: (src) => src.includes('lead form - all - all creatives'),
   },
@@ -182,6 +204,9 @@ const RULES: Rule[] = [
     matches: (src) => src.includes('instagram_stories') || src.includes('ig / instagram'),
   },
   {
+    // Explicitly ignored — dead campaigns, legacy/agency-split sources, IG referrals,
+    // test sources from killed campaigns. Low volume (<1% of leads). Add new entries
+    // here when audit-attribution flags one-off legacy strings rather than creating rules.
     campaignTarget: 'Unknown',
     matches: (src, raw) =>
       !raw ||
@@ -190,9 +215,48 @@ const RULES: Rule[] = [
       src.includes('lead form - all - higher intent - retargeting') ||
       src.includes('launch campaign - bofu - lead form - cbo') ||
       src === 'paid / facebook' ||
-      src === 'facebook',
+      src === 'facebook' ||
+      // legacy / inactive (confirmed by Dejan 2026-05-04)
+      src.startsWith('rainbowyachts') ||
+      src.startsWith('andeo_') ||
+      src === 'cta test - nocturno - lead form' ||
+      src === 'dalmatincki_warm_social_proof_maxita-video_carousel' ||
+      src.startsWith('ig / yacht matchmaker'),
   },
 ];
+
+export type RuleDiagnosis =
+  | { kind: 'matched'; ruleTarget: string; resolvedCampaign: string }
+  | { kind: 'stale'; ruleTarget: string } // rule matched but target campaign not in active list
+  | { kind: 'explicit-unknown'; ruleTarget: 'Unknown' }
+  | { kind: 'unmatched' };
+
+/**
+ * Returns the matching rule's diagnosis for a given source. Useful for audit tooling
+ * to distinguish "explicitly intended Unknown" (e.g. brand search noise) from
+ * "no rule covers this, attribution is broken".
+ */
+export function diagnoseSource(
+  sourcePlacement: string,
+  campaigns: string[]
+): RuleDiagnosis {
+  const src = sourcePlacement || '';
+  const normSrc = normalize(src);
+  const normalizedCampaigns = campaigns.map((c) => ({ raw: c, norm: normalize(c) }));
+  for (const rule of RULES) {
+    if (!rule.matches(normSrc, src)) continue;
+    if (rule.campaignTarget === 'Unknown') return { kind: 'explicit-unknown', ruleTarget: 'Unknown' };
+    const targetNorm = normalize(rule.campaignTarget);
+    const found =
+      normalizedCampaigns.find((c) => c.norm === targetNorm) ||
+      normalizedCampaigns.find((c) => c.norm.includes(targetNorm) || c.norm.startsWith(targetNorm));
+    if (found) return { kind: 'matched', ruleTarget: rule.campaignTarget, resolvedCampaign: found.raw };
+    // Rule matched but target campaign not active (e.g. killed/historical) — fall through
+    // to next rule as before, but remember the last stale match.
+    return { kind: 'stale', ruleTarget: rule.campaignTarget };
+  }
+  return { kind: 'unmatched' };
+}
 
 export function matchSourceToCampaign(
   sourcePlacement: string,
@@ -206,7 +270,7 @@ export function matchSourceToCampaign(
     norm: normalize(c),
   }));
   for (const rule of RULES) {
-    const matched = rule.matches(src);
+    const matched = rule.matches(normSrc, src);
     debugMatch(src, rule.campaignTarget, matched);
     if (matched) {
       const target = rule.campaignTarget;
