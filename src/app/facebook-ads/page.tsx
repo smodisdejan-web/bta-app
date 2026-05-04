@@ -370,7 +370,9 @@ export default function FacebookAdsPage() {
   const fmtEURNoCents = (n: number) => formatCurrencyForAxis(n, '€')
 
   // Funnel-derived rates (used in arrow labels)
-  const totalLeads = totals.fbFormLeads + totals.landingLeads
+  // Leads sourced from Streak (totalLeads aggregated in addAiMetrics) — single source of truth.
+  // FB pixel counts (totals.fbFormLeads / totals.landingLeads) shown only for diagnostic context.
+  const totalLeads = aiTotals?.totalLeadsWithAi ?? 0
   const cpc = totals.clicks > 0 ? totals.spend / totals.clicks : 0
   const lpRate = totals.clicks > 0 ? (totals.lpViews / totals.clicks) * 100 : 0
   const lpToLeadsRate = totals.lpViews > 0 ? (totalLeads / totals.lpViews) * 100 : 0
@@ -627,11 +629,11 @@ export default function FacebookAdsPage() {
                 <span className="text-[11px] text-gray-500">Conv Rate</span>
               </div>
 
-              {/* Leads (FB Form + LP) */}
+              {/* Leads from Streak (single source of truth) — FB pixel counts shown for context */}
               <div className="flex-1 min-w-[120px] bg-white rounded-lg shadow-sm border border-[#e1d8c7] p-4 text-center">
                 <div className="text-2xl font-bold text-gray-900">{totalLeads.toLocaleString()}</div>
                 <div className="text-sm text-gray-500">Leads</div>
-                <div className="text-[10px] text-gray-400 mt-1">{totals.fbFormLeads} form · {totals.landingLeads} LP</div>
+                <div className="text-[10px] text-gray-400 mt-1" title="FB pixel counts (informational only)">FB pixel: {totals.fbFormLeads} form · {totals.landingLeads} LP</div>
               </div>
               <div className="flex flex-col items-center px-2">
                 <span className="text-gray-400">→</span>
@@ -1170,13 +1172,14 @@ export default function FacebookAdsPage() {
                       </div>
                     </TableHead>
                     <TableHead className="text-right">
-                      <div className="flex items-center justify-end">
-                        FB Form Leads
-                      </div>
-                    </TableHead>
-                    <TableHead className="text-right">
-                      <div className="flex items-center justify-end">
-                        Landing Leads
+                      <div className="flex items-center justify-end gap-1">
+                        Leads
+                        <div className="group relative">
+                          <span className="text-gray-400 cursor-help text-xs">ⓘ</span>
+                          <div className="absolute bottom-full right-0 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
+                            Total Streak leads attributed to this campaign (form + LP)
+                          </div>
+                        </div>
                       </div>
                     </TableHead>
                     <TableHead className="text-right">
@@ -1214,7 +1217,7 @@ export default function FacebookAdsPage() {
                 <TableBody>
                   {processedData.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={viewMode === 'daily' ? 11 : 10} className="text-center py-8 text-gray-500">
+                      <TableCell colSpan={viewMode === 'daily' ? 10 : 9} className="text-center py-8 text-gray-500">
                         No data found
                       </TableCell>
                     </TableRow>
@@ -1242,13 +1245,8 @@ export default function FacebookAdsPage() {
                           {row.lpViews.toLocaleString()}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Badge variant={row.fbFormLeads > 0 ? 'default' : 'secondary'}>
-                            {row.fbFormLeads.toLocaleString()}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Badge variant={row.landingLeads > 0 ? 'default' : 'secondary'}>
-                            {row.landingLeads.toLocaleString()}
+                          <Badge variant={(row.totalLeads ?? 0) > 0 ? 'default' : 'secondary'}>
+                            {(row.totalLeads ?? 0).toLocaleString()}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
