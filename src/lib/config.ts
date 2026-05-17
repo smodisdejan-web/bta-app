@@ -28,6 +28,8 @@ export const SHEETS_TABS = {
   AD_GROUPS: 'adGroups',
   DAILY: 'daily',
   BOOKINGS: 'bookings',
+  HUBSPOT_CONTACTS: 'hubspot_contacts',
+  GA4_LANDING_PAGES: 'ga4_landing_pages',
 } as const
 
 // Sheets URL configuration with fallback support

@@ -1217,6 +1217,42 @@ export type StreakLeadRow = {
   why_not_segment?: string
 }
 
+// HubSpot contact (from hubspot_contacts tab, daily-synced by code/hubspot/sync-goolets-contacts.js)
+export type HubSpotContactRow = {
+  hs_object_id: string
+  email: string
+  createdate: string         // ISO timestamp
+  country: string
+  first_url: string          // raw URL with query string (for debugging)
+  first_url_path: string     // clean lowercase path, no query (LP attribution key)
+  last_url_path: string      // empty if was /thank-you/
+  first_conversion_event_name: string
+  recent_conversion_event_name: string
+  first_conversion_date: string
+  recent_conversion_date: string
+  hs_analytics_source: string       // PAID_SOCIAL, PAID_SEARCH, ORGANIC_SEARCH, DIRECT_TRAFFIC, etc.
+  hs_analytics_source_data_1: string
+  utm_source: string
+  utm_medium: string
+  utm_campaign: string
+  utm_content: string
+  first_touch_campaign: string
+}
+
+// GA4 landing page row (from ga4_landing_pages tab — Mixed Analytics today,
+// will be replaced by code/google/sync-goolets-ga4-lp.js Apps Script-style sync later).
+// NB: bounceRate and averageSessionDuration columns are known to be broken in the
+// Mixed Analytics export (per Goolets handoff §5.4). We deliberately skip them.
+export type GA4LandingRow = {
+  landingPage: string         // path, e.g., "/luxury-yacht-charters-at-unmatched-value"
+  deviceCategory: string      // mobile | desktop | tablet
+  date: string                // YYYY-MM-DD (normalised from YYYYMMDD)
+  sessionSourceMedium: string // e.g., "google / organic", "facebook / cpc"
+  sessions: number
+  totalUsers: number
+  conversions: number
+}
+
 // Booking record
 export interface BookingRecord {
   inquiry_date: string
@@ -1306,6 +1342,91 @@ export function mapStreakLeads(rows: any[][]): StreakLeadRow[] {
       why_not_segment: I.why_not_segment !== -1 ? String(r[I.why_not_segment] ?? '') : undefined,
     }))
     .filter(row => !!row.inquiry_date)
+}
+
+export function mapGA4LandingPages(rows: any[][]): GA4LandingRow[] {
+  if (!rows || rows.length < 2) return []
+  const [header, ...data] = rows
+  const norm = (s: any) => String(s || '').trim().toLowerCase()
+  const col = (n: string) => header.findIndex(h => norm(h) === n)
+  const I = {
+    landingPage: col('landingpage'),
+    deviceCategory: col('devicecategory'),
+    date: col('date'),
+    sessionSourceMedium: col('sessionsourcemedium'),
+    sessions: col('sessions'),
+    totalUsers: col('totalusers'),
+    conversions: col('conversions'),
+  }
+  // Convert YYYYMMDD → YYYY-MM-DD for proper Date construction.
+  const fmtDate = (raw: any): string => {
+    const s = String(raw || '').trim()
+    if (/^\d{8}$/.test(s)) return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`
+    return s
+  }
+  return data
+    .map(r => ({
+      landingPage: String(r[I.landingPage] ?? ''),
+      deviceCategory: String(r[I.deviceCategory] ?? ''),
+      date: fmtDate(r[I.date]),
+      sessionSourceMedium: String(r[I.sessionSourceMedium] ?? ''),
+      sessions: toNumber(r[I.sessions]),
+      totalUsers: toNumber(r[I.totalUsers]),
+      conversions: toNumber(r[I.conversions]),
+    }))
+    .filter(r => r.landingPage && r.date)
+}
+
+export function mapHubspotContacts(rows: any[][]): HubSpotContactRow[] {
+  if (!rows || rows.length < 2) return []
+
+  const [header, ...data] = rows
+  const norm = (s: any) => String(s || '').trim().toLowerCase()
+  const col = (n: string) => header.findIndex(h => norm(h) === n)
+
+  const I = {
+    hs_object_id: col('hs_object_id'),
+    email: col('email'),
+    createdate: col('createdate'),
+    country: col('country'),
+    first_url: col('first_url'),
+    first_url_path: col('first_url_path'),
+    last_url_path: col('last_url_path'),
+    first_conversion_event_name: col('first_conversion_event_name'),
+    recent_conversion_event_name: col('recent_conversion_event_name'),
+    first_conversion_date: col('first_conversion_date'),
+    recent_conversion_date: col('recent_conversion_date'),
+    hs_analytics_source: col('hs_analytics_source'),
+    hs_analytics_source_data_1: col('hs_analytics_source_data_1'),
+    utm_source: col('utm_source'),
+    utm_medium: col('utm_medium'),
+    utm_campaign: col('utm_campaign'),
+    utm_content: col('utm_content'),
+    first_touch_campaign: col('first_touch_campaign'),
+  }
+
+  return data
+    .map(r => ({
+      hs_object_id: String(r[I.hs_object_id] ?? ''),
+      email: String(r[I.email] ?? '').toLowerCase().trim(),
+      createdate: String(r[I.createdate] ?? ''),
+      country: String(r[I.country] ?? ''),
+      first_url: String(r[I.first_url] ?? ''),
+      first_url_path: String(r[I.first_url_path] ?? ''),
+      last_url_path: String(r[I.last_url_path] ?? ''),
+      first_conversion_event_name: String(r[I.first_conversion_event_name] ?? ''),
+      recent_conversion_event_name: String(r[I.recent_conversion_event_name] ?? ''),
+      first_conversion_date: String(r[I.first_conversion_date] ?? ''),
+      recent_conversion_date: String(r[I.recent_conversion_date] ?? ''),
+      hs_analytics_source: String(r[I.hs_analytics_source] ?? ''),
+      hs_analytics_source_data_1: String(r[I.hs_analytics_source_data_1] ?? ''),
+      utm_source: String(r[I.utm_source] ?? ''),
+      utm_medium: String(r[I.utm_medium] ?? ''),
+      utm_campaign: String(r[I.utm_campaign] ?? ''),
+      utm_content: String(r[I.utm_content] ?? ''),
+      first_touch_campaign: String(r[I.first_touch_campaign] ?? ''),
+    }))
+    .filter(r => r.hs_object_id && r.email)
 }
 
 // Generic fetchSheet helper
@@ -1445,6 +1566,34 @@ export async function fetchStreakSync(
     return mapStreakLeads(raw)
   } catch (error) {
     console.error('Error fetching streak_sync:', error)
+    return []
+  }
+}
+
+export async function fetchGA4LandingPages(
+  fetchSheetFn: (args: { sheetUrl: string; tab: string }) => Promise<any[][]>,
+  sheetUrl?: string
+): Promise<GA4LandingRow[]> {
+  const url = sheetUrl || getSheetsUrl() || DEFAULT_WEB_APP_URL
+  try {
+    const raw = await fetchSheetFn({ sheetUrl: url, tab: SHEETS_TABS.GA4_LANDING_PAGES })
+    return mapGA4LandingPages(raw)
+  } catch (error) {
+    console.error('Error fetching ga4_landing_pages:', error)
+    return []
+  }
+}
+
+export async function fetchHubspotContacts(
+  fetchSheetFn: (args: { sheetUrl: string; tab: string }) => Promise<any[][]>,
+  sheetUrl?: string
+): Promise<HubSpotContactRow[]> {
+  const url = sheetUrl || getSheetsUrl() || DEFAULT_WEB_APP_URL
+  try {
+    const raw = await fetchSheetFn({ sheetUrl: url, tab: SHEETS_TABS.HUBSPOT_CONTACTS })
+    return mapHubspotContacts(raw)
+  } catch (error) {
+    console.error('Error fetching hubspot_contacts:', error)
     return []
   }
 }

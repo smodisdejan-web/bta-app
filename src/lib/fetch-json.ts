@@ -13,7 +13,7 @@ export interface FetchJsonResult {
 export async function fetchJson(
   url: string,
   opts: RequestInit = {},
-  timeoutMs = 8000
+  timeoutMs = 30000
 ): Promise<FetchJsonResult> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
