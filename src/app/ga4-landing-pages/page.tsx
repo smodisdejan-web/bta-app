@@ -288,7 +288,7 @@ function MetricCard({
 // ============================================================================
 
 export default function LpFunnelDashboard() {
-  const [range, setRange] = useState<RangeKey>('ytd')
+  const [range, setRange] = useState<RangeKey>('mtd')
   const [data, setData] = useState<FunnelResponse | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
