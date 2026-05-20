@@ -8,10 +8,12 @@
     "currency": "EUR",
     "combinedFollowerBase": 32800000,
     "marketValue": "$300-500K",
-    "lastRefreshed": "2026-05-20T07:11:31.354Z",
+    "lastRefreshed": "2026-05-20T13:28:20.865480Z",
     "modashCampaignId": "6a07a46318211e4bbdb25adf",
     "totalContentPieces": 59,
-    "notes": "10 creators trackani v Modash (10 IG + Dobrik & Adam tudi YT = 12 channel entries). Jeff/Bruce/Suzy iz originalnega plana so OUT (niso v Modash campaign-u). Data ~46 od 59 items v Modash; 13 pending pull."
+    "notes": "10 creators trackani v Modash (10 IG + Dobrik & Adam tudi YT = 12 channel entries). Jeff/Bruce/Suzy iz originalnega plana so OUT (niso v Modash campaign-u). Data ~46 od 59 items v Modash; 13 pending pull.",
+    "modashTotalItems": 63,
+    "modashItemsPasted": 50
   },
   "targets": {
     "reachTotal": 20000000,
@@ -43,7 +45,7 @@
           "postedDate": "2026-05-17",
           "storyCount": 3,
           "reach": {
-            "value": 186056,
+            "value": 186007,
             "source": "Modash"
           },
           "engagement": {
@@ -84,7 +86,7 @@
           "id": "dobrik-yt-pending",
           "platform": "youtube",
           "type": "video",
-          "title": "YouTube video — pending (Modash YT tracking active)",
+          "title": "YouTube video \u2014 pending (Modash YT tracking active)",
           "url": null,
           "postedDate": null,
           "reach": {
@@ -140,15 +142,15 @@
       "deliverables": "YT video + IG Reels + Stories",
       "content": [
         {
-          "id": "adamw-ig-stories",
+          "id": "adamw-ig-stories-2026-05-17",
           "platform": "instagram",
           "type": "story_batch",
-          "title": "1 IG Story",
+          "title": "1 IG Stories",
           "url": null,
           "postedDate": "2026-05-17",
           "storyCount": 1,
           "reach": {
-            "value": 246978,
+            "value": 246962,
             "source": "Modash"
           },
           "engagement": {
@@ -189,7 +191,7 @@
           "id": "adamw-yt-pending",
           "platform": "youtube",
           "type": "video",
-          "title": "YouTube content — pending (Modash YT tracking active)",
+          "title": "YouTube content \u2014 pending (Modash YT tracking active)",
           "url": null,
           "postedDate": null,
           "reach": {
@@ -245,15 +247,15 @@
       "deliverables": "IG posts + Stories",
       "content": [
         {
-          "id": "zane-ig-stories",
+          "id": "zane-ig-stories-2026-05-15",
           "platform": "instagram",
           "type": "story_batch",
           "title": "8 IG Stories",
           "url": null,
-          "postedDate": "2026-05-17",
+          "postedDate": "2026-05-15",
           "storyCount": 8,
           "reach": {
-            "value": 53905,
+            "value": 53899,
             "source": "Modash"
           },
           "engagement": {
@@ -305,23 +307,68 @@
       "deliverables": "IG Post + IG Reel + Stories",
       "content": [
         {
-          "id": "pierson-post-DYYsUvniGA9",
+          "id": "pierson-ig-stories-2026-05-16",
+          "platform": "instagram",
+          "type": "story_batch",
+          "title": "5 IG Stories",
+          "url": null,
+          "postedDate": "2026-05-16",
+          "storyCount": 5,
+          "reach": {
+            "value": 53551,
+            "source": "Modash"
+          },
+          "engagement": {
+            "likes": 0,
+            "comments": 0,
+            "shares": null,
+            "saves": null,
+            "rate": 0,
+            "source": "Modash"
+          },
+          "activation": {
+            "visits": {
+              "value": null,
+              "source": "GA4 UTM"
+            },
+            "leads": {
+              "value": null,
+              "source": "Streak"
+            },
+            "newFollowers": {
+              "value": null,
+              "source": "IG Insights"
+            }
+          },
+          "roi": {
+            "bookings": {
+              "value": null,
+              "source": "Streak"
+            },
+            "rvc": {
+              "value": null,
+              "currency": "EUR",
+              "source": "Streak"
+            }
+          }
+        },
+        {
+          "id": "pierson-ig-post-DYYsUvniGA9",
           "platform": "instagram",
           "type": "post",
-          "title": "croatia's been too good to me 💙",
+          "title": "croatia's been too good to me",
           "url": "https://www.instagram.com/p/DYYsUvniGA9",
           "postedDate": "2026-05-16",
           "reach": {
-            "value": 449480,
+            "value": 506200,
             "source": "Modash"
           },
-          "impressions": 674220,
           "engagement": {
-            "likes": 22376,
-            "comments": 98,
+            "likes": 25202,
+            "comments": 108,
             "shares": null,
             "saves": null,
-            "rate": 0.008,
+            "rate": 0.9,
             "source": "Modash"
           },
           "activation": {
@@ -351,60 +398,15 @@
           }
         },
         {
-          "id": "pierson-reel-DYUtrtkxlkf",
-          "platform": "instagram",
-          "type": "reel",
-          "title": "best morning EVERRRR @goolets",
-          "url": "https://www.instagram.com/p/DYUtrtkxlkf",
-          "postedDate": "2026-05-14",
-          "reach": {
-            "value": 277283,
-            "source": "Modash (reelPlayCount)"
-          },
-          "engagement": {
-            "likes": 9025,
-            "comments": 27,
-            "shares": null,
-            "saves": null,
-            "rate": 0.003,
-            "source": "Modash"
-          },
-          "activation": {
-            "visits": {
-              "value": null,
-              "source": "GA4 UTM"
-            },
-            "leads": {
-              "value": null,
-              "source": "Streak"
-            },
-            "newFollowers": {
-              "value": null,
-              "source": "IG Insights"
-            }
-          },
-          "roi": {
-            "bookings": {
-              "value": null,
-              "source": "Streak"
-            },
-            "rvc": {
-              "value": null,
-              "currency": "EUR",
-              "source": "Streak"
-            }
-          }
-        },
-        {
-          "id": "pierson-ig-stories",
+          "id": "pierson-ig-stories-2026-05-15",
           "platform": "instagram",
           "type": "story_batch",
-          "title": "10+ IG Stories",
+          "title": "3 IG Stories",
           "url": null,
-          "postedDate": "2026-05-17",
-          "storyCount": 10,
+          "postedDate": "2026-05-15",
+          "storyCount": 3,
           "reach": {
-            "value": 53574,
+            "value": 53551,
             "source": "Modash"
           },
           "engagement": {
@@ -456,15 +458,61 @@
       "deliverables": "IG Stories",
       "content": [
         {
-          "id": "natalinanoel-ig-stories",
+          "id": "natalinanoel-ig-stories-2026-05-17",
           "platform": "instagram",
           "type": "story_batch",
-          "title": "5 IG Stories",
+          "title": "2 IG Stories",
           "url": null,
-          "postedDate": "2026-05-18",
-          "storyCount": 5,
+          "postedDate": "2026-05-17",
+          "storyCount": 2,
           "reach": {
-            "value": 51027,
+            "value": 51005,
+            "source": "Modash"
+          },
+          "engagement": {
+            "likes": 0,
+            "comments": 0,
+            "shares": null,
+            "saves": null,
+            "rate": 0,
+            "source": "Modash"
+          },
+          "activation": {
+            "visits": {
+              "value": null,
+              "source": "GA4 UTM"
+            },
+            "leads": {
+              "value": null,
+              "source": "Streak"
+            },
+            "newFollowers": {
+              "value": null,
+              "source": "IG Insights"
+            }
+          },
+          "roi": {
+            "bookings": {
+              "value": null,
+              "source": "Streak"
+            },
+            "rvc": {
+              "value": null,
+              "currency": "EUR",
+              "source": "Streak"
+            }
+          }
+        },
+        {
+          "id": "natalinanoel-ig-stories-2026-05-16",
+          "platform": "instagram",
+          "type": "story_batch",
+          "title": "2 IG Stories",
+          "url": null,
+          "postedDate": "2026-05-16",
+          "storyCount": 2,
+          "reach": {
+            "value": 51005,
             "source": "Modash"
           },
           "engagement": {
@@ -516,15 +564,153 @@
       "deliverables": "IG Reels + Stories",
       "content": [
         {
-          "id": "georgia-ig-stories",
+          "id": "georgiahassarati-ig-stories-2026-05-19",
           "platform": "instagram",
           "type": "story_batch",
-          "title": "9 IG Stories",
+          "title": "1 IG Stories",
+          "url": null,
+          "postedDate": "2026-05-19",
+          "storyCount": 1,
+          "reach": {
+            "value": 27751,
+            "source": "Modash"
+          },
+          "engagement": {
+            "likes": 0,
+            "comments": 0,
+            "shares": null,
+            "saves": null,
+            "rate": 0,
+            "source": "Modash"
+          },
+          "activation": {
+            "visits": {
+              "value": null,
+              "source": "GA4 UTM"
+            },
+            "leads": {
+              "value": null,
+              "source": "Streak"
+            },
+            "newFollowers": {
+              "value": null,
+              "source": "IG Insights"
+            }
+          },
+          "roi": {
+            "bookings": {
+              "value": null,
+              "source": "Streak"
+            },
+            "rvc": {
+              "value": null,
+              "currency": "EUR",
+              "source": "Streak"
+            }
+          }
+        },
+        {
+          "id": "georgiahassarati-ig-stories-2026-05-17",
+          "platform": "instagram",
+          "type": "story_batch",
+          "title": "3 IG Stories",
           "url": null,
           "postedDate": "2026-05-17",
-          "storyCount": 9,
+          "storyCount": 3,
           "reach": {
-            "value": 27770,
+            "value": 27751,
+            "source": "Modash"
+          },
+          "engagement": {
+            "likes": 0,
+            "comments": 0,
+            "shares": null,
+            "saves": null,
+            "rate": 0,
+            "source": "Modash"
+          },
+          "activation": {
+            "visits": {
+              "value": null,
+              "source": "GA4 UTM"
+            },
+            "leads": {
+              "value": null,
+              "source": "Streak"
+            },
+            "newFollowers": {
+              "value": null,
+              "source": "IG Insights"
+            }
+          },
+          "roi": {
+            "bookings": {
+              "value": null,
+              "source": "Streak"
+            },
+            "rvc": {
+              "value": null,
+              "currency": "EUR",
+              "source": "Streak"
+            }
+          }
+        },
+        {
+          "id": "georgiahassarati-ig-stories-2026-05-16",
+          "platform": "instagram",
+          "type": "story_batch",
+          "title": "1 IG Stories",
+          "url": null,
+          "postedDate": "2026-05-16",
+          "storyCount": 1,
+          "reach": {
+            "value": 27751,
+            "source": "Modash"
+          },
+          "engagement": {
+            "likes": 0,
+            "comments": 0,
+            "shares": null,
+            "saves": null,
+            "rate": 0,
+            "source": "Modash"
+          },
+          "activation": {
+            "visits": {
+              "value": null,
+              "source": "GA4 UTM"
+            },
+            "leads": {
+              "value": null,
+              "source": "Streak"
+            },
+            "newFollowers": {
+              "value": null,
+              "source": "IG Insights"
+            }
+          },
+          "roi": {
+            "bookings": {
+              "value": null,
+              "source": "Streak"
+            },
+            "rvc": {
+              "value": null,
+              "currency": "EUR",
+              "source": "Streak"
+            }
+          }
+        },
+        {
+          "id": "georgiahassarati-ig-stories-2026-05-15",
+          "platform": "instagram",
+          "type": "story_batch",
+          "title": "5 IG Stories",
+          "url": null,
+          "postedDate": "2026-05-15",
+          "storyCount": 5,
+          "reach": {
+            "value": 27751,
             "source": "Modash"
           },
           "engagement": {
@@ -576,15 +762,61 @@
       "deliverables": "IG content + Stories",
       "content": [
         {
-          "id": "jasonnash-ig-stories",
+          "id": "jasonnash-ig-stories-2026-05-17",
           "platform": "instagram",
           "type": "story_batch",
-          "title": "2 IG Stories",
+          "title": "1 IG Stories",
           "url": null,
           "postedDate": "2026-05-17",
-          "storyCount": 2,
+          "storyCount": 1,
           "reach": {
-            "value": 38208,
+            "value": 38195,
+            "source": "Modash"
+          },
+          "engagement": {
+            "likes": 0,
+            "comments": 0,
+            "shares": null,
+            "saves": null,
+            "rate": 0,
+            "source": "Modash"
+          },
+          "activation": {
+            "visits": {
+              "value": null,
+              "source": "GA4 UTM"
+            },
+            "leads": {
+              "value": null,
+              "source": "Streak"
+            },
+            "newFollowers": {
+              "value": null,
+              "source": "IG Insights"
+            }
+          },
+          "roi": {
+            "bookings": {
+              "value": null,
+              "source": "Streak"
+            },
+            "rvc": {
+              "value": null,
+              "currency": "EUR",
+              "source": "Streak"
+            }
+          }
+        },
+        {
+          "id": "jasonnash-ig-stories-2026-05-15",
+          "platform": "instagram",
+          "type": "story_batch",
+          "title": "1 IG Stories",
+          "url": null,
+          "postedDate": "2026-05-15",
+          "storyCount": 1,
+          "reach": {
+            "value": 38195,
             "source": "Modash"
           },
           "engagement": {
@@ -636,15 +868,198 @@
       "deliverables": "IG content + Stories",
       "content": [
         {
-          "id": "maclaine-ig-stories",
+          "id": "maclainefarrell-ig-stories-2026-05-18",
           "platform": "instagram",
           "type": "story_batch",
-          "title": "5 IG Stories",
+          "title": "2 IG Stories",
+          "url": null,
+          "postedDate": "2026-05-18",
+          "storyCount": 2,
+          "reach": {
+            "value": 4338,
+            "source": "Modash"
+          },
+          "engagement": {
+            "likes": 0,
+            "comments": 0,
+            "shares": null,
+            "saves": null,
+            "rate": 0,
+            "source": "Modash"
+          },
+          "activation": {
+            "visits": {
+              "value": null,
+              "source": "GA4 UTM"
+            },
+            "leads": {
+              "value": null,
+              "source": "Streak"
+            },
+            "newFollowers": {
+              "value": null,
+              "source": "IG Insights"
+            }
+          },
+          "roi": {
+            "bookings": {
+              "value": null,
+              "source": "Streak"
+            },
+            "rvc": {
+              "value": null,
+              "currency": "EUR",
+              "source": "Streak"
+            }
+          }
+        },
+        {
+          "id": "maclainefarrell-ig-reel-DYfSzgcA0y9",
+          "platform": "instagram",
+          "type": "reel",
+          "title": "Haters will say it's AI - @megayachtcristal #croatia #yacht #europe #grwm #split",
+          "url": "https://www.instagram.com/p/DYfSzgcA0y9",
+          "postedDate": "2026-05-18",
+          "reach": {
+            "value": 10262,
+            "source": "Modash (reelPlayCount)"
+          },
+          "engagement": {
+            "likes": 252,
+            "comments": 10,
+            "shares": null,
+            "saves": null,
+            "rate": 0.7,
+            "source": "Modash"
+          },
+          "activation": {
+            "visits": {
+              "value": null,
+              "source": "GA4 UTM"
+            },
+            "leads": {
+              "value": null,
+              "source": "Streak"
+            },
+            "newFollowers": {
+              "value": null,
+              "source": "IG Insights"
+            }
+          },
+          "roi": {
+            "bookings": {
+              "value": null,
+              "source": "Streak"
+            },
+            "rvc": {
+              "value": null,
+              "currency": "EUR",
+              "source": "Streak"
+            }
+          }
+        },
+        {
+          "id": "maclainefarrell-ig-stories-2026-05-17",
+          "platform": "instagram",
+          "type": "story_batch",
+          "title": "1 IG Stories",
+          "url": null,
+          "postedDate": "2026-05-17",
+          "storyCount": 1,
+          "reach": {
+            "value": 4338,
+            "source": "Modash"
+          },
+          "engagement": {
+            "likes": 0,
+            "comments": 0,
+            "shares": null,
+            "saves": null,
+            "rate": 0,
+            "source": "Modash"
+          },
+          "activation": {
+            "visits": {
+              "value": null,
+              "source": "GA4 UTM"
+            },
+            "leads": {
+              "value": null,
+              "source": "Streak"
+            },
+            "newFollowers": {
+              "value": null,
+              "source": "IG Insights"
+            }
+          },
+          "roi": {
+            "bookings": {
+              "value": null,
+              "source": "Streak"
+            },
+            "rvc": {
+              "value": null,
+              "currency": "EUR",
+              "source": "Streak"
+            }
+          }
+        },
+        {
+          "id": "maclainefarrell-ig-stories-2026-05-16",
+          "platform": "instagram",
+          "type": "story_batch",
+          "title": "2 IG Stories",
           "url": null,
           "postedDate": "2026-05-16",
-          "storyCount": 5,
+          "storyCount": 2,
           "reach": {
-            "value": 4335,
+            "value": 4338,
+            "source": "Modash"
+          },
+          "engagement": {
+            "likes": 0,
+            "comments": 0,
+            "shares": null,
+            "saves": null,
+            "rate": 0,
+            "source": "Modash"
+          },
+          "activation": {
+            "visits": {
+              "value": null,
+              "source": "GA4 UTM"
+            },
+            "leads": {
+              "value": null,
+              "source": "Streak"
+            },
+            "newFollowers": {
+              "value": null,
+              "source": "IG Insights"
+            }
+          },
+          "roi": {
+            "bookings": {
+              "value": null,
+              "source": "Streak"
+            },
+            "rvc": {
+              "value": null,
+              "currency": "EUR",
+              "source": "Streak"
+            }
+          }
+        },
+        {
+          "id": "maclainefarrell-ig-stories-2026-05-15",
+          "platform": "instagram",
+          "type": "story_batch",
+          "title": "2 IG Stories",
+          "url": null,
+          "postedDate": "2026-05-15",
+          "storyCount": 2,
+          "reach": {
+            "value": 4338,
             "source": "Modash"
           },
           "engagement": {
@@ -696,22 +1111,22 @@
       "deliverables": "IG Reel + Stories",
       "content": [
         {
-          "id": "taylor-reel-DYarR0Nq6pA",
+          "id": "taylortayh-ig-reel-DYarR0Nq6pA",
           "platform": "instagram",
           "type": "reel",
-          "title": "someone pinch me!!! 🛥️✨⚓️☀️ @goolets",
+          "title": "someone pinch me - @goolets",
           "url": "https://www.instagram.com/p/DYarR0Nq6pA",
-          "postedDate": "2026-05-16",
+          "postedDate": "2026-05-17",
           "reach": {
-            "value": 27201,
+            "value": 32726,
             "source": "Modash (reelPlayCount)"
           },
           "engagement": {
-            "likes": 927,
-            "comments": 10,
+            "likes": 1027,
+            "comments": 11,
             "shares": null,
             "saves": null,
-            "rate": 0.005,
+            "rate": 0.6,
             "source": "Modash"
           },
           "activation": {
@@ -741,15 +1156,61 @@
           }
         },
         {
-          "id": "taylor-ig-stories",
+          "id": "taylortayh-ig-stories-2026-05-16",
           "platform": "instagram",
           "type": "story_batch",
-          "title": "3 IG Stories",
+          "title": "1 IG Stories",
           "url": null,
-          "postedDate": "2026-05-17",
-          "storyCount": 3,
+          "postedDate": "2026-05-16",
+          "storyCount": 1,
           "reach": {
-            "value": 12570,
+            "value": 12564,
+            "source": "Modash"
+          },
+          "engagement": {
+            "likes": 0,
+            "comments": 0,
+            "shares": null,
+            "saves": null,
+            "rate": 0,
+            "source": "Modash"
+          },
+          "activation": {
+            "visits": {
+              "value": null,
+              "source": "GA4 UTM"
+            },
+            "leads": {
+              "value": null,
+              "source": "Streak"
+            },
+            "newFollowers": {
+              "value": null,
+              "source": "IG Insights"
+            }
+          },
+          "roi": {
+            "bookings": {
+              "value": null,
+              "source": "Streak"
+            },
+            "rvc": {
+              "value": null,
+              "currency": "EUR",
+              "source": "Streak"
+            }
+          }
+        },
+        {
+          "id": "taylortayh-ig-stories-2026-05-15",
+          "platform": "instagram",
+          "type": "story_batch",
+          "title": "2 IG Stories",
+          "url": null,
+          "postedDate": "2026-05-15",
+          "storyCount": 2,
+          "reach": {
+            "value": 12564,
             "source": "Modash"
           },
           "engagement": {
@@ -801,60 +1262,15 @@
       "deliverables": "IG Reel + Stories",
       "content": [
         {
-          "id": "ilya-reel-DYUsZK4Bw4N",
-          "platform": "instagram",
-          "type": "reel",
-          "title": "Gym with a view today 😍",
-          "url": "https://www.instagram.com/p/DYUsZK4Bw4N",
-          "postedDate": "2026-05-14",
-          "reach": {
-            "value": 33728,
-            "source": "Modash (reelPlayCount)"
-          },
-          "engagement": {
-            "likes": 1278,
-            "comments": 19,
-            "shares": null,
-            "saves": null,
-            "rate": 0.002,
-            "source": "Modash"
-          },
-          "activation": {
-            "visits": {
-              "value": null,
-              "source": "GA4 UTM"
-            },
-            "leads": {
-              "value": null,
-              "source": "Streak"
-            },
-            "newFollowers": {
-              "value": null,
-              "source": "IG Insights"
-            }
-          },
-          "roi": {
-            "bookings": {
-              "value": null,
-              "source": "Streak"
-            },
-            "rvc": {
-              "value": null,
-              "currency": "EUR",
-              "source": "Streak"
-            }
-          }
-        },
-        {
-          "id": "ilya-ig-stories",
+          "id": "ilyafeddy-ig-stories-2026-05-15",
           "platform": "instagram",
           "type": "story_batch",
-          "title": "1 IG Story",
+          "title": "1 IG Stories",
           "url": null,
-          "postedDate": "2026-05-16",
+          "postedDate": "2026-05-15",
           "storyCount": 1,
           "reach": {
-            "value": 34013,
+            "value": 34004,
             "source": "Modash"
           },
           "engagement": {
@@ -1137,7 +1553,7 @@
     "leads": {
       "direct": {
         "value": 0,
-        "source": "HubSpot · utm_campaign=dobrik",
+        "source": "HubSpot \u00b7 utm_campaign=dobrik",
         "note": "Zero direct attribution. Creators don't have ?utm_campaign=dobrik trackable links yet. Once distributed, this number will grow."
       },
       "halo": {
