@@ -8,12 +8,12 @@
     "currency": "EUR",
     "combinedFollowerBase": 32800000,
     "marketValue": "$300-500K",
-    "lastRefreshed": "2026-05-20T13:28:20.865480Z",
+    "lastRefreshed": "2026-05-20T13:32:46.432374Z",
     "modashCampaignId": "6a07a46318211e4bbdb25adf",
     "totalContentPieces": 59,
     "notes": "10 creators trackani v Modash (10 IG + Dobrik & Adam tudi YT = 12 channel entries). Jeff/Bruce/Suzy iz originalnega plana so OUT (niso v Modash campaign-u). Data ~46 od 59 items v Modash; 13 pending pull.",
     "modashTotalItems": 63,
-    "modashItemsPasted": 50
+    "modashItemsPasted": 63
   },
   "targets": {
     "reachTotal": 20000000,
@@ -415,6 +415,142 @@
             "shares": null,
             "saves": null,
             "rate": 0,
+            "source": "Modash"
+          },
+          "activation": {
+            "visits": {
+              "value": null,
+              "source": "GA4 UTM"
+            },
+            "leads": {
+              "value": null,
+              "source": "Streak"
+            },
+            "newFollowers": {
+              "value": null,
+              "source": "IG Insights"
+            }
+          },
+          "roi": {
+            "bookings": {
+              "value": null,
+              "source": "Streak"
+            },
+            "rvc": {
+              "value": null,
+              "currency": "EUR",
+              "source": "Streak"
+            }
+          }
+        },
+        {
+          "id": "pierson-ig-stories-2026-05-14",
+          "platform": "instagram",
+          "type": "story_batch",
+          "title": "10 IG Stories",
+          "url": null,
+          "postedDate": "2026-05-14",
+          "storyCount": 10,
+          "reach": {
+            "value": 53551,
+            "source": "Modash"
+          },
+          "engagement": {
+            "likes": 0,
+            "comments": 0,
+            "shares": null,
+            "saves": null,
+            "rate": 0,
+            "source": "Modash"
+          },
+          "activation": {
+            "visits": {
+              "value": null,
+              "source": "GA4 UTM"
+            },
+            "leads": {
+              "value": null,
+              "source": "Streak"
+            },
+            "newFollowers": {
+              "value": null,
+              "source": "IG Insights"
+            }
+          },
+          "roi": {
+            "bookings": {
+              "value": null,
+              "source": "Streak"
+            },
+            "rvc": {
+              "value": null,
+              "currency": "EUR",
+              "source": "Streak"
+            }
+          }
+        },
+        {
+          "id": "pierson-ig-reel-DYUtrtkxlkf",
+          "platform": "instagram",
+          "type": "reel",
+          "title": "best morning EVERRRR @goolets",
+          "url": "https://www.instagram.com/p/DYUtrtkxlkf",
+          "postedDate": "2026-05-14",
+          "reach": {
+            "value": 307025,
+            "source": "Modash (reelPlayCount)"
+          },
+          "engagement": {
+            "likes": 9886,
+            "comments": 32,
+            "shares": null,
+            "saves": null,
+            "rate": 0.4,
+            "source": "Modash"
+          },
+          "activation": {
+            "visits": {
+              "value": null,
+              "source": "GA4 UTM"
+            },
+            "leads": {
+              "value": null,
+              "source": "Streak"
+            },
+            "newFollowers": {
+              "value": null,
+              "source": "IG Insights"
+            }
+          },
+          "roi": {
+            "bookings": {
+              "value": null,
+              "source": "Streak"
+            },
+            "rvc": {
+              "value": null,
+              "currency": "EUR",
+              "source": "Streak"
+            }
+          }
+        },
+        {
+          "id": "pierson-ig-reel-DYT_NFUt9PP",
+          "platform": "instagram",
+          "type": "reel",
+          "title": "i understand this is completely insane",
+          "url": "https://www.instagram.com/p/DYT_NFUt9PP",
+          "postedDate": "2026-05-14",
+          "reach": {
+            "value": 147392,
+            "source": "Modash (reelPlayCount)"
+          },
+          "engagement": {
+            "likes": 4236,
+            "comments": 47,
+            "shares": null,
+            "saves": null,
+            "rate": 0.2,
             "source": "Modash"
           },
           "activation": {
@@ -1279,6 +1415,51 @@
             "shares": null,
             "saves": null,
             "rate": 0,
+            "source": "Modash"
+          },
+          "activation": {
+            "visits": {
+              "value": null,
+              "source": "GA4 UTM"
+            },
+            "leads": {
+              "value": null,
+              "source": "Streak"
+            },
+            "newFollowers": {
+              "value": null,
+              "source": "IG Insights"
+            }
+          },
+          "roi": {
+            "bookings": {
+              "value": null,
+              "source": "Streak"
+            },
+            "rvc": {
+              "value": null,
+              "currency": "EUR",
+              "source": "Streak"
+            }
+          }
+        },
+        {
+          "id": "ilyafeddy-ig-reel-DYUsZK4Bw4N",
+          "platform": "instagram",
+          "type": "reel",
+          "title": "Gym with a view today",
+          "url": "https://www.instagram.com/p/DYUsZK4Bw4N",
+          "postedDate": "2026-05-14",
+          "reach": {
+            "value": 35952,
+            "source": "Modash (reelPlayCount)"
+          },
+          "engagement": {
+            "likes": 1337,
+            "comments": 19,
+            "shares": null,
+            "saves": null,
+            "rate": 0.2,
             "source": "Modash"
           },
           "activation": {
