@@ -1,0 +1,1351 @@
+{
+  "trip": {
+    "name": "Dobrik Croatia",
+    "startDate": "2026-05-12",
+    "endDate": "2026-05-21",
+    "status": "LIVE",
+    "investment": 30000,
+    "currency": "EUR",
+    "combinedFollowerBase": 32800000,
+    "marketValue": "$300-500K",
+    "lastRefreshed": "2026-05-20T07:11:31.354Z",
+    "modashCampaignId": "6a07a46318211e4bbdb25adf",
+    "totalContentPieces": 59,
+    "notes": "10 creators trackani v Modash (10 IG + Dobrik & Adam tudi YT = 12 channel entries). Jeff/Bruce/Suzy iz originalnega plana so OUT (niso v Modash campaign-u). Data ~46 od 59 items v Modash; 13 pending pull."
+  },
+  "targets": {
+    "reachTotal": 20000000,
+    "engagementRate": 0.05,
+    "leadsTotal": 75,
+    "qualifiedLeadsTotal": 15,
+    "bookingsTotal": 2,
+    "rvcTotal": 350000
+  },
+  "creators": [
+    {
+      "id": "dobrik",
+      "name": "David Dobrik",
+      "handle": "@daviddobrik",
+      "icpFit": "MED",
+      "followers": {
+        "ig": 9500000,
+        "yt": 18300000
+      },
+      "audienceOverlap": null,
+      "deliverables": "1 YT video + IG content + Stories",
+      "content": [
+        {
+          "id": "dobrik-ig-stories-2026-05-17",
+          "platform": "instagram",
+          "type": "story_batch",
+          "title": "3 IG Stories",
+          "url": null,
+          "postedDate": "2026-05-17",
+          "storyCount": 3,
+          "reach": {
+            "value": 186056,
+            "source": "Modash"
+          },
+          "engagement": {
+            "likes": 0,
+            "comments": 0,
+            "shares": null,
+            "saves": null,
+            "rate": 0,
+            "source": "Modash"
+          },
+          "activation": {
+            "visits": {
+              "value": null,
+              "source": "GA4 UTM"
+            },
+            "leads": {
+              "value": null,
+              "source": "Streak"
+            },
+            "newFollowers": {
+              "value": null,
+              "source": "IG Insights"
+            }
+          },
+          "roi": {
+            "bookings": {
+              "value": null,
+              "source": "Streak"
+            },
+            "rvc": {
+              "value": null,
+              "currency": "EUR",
+              "source": "Streak"
+            }
+          }
+        },
+        {
+          "id": "dobrik-yt-pending",
+          "platform": "youtube",
+          "type": "video",
+          "title": "YouTube video — pending (Modash YT tracking active)",
+          "url": null,
+          "postedDate": null,
+          "reach": {
+            "value": null,
+            "source": "Modash YT / YT Data API"
+          },
+          "engagement": {
+            "likes": null,
+            "comments": null,
+            "shares": null,
+            "saves": null,
+            "rate": null,
+            "source": "Modash YT"
+          },
+          "activation": {
+            "visits": {
+              "value": null,
+              "source": "GA4 UTM"
+            },
+            "leads": {
+              "value": null,
+              "source": "Streak"
+            },
+            "newFollowers": {
+              "value": null,
+              "source": "YT/IG Insights"
+            }
+          },
+          "roi": {
+            "bookings": {
+              "value": null,
+              "source": "Streak"
+            },
+            "rvc": {
+              "value": null,
+              "currency": "EUR",
+              "source": "Streak"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "adamw",
+      "name": "Adam Waheed",
+      "handle": "@adamw",
+      "icpFit": "LOW",
+      "followers": {
+        "ig": 12400000,
+        "yt": 1200000
+      },
+      "audienceOverlap": null,
+      "deliverables": "YT video + IG Reels + Stories",
+      "content": [
+        {
+          "id": "adamw-ig-stories",
+          "platform": "instagram",
+          "type": "story_batch",
+          "title": "1 IG Story",
+          "url": null,
+          "postedDate": "2026-05-17",
+          "storyCount": 1,
+          "reach": {
+            "value": 246978,
+            "source": "Modash"
+          },
+          "engagement": {
+            "likes": 0,
+            "comments": 0,
+            "shares": null,
+            "saves": null,
+            "rate": 0,
+            "source": "Modash"
+          },
+          "activation": {
+            "visits": {
+              "value": null,
+              "source": "GA4 UTM"
+            },
+            "leads": {
+              "value": null,
+              "source": "Streak"
+            },
+            "newFollowers": {
+              "value": null,
+              "source": "IG Insights"
+            }
+          },
+          "roi": {
+            "bookings": {
+              "value": null,
+              "source": "Streak"
+            },
+            "rvc": {
+              "value": null,
+              "currency": "EUR",
+              "source": "Streak"
+            }
+          }
+        },
+        {
+          "id": "adamw-yt-pending",
+          "platform": "youtube",
+          "type": "video",
+          "title": "YouTube content — pending (Modash YT tracking active)",
+          "url": null,
+          "postedDate": null,
+          "reach": {
+            "value": null,
+            "source": "Modash YT / YT Data API"
+          },
+          "engagement": {
+            "likes": null,
+            "comments": null,
+            "shares": null,
+            "saves": null,
+            "rate": null,
+            "source": "Modash YT"
+          },
+          "activation": {
+            "visits": {
+              "value": null,
+              "source": "GA4 UTM"
+            },
+            "leads": {
+              "value": null,
+              "source": "Streak"
+            },
+            "newFollowers": {
+              "value": null,
+              "source": "YT/IG Insights"
+            }
+          },
+          "roi": {
+            "bookings": {
+              "value": null,
+              "source": "Streak"
+            },
+            "rvc": {
+              "value": null,
+              "currency": "EUR",
+              "source": "Streak"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "zane",
+      "name": "Zane Hijazi",
+      "handle": "@zane",
+      "icpFit": "MED",
+      "followers": {
+        "ig": 2700000,
+        "yt": 5800000
+      },
+      "audienceOverlap": null,
+      "deliverables": "IG posts + Stories",
+      "content": [
+        {
+          "id": "zane-ig-stories",
+          "platform": "instagram",
+          "type": "story_batch",
+          "title": "8 IG Stories",
+          "url": null,
+          "postedDate": "2026-05-17",
+          "storyCount": 8,
+          "reach": {
+            "value": 53905,
+            "source": "Modash"
+          },
+          "engagement": {
+            "likes": 0,
+            "comments": 0,
+            "shares": null,
+            "saves": null,
+            "rate": 0,
+            "source": "Modash"
+          },
+          "activation": {
+            "visits": {
+              "value": null,
+              "source": "GA4 UTM"
+            },
+            "leads": {
+              "value": null,
+              "source": "Streak"
+            },
+            "newFollowers": {
+              "value": null,
+              "source": "IG Insights"
+            }
+          },
+          "roi": {
+            "bookings": {
+              "value": null,
+              "source": "Streak"
+            },
+            "rvc": {
+              "value": null,
+              "currency": "EUR",
+              "source": "Streak"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "pierson",
+      "name": "Pierson Wodzynski",
+      "handle": "@pierson",
+      "icpFit": "LOW",
+      "followers": {
+        "ig": 2700000,
+        "yt": 1100000
+      },
+      "audienceOverlap": null,
+      "deliverables": "IG Post + IG Reel + Stories",
+      "content": [
+        {
+          "id": "pierson-post-DYYsUvniGA9",
+          "platform": "instagram",
+          "type": "post",
+          "title": "croatia's been too good to me 💙",
+          "url": "https://www.instagram.com/p/DYYsUvniGA9",
+          "postedDate": "2026-05-16",
+          "reach": {
+            "value": 449480,
+            "source": "Modash"
+          },
+          "impressions": 674220,
+          "engagement": {
+            "likes": 22376,
+            "comments": 98,
+            "shares": null,
+            "saves": null,
+            "rate": 0.008,
+            "source": "Modash"
+          },
+          "activation": {
+            "visits": {
+              "value": null,
+              "source": "GA4 UTM"
+            },
+            "leads": {
+              "value": null,
+              "source": "Streak"
+            },
+            "newFollowers": {
+              "value": null,
+              "source": "IG Insights"
+            }
+          },
+          "roi": {
+            "bookings": {
+              "value": null,
+              "source": "Streak"
+            },
+            "rvc": {
+              "value": null,
+              "currency": "EUR",
+              "source": "Streak"
+            }
+          }
+        },
+        {
+          "id": "pierson-reel-DYUtrtkxlkf",
+          "platform": "instagram",
+          "type": "reel",
+          "title": "best morning EVERRRR @goolets",
+          "url": "https://www.instagram.com/p/DYUtrtkxlkf",
+          "postedDate": "2026-05-14",
+          "reach": {
+            "value": 277283,
+            "source": "Modash (reelPlayCount)"
+          },
+          "engagement": {
+            "likes": 9025,
+            "comments": 27,
+            "shares": null,
+            "saves": null,
+            "rate": 0.003,
+            "source": "Modash"
+          },
+          "activation": {
+            "visits": {
+              "value": null,
+              "source": "GA4 UTM"
+            },
+            "leads": {
+              "value": null,
+              "source": "Streak"
+            },
+            "newFollowers": {
+              "value": null,
+              "source": "IG Insights"
+            }
+          },
+          "roi": {
+            "bookings": {
+              "value": null,
+              "source": "Streak"
+            },
+            "rvc": {
+              "value": null,
+              "currency": "EUR",
+              "source": "Streak"
+            }
+          }
+        },
+        {
+          "id": "pierson-ig-stories",
+          "platform": "instagram",
+          "type": "story_batch",
+          "title": "10+ IG Stories",
+          "url": null,
+          "postedDate": "2026-05-17",
+          "storyCount": 10,
+          "reach": {
+            "value": 53574,
+            "source": "Modash"
+          },
+          "engagement": {
+            "likes": 0,
+            "comments": 0,
+            "shares": null,
+            "saves": null,
+            "rate": 0,
+            "source": "Modash"
+          },
+          "activation": {
+            "visits": {
+              "value": null,
+              "source": "GA4 UTM"
+            },
+            "leads": {
+              "value": null,
+              "source": "Streak"
+            },
+            "newFollowers": {
+              "value": null,
+              "source": "IG Insights"
+            }
+          },
+          "roi": {
+            "bookings": {
+              "value": null,
+              "source": "Streak"
+            },
+            "rvc": {
+              "value": null,
+              "currency": "EUR",
+              "source": "Streak"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "natalinanoel",
+      "name": "Natalie Noel",
+      "handle": "@natalinanoel",
+      "icpFit": "MED",
+      "followers": {
+        "ig": 1500000,
+        "yt": 0
+      },
+      "audienceOverlap": null,
+      "deliverables": "IG Stories",
+      "content": [
+        {
+          "id": "natalinanoel-ig-stories",
+          "platform": "instagram",
+          "type": "story_batch",
+          "title": "5 IG Stories",
+          "url": null,
+          "postedDate": "2026-05-18",
+          "storyCount": 5,
+          "reach": {
+            "value": 51027,
+            "source": "Modash"
+          },
+          "engagement": {
+            "likes": 0,
+            "comments": 0,
+            "shares": null,
+            "saves": null,
+            "rate": 0,
+            "source": "Modash"
+          },
+          "activation": {
+            "visits": {
+              "value": null,
+              "source": "GA4 UTM"
+            },
+            "leads": {
+              "value": null,
+              "source": "Streak"
+            },
+            "newFollowers": {
+              "value": null,
+              "source": "IG Insights"
+            }
+          },
+          "roi": {
+            "bookings": {
+              "value": null,
+              "source": "Streak"
+            },
+            "rvc": {
+              "value": null,
+              "currency": "EUR",
+              "source": "Streak"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "georgiahassarati",
+      "name": "Georgia Hassarati",
+      "handle": "@georgiahassarati",
+      "icpFit": "HIGH",
+      "followers": {
+        "ig": 1400000,
+        "yt": 0
+      },
+      "audienceOverlap": null,
+      "deliverables": "IG Reels + Stories",
+      "content": [
+        {
+          "id": "georgia-ig-stories",
+          "platform": "instagram",
+          "type": "story_batch",
+          "title": "9 IG Stories",
+          "url": null,
+          "postedDate": "2026-05-17",
+          "storyCount": 9,
+          "reach": {
+            "value": 27770,
+            "source": "Modash"
+          },
+          "engagement": {
+            "likes": 0,
+            "comments": 0,
+            "shares": null,
+            "saves": null,
+            "rate": 0,
+            "source": "Modash"
+          },
+          "activation": {
+            "visits": {
+              "value": null,
+              "source": "GA4 UTM"
+            },
+            "leads": {
+              "value": null,
+              "source": "Streak"
+            },
+            "newFollowers": {
+              "value": null,
+              "source": "IG Insights"
+            }
+          },
+          "roi": {
+            "bookings": {
+              "value": null,
+              "source": "Streak"
+            },
+            "rvc": {
+              "value": null,
+              "currency": "EUR",
+              "source": "Streak"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "jasonnash",
+      "name": "Jason Nash",
+      "handle": "@jasonnash",
+      "icpFit": "MED",
+      "followers": {
+        "ig": 1000000,
+        "yt": 750000
+      },
+      "audienceOverlap": null,
+      "deliverables": "IG content + Stories",
+      "content": [
+        {
+          "id": "jasonnash-ig-stories",
+          "platform": "instagram",
+          "type": "story_batch",
+          "title": "2 IG Stories",
+          "url": null,
+          "postedDate": "2026-05-17",
+          "storyCount": 2,
+          "reach": {
+            "value": 38208,
+            "source": "Modash"
+          },
+          "engagement": {
+            "likes": 0,
+            "comments": 0,
+            "shares": null,
+            "saves": null,
+            "rate": 0,
+            "source": "Modash"
+          },
+          "activation": {
+            "visits": {
+              "value": null,
+              "source": "GA4 UTM"
+            },
+            "leads": {
+              "value": null,
+              "source": "Streak"
+            },
+            "newFollowers": {
+              "value": null,
+              "source": "IG Insights"
+            }
+          },
+          "roi": {
+            "bookings": {
+              "value": null,
+              "source": "Streak"
+            },
+            "rvc": {
+              "value": null,
+              "currency": "EUR",
+              "source": "Streak"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "maclainefarrell",
+      "name": "Maclaine Farrell",
+      "handle": "@maclainefarrell",
+      "icpFit": "MED",
+      "followers": {
+        "ig": 400000,
+        "yt": 0
+      },
+      "audienceOverlap": null,
+      "deliverables": "IG content + Stories",
+      "content": [
+        {
+          "id": "maclaine-ig-stories",
+          "platform": "instagram",
+          "type": "story_batch",
+          "title": "5 IG Stories",
+          "url": null,
+          "postedDate": "2026-05-16",
+          "storyCount": 5,
+          "reach": {
+            "value": 4335,
+            "source": "Modash"
+          },
+          "engagement": {
+            "likes": 0,
+            "comments": 0,
+            "shares": null,
+            "saves": null,
+            "rate": 0,
+            "source": "Modash"
+          },
+          "activation": {
+            "visits": {
+              "value": null,
+              "source": "GA4 UTM"
+            },
+            "leads": {
+              "value": null,
+              "source": "Streak"
+            },
+            "newFollowers": {
+              "value": null,
+              "source": "IG Insights"
+            }
+          },
+          "roi": {
+            "bookings": {
+              "value": null,
+              "source": "Streak"
+            },
+            "rvc": {
+              "value": null,
+              "currency": "EUR",
+              "source": "Streak"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "taylortayh",
+      "name": "Taylor Tayh",
+      "handle": "@taylortayh",
+      "icpFit": "MED",
+      "followers": {
+        "ig": 600000,
+        "yt": 0
+      },
+      "audienceOverlap": null,
+      "deliverables": "IG Reel + Stories",
+      "content": [
+        {
+          "id": "taylor-reel-DYarR0Nq6pA",
+          "platform": "instagram",
+          "type": "reel",
+          "title": "someone pinch me!!! 🛥️✨⚓️☀️ @goolets",
+          "url": "https://www.instagram.com/p/DYarR0Nq6pA",
+          "postedDate": "2026-05-16",
+          "reach": {
+            "value": 27201,
+            "source": "Modash (reelPlayCount)"
+          },
+          "engagement": {
+            "likes": 927,
+            "comments": 10,
+            "shares": null,
+            "saves": null,
+            "rate": 0.005,
+            "source": "Modash"
+          },
+          "activation": {
+            "visits": {
+              "value": null,
+              "source": "GA4 UTM"
+            },
+            "leads": {
+              "value": null,
+              "source": "Streak"
+            },
+            "newFollowers": {
+              "value": null,
+              "source": "IG Insights"
+            }
+          },
+          "roi": {
+            "bookings": {
+              "value": null,
+              "source": "Streak"
+            },
+            "rvc": {
+              "value": null,
+              "currency": "EUR",
+              "source": "Streak"
+            }
+          }
+        },
+        {
+          "id": "taylor-ig-stories",
+          "platform": "instagram",
+          "type": "story_batch",
+          "title": "3 IG Stories",
+          "url": null,
+          "postedDate": "2026-05-17",
+          "storyCount": 3,
+          "reach": {
+            "value": 12570,
+            "source": "Modash"
+          },
+          "engagement": {
+            "likes": 0,
+            "comments": 0,
+            "shares": null,
+            "saves": null,
+            "rate": 0,
+            "source": "Modash"
+          },
+          "activation": {
+            "visits": {
+              "value": null,
+              "source": "GA4 UTM"
+            },
+            "leads": {
+              "value": null,
+              "source": "Streak"
+            },
+            "newFollowers": {
+              "value": null,
+              "source": "IG Insights"
+            }
+          },
+          "roi": {
+            "bookings": {
+              "value": null,
+              "source": "Streak"
+            },
+            "rvc": {
+              "value": null,
+              "currency": "EUR",
+              "source": "Streak"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "ilyafeddy",
+      "name": "Ilya Fedorovich",
+      "handle": "@ilyafeddy",
+      "icpFit": "MED",
+      "followers": {
+        "ig": 700000,
+        "yt": 0
+      },
+      "audienceOverlap": null,
+      "deliverables": "IG Reel + Stories",
+      "content": [
+        {
+          "id": "ilya-reel-DYUsZK4Bw4N",
+          "platform": "instagram",
+          "type": "reel",
+          "title": "Gym with a view today 😍",
+          "url": "https://www.instagram.com/p/DYUsZK4Bw4N",
+          "postedDate": "2026-05-14",
+          "reach": {
+            "value": 33728,
+            "source": "Modash (reelPlayCount)"
+          },
+          "engagement": {
+            "likes": 1278,
+            "comments": 19,
+            "shares": null,
+            "saves": null,
+            "rate": 0.002,
+            "source": "Modash"
+          },
+          "activation": {
+            "visits": {
+              "value": null,
+              "source": "GA4 UTM"
+            },
+            "leads": {
+              "value": null,
+              "source": "Streak"
+            },
+            "newFollowers": {
+              "value": null,
+              "source": "IG Insights"
+            }
+          },
+          "roi": {
+            "bookings": {
+              "value": null,
+              "source": "Streak"
+            },
+            "rvc": {
+              "value": null,
+              "currency": "EUR",
+              "source": "Streak"
+            }
+          }
+        },
+        {
+          "id": "ilya-ig-stories",
+          "platform": "instagram",
+          "type": "story_batch",
+          "title": "1 IG Story",
+          "url": null,
+          "postedDate": "2026-05-16",
+          "storyCount": 1,
+          "reach": {
+            "value": 34013,
+            "source": "Modash"
+          },
+          "engagement": {
+            "likes": 0,
+            "comments": 0,
+            "shares": null,
+            "saves": null,
+            "rate": 0,
+            "source": "Modash"
+          },
+          "activation": {
+            "visits": {
+              "value": null,
+              "source": "GA4 UTM"
+            },
+            "leads": {
+              "value": null,
+              "source": "Streak"
+            },
+            "newFollowers": {
+              "value": null,
+              "source": "IG Insights"
+            }
+          },
+          "roi": {
+            "bookings": {
+              "value": null,
+              "source": "Streak"
+            },
+            "rvc": {
+              "value": null,
+              "currency": "EUR",
+              "source": "Streak"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "aggregate": {
+    "followers": {
+      "yt": {
+        "channel": "Goolets",
+        "channelId": "UCJi8ZtNRy07_IEaEew1-xgw",
+        "source": "YouTube Analytics API",
+        "current": 12500,
+        "asOf": "2026-05-20T07:11:27.297Z",
+        "trip": {
+          "startDate": "2026-05-12",
+          "endDate": "2026-05-20",
+          "days": 9,
+          "views": 283829,
+          "subscribersGained": 9,
+          "subscribersLost": 13,
+          "netSubscribers": -4,
+          "minutesWatched": 121465,
+          "averageViewDuration": 42
+        },
+        "baseline": {
+          "startDate": "2026-05-03",
+          "endDate": "2026-05-12",
+          "days": 9,
+          "views": 462809,
+          "subscribersGained": 10,
+          "subscribersLost": 15,
+          "netSubscribers": -5,
+          "minutesWatched": 147027
+        },
+        "deltas": {
+          "views": -178980,
+          "subscribersGained": -1,
+          "netSubscribers": 1,
+          "minutesWatched": -25562
+        },
+        "tripDelta": 9,
+        "tripNetDelta": -4,
+        "tripLiftVsBaseline": -1,
+        "dailySeries": [
+          {
+            "date": "2026-05-12",
+            "views": 41508,
+            "subscribersGained": 1,
+            "subscribersLost": 2,
+            "netSubscribers": -1
+          },
+          {
+            "date": "2026-05-13",
+            "views": 58325,
+            "subscribersGained": 1,
+            "subscribersLost": 2,
+            "netSubscribers": -1
+          },
+          {
+            "date": "2026-05-14",
+            "views": 47668,
+            "subscribersGained": 0,
+            "subscribersLost": 1,
+            "netSubscribers": -1
+          },
+          {
+            "date": "2026-05-15",
+            "views": 47106,
+            "subscribersGained": 3,
+            "subscribersLost": 4,
+            "netSubscribers": -1
+          },
+          {
+            "date": "2026-05-16",
+            "views": 37574,
+            "subscribersGained": 2,
+            "subscribersLost": 1,
+            "netSubscribers": 1
+          },
+          {
+            "date": "2026-05-17",
+            "views": 51648,
+            "subscribersGained": 2,
+            "subscribersLost": 3,
+            "netSubscribers": -1
+          }
+        ],
+        "trafficSources": {
+          "trip": [
+            {
+              "source": "ADVERTISING",
+              "views": 281404,
+              "minutesWatched": 119579
+            },
+            {
+              "source": "SHORTS",
+              "views": 2845,
+              "minutesWatched": 239
+            },
+            {
+              "source": "EXT_URL",
+              "views": 495,
+              "minutesWatched": 736
+            },
+            {
+              "source": "YT_SEARCH",
+              "views": 433,
+              "minutesWatched": 429
+            },
+            {
+              "source": "YT_CHANNEL",
+              "views": 206,
+              "minutesWatched": 83
+            },
+            {
+              "source": "NO_LINK_OTHER",
+              "views": 192,
+              "minutesWatched": 229
+            },
+            {
+              "source": "SUBSCRIBER",
+              "views": 120,
+              "minutesWatched": 105
+            },
+            {
+              "source": "RELATED_VIDEO",
+              "views": 85,
+              "minutesWatched": 177
+            },
+            {
+              "source": "PLAYLIST",
+              "views": 47,
+              "minutesWatched": 68
+            },
+            {
+              "source": "YT_OTHER_PAGE",
+              "views": 36,
+              "minutesWatched": 39
+            },
+            {
+              "source": "NOTIFICATION",
+              "views": 29,
+              "minutesWatched": 10
+            },
+            {
+              "source": "END_SCREEN",
+              "views": 4,
+              "minutesWatched": 2
+            },
+            {
+              "source": "SOUND_PAGE",
+              "views": 4,
+              "minutesWatched": 0
+            },
+            {
+              "source": "SHORTS_CONTENT_LINKS",
+              "views": 3,
+              "minutesWatched": 1
+            },
+            {
+              "source": "HASHTAGS",
+              "views": 0,
+              "minutesWatched": 0
+            }
+          ],
+          "baseline": [
+            {
+              "source": "ADVERTISING",
+              "views": 462854,
+              "minutesWatched": 144867
+            },
+            {
+              "source": "SHORTS",
+              "views": 1646,
+              "minutesWatched": 258
+            },
+            {
+              "source": "YT_SEARCH",
+              "views": 586,
+              "minutesWatched": 648
+            },
+            {
+              "source": "YT_CHANNEL",
+              "views": 479,
+              "minutesWatched": 148
+            },
+            {
+              "source": "EXT_URL",
+              "views": 428,
+              "minutesWatched": 720
+            },
+            {
+              "source": "NO_LINK_OTHER",
+              "views": 254,
+              "minutesWatched": 384
+            },
+            {
+              "source": "PLAYLIST",
+              "views": 138,
+              "minutesWatched": 125
+            },
+            {
+              "source": "SUBSCRIBER",
+              "views": 96,
+              "minutesWatched": 125
+            },
+            {
+              "source": "RELATED_VIDEO",
+              "views": 80,
+              "minutesWatched": 203
+            },
+            {
+              "source": "YT_OTHER_PAGE",
+              "views": 42,
+              "minutesWatched": 60
+            },
+            {
+              "source": "NOTIFICATION",
+              "views": 22,
+              "minutesWatched": 7
+            },
+            {
+              "source": "SOUND_PAGE",
+              "views": 8,
+              "minutesWatched": 0
+            },
+            {
+              "source": "END_SCREEN",
+              "views": 7,
+              "minutesWatched": 16
+            },
+            {
+              "source": "HASHTAGS",
+              "views": 2,
+              "minutesWatched": 0
+            },
+            {
+              "source": "SHORTS_CONTENT_LINKS",
+              "views": 2,
+              "minutesWatched": 0
+            }
+          ]
+        }
+      }
+    },
+    "leads": {
+      "direct": {
+        "value": 0,
+        "source": "HubSpot · utm_campaign=dobrik",
+        "note": "Zero direct attribution. Creators don't have ?utm_campaign=dobrik trackable links yet. Once distributed, this number will grow."
+      },
+      "halo": {
+        "organicTrip": 191,
+        "organicBaseline": 196,
+        "organicLift": -5,
+        "breakdown": [
+          {
+            "source": "AI_REFERRALS",
+            "trip": 1,
+            "baseline": 3,
+            "delta": -2,
+            "organic": true
+          },
+          {
+            "source": "DIRECT_TRAFFIC",
+            "trip": 53,
+            "baseline": 60,
+            "delta": -7,
+            "organic": true
+          },
+          {
+            "source": "OFFLINE",
+            "trip": 437,
+            "baseline": 22,
+            "delta": 415,
+            "organic": false
+          },
+          {
+            "source": "ORGANIC_SEARCH",
+            "trip": 34,
+            "baseline": 26,
+            "delta": 8,
+            "organic": true
+          },
+          {
+            "source": "OTHER_CAMPAIGNS",
+            "trip": 22,
+            "baseline": 11,
+            "delta": 11,
+            "organic": true
+          },
+          {
+            "source": "PAID_SEARCH",
+            "trip": 30,
+            "baseline": 16,
+            "delta": 14,
+            "organic": false
+          },
+          {
+            "source": "PAID_SOCIAL",
+            "trip": 140,
+            "baseline": 131,
+            "delta": 9,
+            "organic": false
+          },
+          {
+            "source": "REFERRALS",
+            "trip": 1,
+            "baseline": 0,
+            "delta": 1,
+            "organic": true
+          },
+          {
+            "source": "SOCIAL_MEDIA",
+            "trip": 80,
+            "baseline": 96,
+            "delta": -16,
+            "organic": true
+          }
+        ],
+        "tripStart": "2026-05-12",
+        "baselineStart": "2026-05-03T00:00:00.000Z",
+        "tripDays": 9,
+        "source": "HubSpot organic channels (ORGANIC_SEARCH + SOCIAL_MEDIA + DIRECT + REFERRALS + OTHER_CAMPAIGNS): trip vs equal pre-trip baseline. Paid social/search + offline excluded as Dobrik-unattributable."
+      },
+      "asOf": "2026-05-20T07:11:31.354Z"
+    },
+    "visits": {
+      "source": "GA4 (property 311674241) trip vs equal pre-trip baseline",
+      "trip": {
+        "startDate": "2026-05-12",
+        "endDate": "2026-05-20",
+        "sessions": 21307,
+        "users": 19024
+      },
+      "baseline": {
+        "startDate": "2026-05-03",
+        "endDate": "2026-05-11",
+        "sessions": 21493,
+        "users": 19284
+      },
+      "organicTrip": 7163,
+      "organicBaseline": 6826,
+      "organicLift": 337,
+      "breakdown": [
+        {
+          "category": "ORGANIC_SEARCH",
+          "trip": 2704,
+          "baseline": 2629,
+          "delta": 75,
+          "organic": true
+        },
+        {
+          "category": "ORGANIC_SOCIAL",
+          "trip": 817,
+          "baseline": 555,
+          "delta": 262,
+          "organic": true
+        },
+        {
+          "category": "DIRECT",
+          "trip": 3450,
+          "baseline": 3475,
+          "delta": -25,
+          "organic": true
+        },
+        {
+          "category": "OTHER_REFERRAL",
+          "trip": 192,
+          "baseline": 167,
+          "delta": 25,
+          "organic": true
+        },
+        {
+          "category": "EMAIL",
+          "trip": 281,
+          "baseline": 573,
+          "delta": -292,
+          "organic": false
+        },
+        {
+          "category": "PAID_SEARCH",
+          "trip": 2359,
+          "baseline": 2885,
+          "delta": -526,
+          "organic": false
+        },
+        {
+          "category": "PAID_SOCIAL",
+          "trip": 10825,
+          "baseline": 10505,
+          "delta": 320,
+          "organic": false
+        },
+        {
+          "category": "OTHER_PAID",
+          "trip": 32,
+          "baseline": 46,
+          "delta": -14,
+          "organic": false
+        },
+        {
+          "category": "OTHER",
+          "trip": 647,
+          "baseline": 658,
+          "delta": -11,
+          "organic": false
+        }
+      ],
+      "daily": [
+        {
+          "date": "20260512",
+          "sessions": 2758,
+          "users": 2556
+        },
+        {
+          "date": "20260513",
+          "sessions": 2433,
+          "users": 2268
+        },
+        {
+          "date": "20260514",
+          "sessions": 2671,
+          "users": 2521
+        },
+        {
+          "date": "20260515",
+          "sessions": 1736,
+          "users": 1576
+        },
+        {
+          "date": "20260516",
+          "sessions": 3074,
+          "users": 2895
+        },
+        {
+          "date": "20260517",
+          "sessions": 2877,
+          "users": 2719
+        },
+        {
+          "date": "20260518",
+          "sessions": 2767,
+          "users": 2459
+        },
+        {
+          "date": "20260519",
+          "sessions": 2665,
+          "users": 2462
+        },
+        {
+          "date": "20260520",
+          "sessions": 487,
+          "users": 478
+        }
+      ],
+      "asOf": "2026-05-20T07:11:31.296Z"
+    }
+  }
+}

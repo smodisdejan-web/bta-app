@@ -24,6 +24,7 @@ const navItems = [
   { label: 'GA4 Landing Pages', href: '/ga4-landing-pages' },
   { label: 'Tests', href: '/tests' },
   { label: 'Vessel Funnel', href: '/vessel-funnel' },
+  { label: 'Dobrik Trip', href: '/dobrik-trip' },
   { label: 'Reports', href: 'https://goolets-reports.vercel.app/', external: true }
 ] as const
 
