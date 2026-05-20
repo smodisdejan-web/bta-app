@@ -61,8 +61,6 @@ interface FollowerSeries {
   channel?: string
   channelId?: string
   source?: string
-  baseline?: number
-  baselineDate?: string
   current?: number
   tripDelta?: number | null
   tripNetDelta?: number | null
@@ -78,10 +76,26 @@ interface FollowerSeries {
     subscribersLost?: number
     netSubscribers?: number
     minutesWatched?: number
+    averageViewDuration?: number
+  }
+  baseline?: {
+    startDate?: string
+    endDate?: string
+    days?: number
+    views?: number
+    subscribersGained?: number
+    subscribersLost?: number
+    netSubscribers?: number
+    minutesWatched?: number
   }
   baselinePeriod?: unknown
-  deltas?: unknown
-  dailySeries?: unknown
+  deltas?: {
+    views?: number
+    subscribersGained?: number
+    netSubscribers?: number
+    minutesWatched?: number
+  }
+  dailySeries?: { date: string; views: number; subscribersGained: number; subscribersLost: number; netSubscribers: number }[]
   trafficSources?: unknown
 }
 
@@ -254,7 +268,9 @@ export default function DobrikTripPage() {
   const trip = data.trip
   const targets = data.targets
   const creators = data.creators as Creator[]
-  const hsHalo = (data as unknown as { aggregate?: AggregateBlock }).aggregate?.leads?.halo ?? null
+  const aggBlock = (data as unknown as { aggregate?: AggregateBlock }).aggregate
+  const hsHalo = aggBlock?.leads?.halo ?? null
+  const ytChannel = aggBlock?.followers?.yt ?? null
 
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const toggle = (id: string) => setExpanded((p) => ({ ...p, [id]: !p[id] }))
@@ -531,6 +547,9 @@ export default function DobrikTripPage() {
           })}
         </Card>
 
+        {/* GOOLETS YOUTUBE CHANNEL — trip vs baseline (views, watch time, subs) */}
+        {ytChannel?.trip && <YouTubeChannelCard yt={ytChannel} />}
+
         {/* DAILY SPARKLINE — GA4 sessions during trip */}
         {totals.visitsAgg?.daily && totals.visitsAgg.daily.length > 0 && totals.visitsAgg.baseline && (
           <DailySparkline
@@ -667,6 +686,132 @@ function ColHeader({ label, hint }: { label: string; hint: string }) {
       {label}
       <InfoIcon text={hint} />
     </div>
+  )
+}
+
+/* Goolets YouTube channel card — trip vs baseline (views, watch time, subs) */
+function YouTubeChannelCard({ yt }: { yt: FollowerSeries }) {
+  const t = yt.trip
+  const b = yt.baseline
+  const d = yt.deltas
+  if (!t) return null
+
+  function fmtMinutes(min?: number | null) {
+    if (min == null) return '—'
+    if (min < 60) return `${min}m`
+    const hours = Math.floor(min / 60)
+    if (hours < 1000) return `${hours}h`
+    return `${(hours / 1000).toFixed(1)}k h`
+  }
+  function deltaBadge(value: number | undefined, formatter: (n: number) => string, inverse = false) {
+    if (value == null) return null
+    const positive = value > 0
+    const good = inverse ? !positive : positive
+    const color = value === 0 ? 'text-gray-500' : good ? 'text-green-600' : 'text-red-600'
+    const sign = value > 0 ? '+' : ''
+    return <span className={cn('text-xs font-medium', color)}>{sign}{formatter(value)} vs base</span>
+  }
+
+  const dailyMax = Math.max(...(yt.dailySeries?.map(d => d.views) ?? [0]), 1)
+  const baselineDailyAvg = b?.views && b?.days ? Math.round(b.views / b.days) : null
+
+  return (
+    <Card className="mt-6">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-50">
+            <svg viewBox="0 0 24 24" fill="#FF0000" className="h-6 w-6"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-gray-900">Goolets YouTube channel</h3>
+              <InfoIcon text="Goolets brand YT channel performance during trip vs baseline (9 days before trip). Source: YouTube Analytics API. Note: Dobrik trip video has not dropped yet — channel views during trip are naturally below baseline." />
+            </div>
+            <div className="mt-0.5 text-xs text-gray-500">
+              {yt.current ? `${fmtNum(yt.current)} subs total` : 'subs total —'} · Trip {t.startDate} → {t.endDate} ({t.days}d)
+            </div>
+          </div>
+        </div>
+        <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-medium text-amber-800">
+          Pre-Dobrik video
+        </span>
+      </div>
+
+      {/* Metric grid: trip stats with baseline delta badges */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+          <div className="text-[10px] uppercase tracking-wider text-gray-500">Views</div>
+          <div className="mt-1 text-xl font-semibold text-gray-900">{fmtNum(t.views)}</div>
+          <div className="mt-1 text-[11px] text-gray-500">
+            base {fmtNum(b?.views)} · {deltaBadge(d?.views, (n) => fmtNum(Math.abs(n)))}
+          </div>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+          <div className="text-[10px] uppercase tracking-wider text-gray-500">Watch time</div>
+          <div className="mt-1 text-xl font-semibold text-gray-900">{fmtMinutes(t.minutesWatched)}</div>
+          <div className="mt-1 text-[11px] text-gray-500">
+            avg {t.averageViewDuration ?? '—'}s · {deltaBadge(d?.minutesWatched, fmtMinutes)}
+          </div>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+          <div className="text-[10px] uppercase tracking-wider text-gray-500">Subs gained</div>
+          <div className="mt-1 text-xl font-semibold text-green-700">+{t.subscribersGained ?? 0}</div>
+          <div className="mt-1 text-[11px] text-gray-500">
+            base +{b?.subscribersGained ?? 0} · {deltaBadge(d?.subscribersGained, (n) => String(Math.abs(n)))}
+          </div>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+          <div className="text-[10px] uppercase tracking-wider text-gray-500">Net subs</div>
+          <div className={cn('mt-1 text-xl font-semibold', (t.netSubscribers ?? 0) >= 0 ? 'text-green-700' : 'text-red-700')}>
+            {(t.netSubscribers ?? 0) > 0 ? '+' : ''}{t.netSubscribers ?? 0}
+          </div>
+          <div className="mt-1 text-[11px] text-gray-500">
+            +{t.subscribersGained ?? 0} / −{t.subscribersLost ?? 0} · {deltaBadge(d?.netSubscribers, (n) => String(Math.abs(n)))}
+          </div>
+        </div>
+      </div>
+
+      {/* Daily views sparkline if available */}
+      {yt.dailySeries && yt.dailySeries.length > 0 && (
+        <div className="mt-5">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-xs font-medium text-gray-700">Daily views</span>
+            {baselineDailyAvg && (
+              <span className="text-[11px] text-gray-500">Baseline avg: <strong className="text-gray-900">{fmtNum(baselineDailyAvg)}</strong>/day</span>
+            )}
+          </div>
+          <div className="relative h-20 flex items-end gap-1.5">
+            {yt.dailySeries.map((day) => {
+              const heightPct = (day.views / dailyMax) * 100
+              const aboveBaseline = baselineDailyAvg !== null && day.views > (baselineDailyAvg ?? 0)
+              return (
+                <div key={day.date} className="flex-1 relative group h-full flex flex-col items-stretch justify-end">
+                  <div
+                    className={cn('w-full rounded-t', aboveBaseline ? 'bg-[#B39262]' : 'bg-gray-300')}
+                    style={{ height: `${heightPct}%`, minHeight: '4px' }}
+                  />
+                  <span className="absolute -top-7 left-1/2 -translate-x-1/2 text-[10px] opacity-0 group-hover:opacity-100 whitespace-nowrap bg-gray-900 text-white px-2 py-0.5 rounded pointer-events-none z-10">
+                    {day.views.toLocaleString()} views · {day.netSubscribers >= 0 ? '+' : ''}{day.netSubscribers} subs
+                  </span>
+                  <span className="mt-1 text-center text-[9px] text-gray-500">{day.date.slice(5)}</span>
+                </div>
+              )
+            })}
+            {baselineDailyAvg && (
+              <div
+                className="absolute left-0 right-0 border-t border-dashed border-gray-400 pointer-events-none"
+                style={{ bottom: `${(baselineDailyAvg / dailyMax) * 100}%` }}
+              />
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="mt-4 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-[11px] text-amber-900">
+        <strong>Why views are below baseline:</strong> Dobrik's trip video has not been published yet. Once it drops,
+        expect a spike (his videos typically pull 5–10M views in week 1). Track @goolets channel ID <code className="rounded bg-amber-100 px-1 py-0.5">{yt.channelId}</code>.
+      </div>
+    </Card>
   )
 }
 
