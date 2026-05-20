@@ -698,10 +698,9 @@ function YouTubeChannelCard({ yt }: { yt: FollowerSeries }) {
 
   function fmtMinutes(min?: number | null) {
     if (min == null) return '—'
-    if (min < 60) return `${min}m`
-    const hours = Math.floor(min / 60)
-    if (hours < 1000) return `${hours}h`
-    return `${(hours / 1000).toFixed(1)}k h`
+    if (min < 60) return `${min} min`
+    const hours = Math.round(min / 60)
+    return `${hours.toLocaleString()} h`
   }
   function deltaBadge(value: number | undefined, formatter: (n: number) => string, inverse = false) {
     if (value == null) return null
@@ -750,7 +749,7 @@ function YouTubeChannelCard({ yt }: { yt: FollowerSeries }) {
           <div className="text-[10px] uppercase tracking-wider text-gray-500">Watch time</div>
           <div className="mt-1 text-xl font-semibold text-gray-900">{fmtMinutes(t.minutesWatched)}</div>
           <div className="mt-1 text-[11px] text-gray-500">
-            avg {t.averageViewDuration ?? '—'}s · {deltaBadge(d?.minutesWatched, fmtMinutes)}
+            avg {t.averageViewDuration ?? '—'}s · {deltaBadge(d?.minutesWatched, (n) => fmtMinutes(Math.abs(n)))}
           </div>
         </div>
         <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
