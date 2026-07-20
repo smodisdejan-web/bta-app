@@ -7,9 +7,17 @@
    ============================================================ */
 
 import React from 'react'
+import { Search, ArrowUp, ArrowDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Card } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 import { ZONE_STYLES, zoneForCac, type Zone } from '@/lib/zones'
+import { MONTHS } from '@/data/months'
+
+/* ---------- Search normalizer (case + diacritic insensitive) ---------- */
+export function norm(s: string): string {
+  return (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+}
 
 /* ---------- Types (mtd-data.json schema) ---------- */
 
@@ -39,12 +47,16 @@ export interface FbAdset {
   spend: number; clicks: number; ctr: number; impressions: number
   landing_leads: number; cpl: number
 }
+export interface CopyVariant {
+  text: string; spend: number; impressions: number; clicks: number; ctr: number
+}
 export interface FbAd {
   id: string; adset_id: string; name: string; status: string; spend: number
   impressions: number; clicks: number; ctr: number; landing_leads: number; cpl: number
   hook_rate: number | null; hold_rate: number | null; body: string; title: string
   cta: string; thumbnail_url: string | null; thumb: string | null; is_video: boolean
   drive_url?: string | null; drive_confidence?: string | null
+  body_variants?: CopyVariant[]; title_variants?: CopyVariant[]
 }
 export interface GCampaign {
   name: string; spend: number; conv: number; clicks: number; impressions: number
@@ -163,9 +175,42 @@ export function MarketToggle({ value, onChange }: { value: MarketKey; onChange: 
   )
 }
 
+/* ---------- Month picker ---------- */
+
+export function MonthPicker({
+  value, onChange,
+}: { value: string; onChange: (k: string) => void }) {
+  const months = MONTHS
+  if (months.length <= 1) return null
+  return (
+    <div className="flex flex-wrap gap-2" role="group" aria-label="Month">
+      {months.map((m) => {
+        const active = value === m.key
+        return (
+          <button
+            key={m.key}
+            type="button"
+            aria-pressed={active}
+            onClick={() => onChange(m.key)}
+            className={cn(
+              'text-sm font-semibold px-3.5 py-1.5 rounded-full border transition-colors',
+              active
+                ? 'bg-[#B39262] text-white border-[#B39262]'
+                : 'bg-white text-gray-600 border-gray-200 hover:border-[#B39262]/50'
+            )}
+          >
+            {m.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 /* ---------- Bookings strip ---------- */
 
-export function BookingsStrip({ cell }: { cell: BookingCell }) {
+export function BookingsStrip({ cell, periodLabel }: { cell: BookingCell; periodLabel?: string }) {
+  const closed = periodLabel ? `closed in ${periodLabel}` : 'closed this month'
   return (
     <Card className="p-5 bg-white">
       <div className="flex items-center justify-between gap-6 flex-wrap">
@@ -180,8 +225,8 @@ export function BookingsStrip({ cell }: { cell: BookingCell }) {
           </div>
         </div>
         <p className="text-xs text-gray-400 max-w-xs">
-          Charters <strong className="text-gray-500">closed this month</strong> — a lagging KPI, not attributable to
-          this month&apos;s spend. No ROAS.
+          Charters <strong className="text-gray-500">{closed}</strong> — a lagging KPI, not attributable to that
+          period&apos;s spend. No ROAS.
         </p>
       </div>
     </Card>
@@ -388,4 +433,69 @@ export function FooterMeta({
       </div>
     </Card>
   )
+}
+
+/* ---------- Search input (gold focus ring) ---------- */
+
+export function SearchBar({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
+  return (
+    <div className="relative w-full md:max-w-md">
+      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+      <Input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="pl-9 focus-visible:ring-[#B39262] focus-visible:ring-2"
+        aria-label={placeholder}
+      />
+    </div>
+  )
+}
+
+/* ---------- Sort chips (card-row layouts, e.g. FB campaign list) ---------- */
+
+export type SortDir = 'asc' | 'desc'
+
+export function SortChips<T extends string>({
+  options, field, dir, onSort,
+}: {
+  options: { key: T; label: string }[]
+  field: T
+  dir: SortDir
+  onSort: (k: T) => void
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="text-[10px] uppercase tracking-[0.1em] text-gray-400 font-semibold mr-0.5">Sort</span>
+      {options.map((o) => {
+        const active = field === o.key
+        return (
+          <button
+            key={o.key}
+            type="button"
+            onClick={() => onSort(o.key)}
+            aria-pressed={active}
+            className={cn(
+              'inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border transition-colors',
+              active
+                ? 'bg-[#B39262] text-white border-[#B39262]'
+                : 'bg-white text-gray-600 border-gray-200 hover:border-[#B39262]/50'
+            )}
+          >
+            {o.label}
+            {active && (dir === 'desc' ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />)}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+/* ---------- Sort arrow (table headers) ---------- */
+
+export function SortArrow({ active, dir }: { active: boolean; dir: SortDir }) {
+  if (!active) return <span className="inline-block w-3" />
+  return dir === 'desc'
+    ? <ArrowDown className="h-3 w-3 ml-1 inline text-[#B39262]" />
+    : <ArrowUp className="h-3 w-3 ml-1 inline text-[#B39262]" />
 }

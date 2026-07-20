@@ -3,7 +3,7 @@
 import React, { useState } from 'react'
 import { Play, ExternalLink, Image as ImageIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { eur, eur2, pct1, cpqlColor, type FbAd } from './mtd-shared'
+import { eur, eur2, pct1, intFmt, cpqlColor, type FbAd } from './mtd-shared'
 
 /* Thumbnail: local `thumb` path if set → else remote thumbnail_url (no-referrer) → else grey placeholder */
 function Thumb({ ad }: { ad: FbAd }) {
@@ -59,12 +59,23 @@ const CTA_LABELS: Record<string, string> = {
   NO_BUTTON: 'No button',
 }
 
-export function CreativeCard({ ad, turkey }: { ad: FbAd; turkey: boolean }) {
+export function CreativeCard({ ad, turkey, highlight = false }: { ad: FbAd; turkey: boolean; highlight?: boolean }) {
   const [expanded, setExpanded] = useState(false)
-  const body = ad.body || ''
+  const [bodyIdx, setBodyIdx] = useState(0)
+  const [titleOpen, setTitleOpen] = useState(false)
+
+  // Variant switchers engage ONLY when >1 variant; otherwise fall back to plain body/title.
+  const bodyVars = ad.body_variants && ad.body_variants.length > 1 ? ad.body_variants : null
+  const titleVars = ad.title_variants && ad.title_variants.length > 1 ? ad.title_variants : null
+  const curBodyVar = bodyVars ? bodyVars[Math.min(bodyIdx, bodyVars.length - 1)] : null
+  const body = bodyVars ? (curBodyVar?.text ?? '') : (ad.body || '')
+  const title = titleVars ? titleVars[0].text : (ad.title || '')
   const longBody = body.length > 150
   const active = ad.status === 'ACTIVE'
   const ctaLabel = ad.cta ? (CTA_LABELS[ad.cta] || ad.cta.replace(/_/g, ' ').toLowerCase()) : null
+  const extraTitles = titleVars ? titleVars.length - 1 : 0
+
+  const selectBody = (i: number) => { setBodyIdx(i); setExpanded(false) }
 
   return (
     <div className="bg-white rounded-xl border shadow-sm p-3 flex flex-col gap-2.5">
@@ -73,7 +84,7 @@ export function CreativeCard({ ad, turkey }: { ad: FbAd; turkey: boolean }) {
         <Thumb ad={ad} />
         <div className="min-w-0 flex-1">
           <div className="flex items-start gap-1.5">
-            <span className="text-[13px] font-bold text-gray-900 leading-snug line-clamp-2" title={ad.name}>{ad.name}</span>
+            <span className={cn('text-[13px] font-bold leading-snug line-clamp-2', highlight ? 'text-[#B39262]' : 'text-gray-900')} title={ad.name}>{ad.name}</span>
           </div>
           <span
             className={cn(
@@ -89,7 +100,7 @@ export function CreativeCard({ ad, turkey }: { ad: FbAd; turkey: boolean }) {
       {/* 6-stat grid */}
       <div className="grid grid-cols-3 gap-x-1 gap-y-2 py-2 border-y border-gray-100">
         <Stat label="Spend" value={eur(ad.spend)} />
-        <Stat label="Leads" value={ad.landing_leads.toLocaleString('en-US')} />
+        <Stat label="Leads" value={intFmt(ad.landing_leads)} />
         <Stat label="CPL" value={ad.cpl > 0 ? eur2(ad.cpl) : '–'} tone={ad.cpl > 0 ? cpqlColor(ad.cpl, turkey) : undefined} />
         <Stat label="CTR" value={pct1(ad.ctr)} />
         <Stat label="Play rate" value={ad.hook_rate != null ? pct1(ad.hook_rate * 100) : '–'} />
@@ -97,15 +108,75 @@ export function CreativeCard({ ad, turkey }: { ad: FbAd; turkey: boolean }) {
       </div>
 
       {/* Copy block */}
-      {(ad.title || body) && (
-        <div>
-          {ad.title && <div className="text-[12.5px] font-bold text-gray-900 leading-snug mb-1">{ad.title}</div>}
-          {body && (
+      {(title || body) && (
+        <div className="space-y-1.5">
+          {/* Title (with optional variant list) */}
+          {title && (
+            <div>
+              <div className="text-[12.5px] font-bold text-gray-900 leading-snug">{title}</div>
+              {titleVars && extraTitles > 0 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setTitleOpen((v) => !v)}
+                    className="text-[10.5px] font-semibold text-[#B39262] hover:text-[#96743c] mt-0.5"
+                  >
+                    {titleOpen ? 'Skrij naslove' : `+${extraTitles} ${extraTitles === 1 ? 'naslov' : 'naslovov'}`}
+                  </button>
+                  {titleOpen && (
+                    <ul className="mt-1 space-y-1">
+                      {titleVars.slice(1).map((t, i) => (
+                        <li key={i} className="flex items-baseline justify-between gap-2 text-[11.5px] text-gray-600">
+                          <span className="leading-snug">{t.text}</span>
+                          <span className="text-[10px] text-gray-400 tabular-nums shrink-0">{eur(t.spend)} · {pct1(t.ctr * 100)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Body — variant switcher when >1, else plain text */}
+          {bodyVars ? (
+            <div>
+              <div className="flex flex-wrap gap-1.5 mb-1.5">
+                {bodyVars.map((v, i) => {
+                  const isSel = i === Math.min(bodyIdx, bodyVars.length - 1)
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      aria-pressed={isSel}
+                      onClick={() => selectBody(i)}
+                      className={cn(
+                        'text-[10px] font-semibold px-2 py-0.5 rounded-full border transition-colors tabular-nums',
+                        isSel ? 'bg-[#B39262] text-white border-[#B39262]' : 'bg-white text-gray-600 border-gray-200 hover:border-[#B39262]/50'
+                      )}
+                    >
+                      Tekst {i + 1} · {eur(v.spend)}
+                    </button>
+                  )
+                })}
+              </div>
+              {body && (
+                <p className={cn('text-[12px] text-gray-600 leading-relaxed whitespace-pre-line', !expanded && 'line-clamp-4')}>
+                  {body}
+                </p>
+              )}
+              {curBodyVar && (
+                <div className="text-[10px] text-gray-400 mt-1 tabular-nums">{eur(curBodyVar.spend)} · {pct1(curBodyVar.ctr * 100)} CTR</div>
+              )}
+            </div>
+          ) : body ? (
             <p className={cn('text-[12px] text-gray-600 leading-relaxed whitespace-pre-line', !expanded && 'line-clamp-4')}>
               {body}
             </p>
-          )}
-          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+          ) : null}
+
+          {/* Show more + CTA */}
+          <div className="flex items-center gap-2 flex-wrap">
             {longBody && (
               <button
                 type="button"

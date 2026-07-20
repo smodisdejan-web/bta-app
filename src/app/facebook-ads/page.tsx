@@ -2,24 +2,36 @@
 
 import React, { useMemo, useState } from 'react'
 import { Facebook } from 'lucide-react'
-import rawData from '@/data/mtd-data.json'
+import { MONTHS } from '@/data/months'
 import {
-  type MtdData, type MarketKey, type FbCampaign,
+  type MtdData, type MarketKey, type FbCampaign, type SortDir,
   inMarket, eur, eur2, pct0, intFmt,
-  PageHeader, MarketToggle, BookingsStrip, KpiTile, Funnel,
+  PageHeader, MarketToggle, MonthPicker, BookingsStrip, KpiTile, Funnel,
   CpqlZoneCard, QualityRateCard, NeutralStatCard, Eyebrow, FooterMeta,
+  SearchBar, SortChips,
 } from '@/components/mtd/mtd-shared'
-import { CampaignAccordion } from '@/components/mtd/CampaignAccordion'
+import { CampaignAccordion, FB_SORT_OPTIONS, type FbSortField } from '@/components/mtd/CampaignAccordion'
 import { UnattributedRow } from '@/components/mtd/UnattributedRow'
-
-const data = rawData as unknown as MtdData
 
 function sum<T>(arr: T[], f: (x: T) => number): number {
   return arr.reduce((a, x) => a + (f(x) || 0), 0)
 }
 
 export default function FacebookAdsPage() {
+  const [monthKey, setMonthKey] = useState<string>(MONTHS[0].key)
+  const selected = MONTHS.find((m) => m.key === monthKey) ?? MONTHS[0]
+  const data = selected.data as unknown as MtdData
+  const isCurrent = selected.key === 'current'
+
   const [market, setMarket] = useState<MarketKey>('all')
+  const [search, setSearch] = useState('')
+  const [sortField, setSortField] = useState<FbSortField>('spend')
+  const [sortDir, setSortDir] = useState<SortDir>('desc')
+
+  const onSort = (f: FbSortField) => {
+    if (f === sortField) setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'))
+    else { setSortField(f); setSortDir('desc') }
+  }
 
   const view = useMemo(() => {
     const camps: FbCampaign[] = data.fbCampaigns.filter((c) => inMarket(c.market, market))
@@ -46,7 +58,8 @@ export default function FacebookAdsPage() {
       camps, spend, clicks, lpViews, landingLeads, excellent,
       scored, quality, qRate, blendedCpql, unScored, unQuality,
     }
-  }, [market])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [market, monthKey])
 
   const cpc = view.clicks > 0 ? view.spend / view.clicks : 0
   const lpRate = view.clicks > 0 ? (view.lpViews / view.clicks) * 100 : 0
@@ -65,11 +78,14 @@ export default function FacebookAdsPage() {
           through={data.generated}
         />
 
-        <MarketToggle value={market} onChange={setMarket} />
+        <div className="flex flex-col md:flex-row md:items-center gap-3 md:justify-between">
+          <MarketToggle value={market} onChange={setMarket} />
+          <MonthPicker value={monthKey} onChange={setMonthKey} />
+        </div>
 
-        {/* Closed this month */}
-        <Eyebrow>Closed this month</Eyebrow>
-        <BookingsStrip cell={data.bookings.fb[market]} />
+        {/* Closed */}
+        <Eyebrow>{isCurrent ? 'Closed this month' : `Closed in ${selected.label}`}</Eyebrow>
+        <BookingsStrip cell={data.bookings.fb[market]} periodLabel={isCurrent ? undefined : selected.label} />
 
         {/* Headline KPIs — Streak truth */}
         <Eyebrow sub="Streak truth — all scored leads, blended cost">Headline</Eyebrow>
@@ -110,7 +126,19 @@ export default function FacebookAdsPage() {
 
         {/* Campaign → ad set → ad */}
         <Eyebrow sub={`${view.camps.length} campaigns · collapsed — click to open`}>Campaign by campaign</Eyebrow>
-        <CampaignAccordion campaigns={view.camps} adsets={data.adsets} ads={data.ads} />
+        <div className="flex flex-col lg:flex-row lg:items-center gap-3 lg:justify-between">
+          <SearchBar value={search} onChange={setSearch} placeholder="Search campaigns, ad sets, ads…" />
+          <SortChips options={FB_SORT_OPTIONS} field={sortField} dir={sortDir} onSort={onSort} />
+        </div>
+        <CampaignAccordion
+          key={search.trim() ? 'search' : 'browse'}
+          campaigns={view.camps}
+          adsets={data.adsets}
+          ads={data.ads}
+          search={search}
+          sortField={sortField}
+          sortDir={sortDir}
+        />
 
         {/* Unattributed / no-UTM — pinned last */}
         <UnattributedRow
