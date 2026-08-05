@@ -2,14 +2,14 @@ import { NextResponse } from 'next/server'
 
 import {
   fetchFbEnriched,
-  fetchHubspotContacts,
   fetchSheet,
   fetchStreakSync,
   fetchTestTracker,
+  fetchTestVariants,
   type FbEnrichedRow,
-  type HubSpotContactRow,
   type StreakLeadRow,
   type TestTrackerRow,
+  type TestVariantRow,
 } from '@/lib/sheetsData'
 
 export const dynamic = 'force-dynamic'
@@ -126,67 +126,28 @@ type VariantMetrics = {
   source?: 'fb-streak' | 'hubspot'
 }
 
-// Tests whose variants are separated by HubSpot FORM, not by campaign — the two LP
-// variants share campaigns and UTMs, so the only thing that tells a lead apart is which
-// form it submitted. Values are exact `recent_conversion_event_name` strings.
-const HUBSPOT_FORM_MAP: Record<string, { A: string; B: string }> = {
-  'CRO-005': {
-    A: 'Luxury Yacht Charters at Unmatched Value - Goolets: Landing pages CROATIA - MULTISTEP form',
-    B: 'Luxury Yacht Charters at Unmatched Value: AI Chat – Croatia',
-  },
-}
-
-// QL proxy for HubSpot-sourced tests. Streak's AI score isn't reachable from HubSpot
-// (streak_sync carries no email to join on), so quality is read from the budget the lead
-// picked: €30k/week is the tier where a Goolets charter becomes genuinely worth working.
-const QL_BUDGET_TIERS = [
-  'from €30,000 to €60,000 per week',
-  'from €60,000 to €100,000 per week',
-  'from €100,000 to €250,000 per week',
-  'from €250,000 to €500,000 per week',
-  'more than €500,000 per week',
-]
-
-// Lifecycle stages that mean sales is actually working the lead — the HubSpot equivalent
-// of the Streak SAL set above.
-const HS_SAL_STAGES = new Set(['salesqualifiedlead', 'opportunity', 'customer'])
-
-function aggregateHubspotVariant(
-  formName: string,
-  startDate: Date | null,
-  endDate: Date | null,
-  contacts: HubSpotContactRow[]
-): VariantMetrics {
-  const matched = contacts.filter((c) => {
-    if (c.recent_conversion_event_name !== formName) return false
-    const d = parseDate(c.createdate)
-    if (!d) return false
-    if (startDate && d < startDate) return false
-    if (endDate && d > endDate) return false
-    return true
-  })
-
-  const leads = matched.length
-  const ql = matched.filter((c) => QL_BUDGET_TIERS.includes((c.budget_range || '').toLowerCase().trim())).length
-  const sal = matched.filter((c) => HS_SAL_STAGES.has(c.lifecyclestage)).length
-  const bookings = matched.filter((c) => c.lifecyclestage === 'customer').length
-
+// Variants for tests split by HubSpot FORM rather than by campaign (both LP variants run
+// in the same campaigns with the same UTMs, so the form is the only discriminator) are
+// pre-aggregated into the `test_variants` tab by code/hubspot/build-test-variants.js.
+// Counting them here would mean pulling all 11.7 MB of hubspot_contacts per request.
+function hubspotVariantFrom(row: TestVariantRow | undefined): VariantMetrics | null {
+  if (!row) return null
   return {
     spend: 0,
     clicks: 0,
     lpViews: 0,
-    leads,
-    ql,
-    qualityRate: leads > 0 ? (ql / leads) * 100 : 0,
+    leads: row.leads,
+    ql: row.ql,
+    qualityRate: row.ql_rate,
     cpl: null,
     cpql: null,
-    sal,
-    salRate: leads > 0 ? (sal / leads) * 100 : 0,
+    sal: row.sal,
+    salRate: row.sal_rate,
     cpsal: null,
     engaged: 0,
     engagedRate: 0,
     cpEngaged: null,
-    bookings,
+    bookings: row.bookings,
     rvc: 0,
     source: 'hubspot',
   }
@@ -394,11 +355,11 @@ function aggregateVariant(
 
 export async function GET() {
   try {
-    const [testsRaw, fbRows, streakRows, hubspotRows] = await Promise.all([
+    const [testsRaw, fbRows, streakRows, variantRows] = await Promise.all([
       fetchTestTracker(fetchSheet),
       fetchFbEnriched(fetchSheet),
       fetchStreakSync(fetchSheet),
-      fetchHubspotContacts(fetchSheet),
+      fetchTestVariants(fetchSheet),
     ])
 
     const campaignSamples = fbRows.slice(0, 5).map((r) => r.campaign_name)
@@ -457,13 +418,11 @@ export async function GET() {
       let variants: { A: VariantMetrics; B: VariantMetrics }
       let frozen = false
 
-      const hubspotForms = HUBSPOT_FORM_MAP[test.test_id]
+      const hsA = hubspotVariantFrom(variantRows.find((v) => v.test_id === test.test_id && v.variant === 'A'))
+      const hsB = hubspotVariantFrom(variantRows.find((v) => v.test_id === test.test_id && v.variant === 'B'))
 
-      if (hubspotForms) {
-        variants = {
-          A: aggregateHubspotVariant(hubspotForms.A, startDate, endDate, hubspotRows),
-          B: aggregateHubspotVariant(hubspotForms.B, startDate, endDate, hubspotRows),
-        }
+      if (hsA && hsB) {
+        variants = { A: hsA, B: hsB }
       } else if (isDone && test.frozen_variants) {
         try {
           variants = JSON.parse(test.frozen_variants)

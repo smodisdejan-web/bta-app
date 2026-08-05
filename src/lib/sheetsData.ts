@@ -1453,6 +1453,59 @@ export function mapHubspotContacts(rows: any[][]): HubSpotContactRow[] {
     .filter(r => r.hs_object_id && r.email)
 }
 
+// Pre-aggregated variant row for tests split by HubSpot form, not by campaign (CRO-005).
+// Written by code/hubspot/build-test-variants.js at sync time — counting these ~300 leads
+// in the app would mean pulling all 11.7 MB of hubspot_contacts on every request (~74s).
+export type TestVariantRow = {
+  test_id: string
+  variant: 'A' | 'B'
+  form_name: string
+  leads: number
+  ql: number
+  ql_rate: number
+  sal: number
+  sal_rate: number
+  bookings: number
+  computed_at: string
+}
+
+export async function fetchTestVariants(
+  fetchSheetFn: (args: { sheetUrl: string; tab: string }) => Promise<any[][]>,
+  sheetUrl?: string
+): Promise<TestVariantRow[]> {
+  const url = sheetUrl || getSheetsUrl() || DEFAULT_WEB_APP_URL
+  try {
+    const raw = await fetchSheetFn({ sheetUrl: url, tab: SHEETS_TABS.TEST_VARIANTS })
+    if (!raw || raw.length < 2) return []
+    const [header, ...rows] = raw
+    const idx = (name: string) =>
+      header.findIndex((h: string) => String(h || '').trim().toLowerCase() === name.toLowerCase())
+    const I = {
+      test_id: idx('test_id'), variant: idx('variant'), form_name: idx('form_name'),
+      leads: idx('leads'), ql: idx('ql'), ql_rate: idx('ql_rate'),
+      sal: idx('sal'), sal_rate: idx('sal_rate'), bookings: idx('bookings'),
+      computed_at: idx('computed_at'),
+    }
+    return rows
+      .map((r) => ({
+        test_id: String(r[I.test_id] ?? '').trim(),
+        variant: (String(r[I.variant] ?? '').trim().toUpperCase() === 'B' ? 'B' : 'A') as 'A' | 'B',
+        form_name: String(r[I.form_name] ?? ''),
+        leads: toNumberEUorUS(r[I.leads]),
+        ql: toNumberEUorUS(r[I.ql]),
+        ql_rate: toNumberEUorUS(r[I.ql_rate]),
+        sal: toNumberEUorUS(r[I.sal]),
+        sal_rate: toNumberEUorUS(r[I.sal_rate]),
+        bookings: toNumberEUorUS(r[I.bookings]),
+        computed_at: String(r[I.computed_at] ?? ''),
+      }))
+      .filter((r) => r.test_id)
+  } catch (error) {
+    console.error('Error fetching test_variants:', error)
+    return []
+  }
+}
+
 // Email-marketing health snapshot (account-wide, from email_health tab written by
 // code/hubspot/sync-goolets-email-health.js). One row.
 export type EmailHealth = {

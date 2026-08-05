@@ -21,15 +21,23 @@ export const SHEETS_TABS = {
   FB_ENRICHED: 'fb_ads_enriched',
   FB_RAW: 'fb_ads_raw', // fallback only
   FB_ADSETS_ENRICHED: 'fb_adsets_enriched',
+  FB_ADS_LEVEL: 'fb_ads_level', // Faza 2: Meta reporting CSV → exact per-ad metrics (ql/cpql/zone pending UTM join)
+  FB_AD_COPY: 'fb_ad_copy', // Faza 2: per-ad copy variations (body_asset/title_asset breakdown) + per-variation impr/spend/clicks
   TEST_TRACKER: 'test_tracker',
+  TEST_VARIANTS: 'test_variants', // pre-aggregated form-split variants (code/hubspot/build-test-variants.js)
   STREAK_SYNC: 'streak_sync',
   STREAK_LEADS: 'streak_leads',
   STREAK_LEADS_GOOGLE: 'streak_leads_google',
   AD_GROUPS: 'adGroups',
-  DAILY: 'daily',
-  BOOKINGS: 'bookings',
+  DAILY: 'daily_api', // CUTOVER 2026-06-15: Google Ads API tab (was Mixed Analytics 'daily'). Validated ±1% vs MA.
+
+  BOOKINGS: 'bookings_api', // CUTOVER 2026-06-15: web-app feed for 'bookings' is stale (no June); bookings_api is a fresh mirror of the live tab (sync-goolets-bookings.js)
   HUBSPOT_CONTACTS: 'hubspot_contacts',
   GA4_LANDING_PAGES: 'ga4_landing_pages',
+  TURKEY_AVAILABILITY: 'turkey_availability',
+  TURKEY_GOOGLE_CAMPAIGNS: 'turkey_google_campaigns',
+  TURKEY_GOOGLE_TERMS: 'turkey_google_terms',
+  UTM_MAPPING: 'utm_mapping', // Authoritative utm → campaign/adset/ad table (synced from Dejan's confirmed sheet). Join key for lead attribution.
 } as const
 
 // Sheets URL configuration with fallback support
