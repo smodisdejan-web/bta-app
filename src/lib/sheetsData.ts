@@ -1237,6 +1237,16 @@ export type HubSpotContactRow = {
   utm_campaign: string
   utm_content: string
   first_touch_campaign: string
+  // Marketing-email engagement (appended cols, 2026-06-15) — powers Email Marketing section
+  email_delivered: number
+  email_open: number
+  email_click: number
+  email_last_open: string
+  // Lead-quality signals (appended cols, 2026-08-05) — used by the CRO-005 test card,
+  // which is measured in HubSpot by form and has no Streak counterpart to read QL from.
+  budget_range: string       // e.g. "From €30,000 to €60,000 per week"
+  group_structure: string
+  lifecyclestage: string     // lead | salesqualifiedlead | opportunity | customer
 }
 
 // GA4 landing page row (from ga4_landing_pages tab — Mixed Analytics today,
@@ -1403,6 +1413,13 @@ export function mapHubspotContacts(rows: any[][]): HubSpotContactRow[] {
     utm_campaign: col('utm_campaign'),
     utm_content: col('utm_content'),
     first_touch_campaign: col('first_touch_campaign'),
+    email_delivered: col('email_delivered'),
+    email_open: col('email_open'),
+    email_click: col('email_click'),
+    email_last_open: col('email_last_open'),
+    budget_range: col('budget_range'),
+    group_structure: col('group_structure'),
+    lifecyclestage: col('lifecyclestage'),
   }
 
   return data
@@ -1425,18 +1442,113 @@ export function mapHubspotContacts(rows: any[][]): HubSpotContactRow[] {
       utm_campaign: String(r[I.utm_campaign] ?? ''),
       utm_content: String(r[I.utm_content] ?? ''),
       first_touch_campaign: String(r[I.first_touch_campaign] ?? ''),
+      email_delivered: Number(r[I.email_delivered]) || 0,
+      email_open: Number(r[I.email_open]) || 0,
+      email_click: Number(r[I.email_click]) || 0,
+      email_last_open: String(r[I.email_last_open] ?? ''),
+      budget_range: String(r[I.budget_range] ?? ''),
+      group_structure: String(r[I.group_structure] ?? ''),
+      lifecyclestage: String(r[I.lifecyclestage] ?? '').toLowerCase().trim(),
     }))
     .filter(r => r.hs_object_id && r.email)
+}
+
+// Email-marketing health snapshot (account-wide, from email_health tab written by
+// code/hubspot/sync-goolets-email-health.js). One row.
+export type EmailHealth = {
+  as_of: string
+  marketable: number
+  ever_delivered: number
+  sent_this_month: number
+  opened_last30d: number
+  clicked_ever: number
+  optout: number
+  bounced: number
+  highly_engaged: number
+  open_rate_pct: number
+  optout_rate_pct: number
+  bounce_rate_pct: number
+  seg_hot: number
+  seg_warm: number
+  seg_cooling: number
+  seg_dormant: number
+  seg_never: number
+  seg_unsub: number
+}
+
+export async function fetchEmailHealth(
+  fetchFn: (args: { sheetUrl: string; tab: string }) => Promise<any[][]>
+): Promise<EmailHealth | null> {
+  try {
+    const rows = await fetchFn({ sheetUrl: DEFAULT_WEB_APP_URL, tab: 'email_health' })
+    if (!rows || rows.length < 2) return null
+    const [header, data] = rows
+    const col = (n: string) => header.findIndex((h: string) => String(h).toLowerCase() === n)
+    const num = (n: string) => Number(data[col(n)]) || 0
+    return {
+      as_of: String(data[col('as_of')] ?? ''),
+      marketable: num('marketable'),
+      ever_delivered: num('ever_delivered'),
+      sent_this_month: num('sent_this_month'),
+      opened_last30d: num('opened_last30d'),
+      clicked_ever: num('clicked_ever'),
+      optout: num('optout'),
+      bounced: num('bounced'),
+      highly_engaged: num('highly_engaged'),
+      open_rate_pct: num('open_rate_pct'),
+      optout_rate_pct: num('optout_rate_pct'),
+      bounce_rate_pct: num('bounce_rate_pct'),
+      seg_hot: num('seg_hot'),
+      seg_warm: num('seg_warm'),
+      seg_cooling: num('seg_cooling'),
+      seg_dormant: num('seg_dormant'),
+      seg_never: num('seg_never'),
+      seg_unsub: num('seg_unsub'),
+    }
+  } catch {
+    return null
+  }
+}
+
+export type EmailGrowthPoint = { month: string; new_contacts: number }
+
+export async function fetchEmailGrowth(
+  fetchFn: (args: { sheetUrl: string; tab: string }) => Promise<any[][]>
+): Promise<EmailGrowthPoint[]> {
+  try {
+    const rows = await fetchFn({ sheetUrl: DEFAULT_WEB_APP_URL, tab: 'email_growth' })
+    if (!rows || rows.length < 2) return []
+    const [header, ...data] = rows
+    const col = (n: string) => header.findIndex((h: string) => String(h).toLowerCase() === n)
+    const mi = col('month'), ni = col('new_contacts')
+    return data.filter(r => r[mi]).map(r => ({ month: String(r[mi]), new_contacts: Number(r[ni]) || 0 }))
+  } catch {
+    return []
+  }
 }
 
 // Generic fetchSheet helper
 export async function fetchSheet(args: { sheetUrl: string; tab: string }): Promise<any[][]> {
   const { sheetUrl, tab } = args
   const url = `${sheetUrl}?tab=${encodeURIComponent(tab)}`
-  const response = await fetch(url, { cache: 'no-store', next: { revalidate: 0 } })
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch ${tab}: ${response.status} ${response.statusText}`)
+  // Apps Script web-app fetches (esp. the large streak_sync tab) intermittently fail/timeout in
+  // the serverless function. Retry up to 3x before giving up so a transient hiccup doesn't wipe
+  // out the whole dashboard (which then cached zeros).
+  let response: Response | null = null
+  let lastErr: unknown = null
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      response = await fetch(url, { cache: 'no-store', next: { revalidate: 0 } })
+      if (response.ok) break
+      lastErr = new Error(`Failed to fetch ${tab}: ${response.status} ${response.statusText}`)
+    } catch (e) {
+      lastErr = e
+    }
+    response = null
+    await new Promise((r) => setTimeout(r, 400 * (attempt + 1)))
+  }
+  if (!response) {
+    throw (lastErr instanceof Error ? lastErr : new Error(`Failed to fetch ${tab}`))
   }
 
   const data = await response.json()

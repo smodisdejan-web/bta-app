@@ -2,10 +2,12 @@ import { NextResponse } from 'next/server'
 
 import {
   fetchFbEnriched,
+  fetchHubspotContacts,
   fetchSheet,
   fetchStreakSync,
   fetchTestTracker,
   type FbEnrichedRow,
+  type HubSpotContactRow,
   type StreakLeadRow,
   type TestTrackerRow,
 } from '@/lib/sheetsData'
@@ -32,9 +34,75 @@ const STREAK_PREFIX_MAP: Record<string, StreakPrefixRule> = {
   // CRO-003: Landing Gulets multistep vs standard form
   'Landing Gulets  - Scaling - CBO 150': { prefix: 'landing_gulet_', exclude: ['landing_gulet_v2_'] },
   'Test - Landing Gulets  - Scaling - CBO 150': 'landing_gulet_v2_',
+  // CRO-004: RareOps — long (3-step) form vs short form. Control and test share the
+  // same utm_content base; the test variant only adds a '-form1' suffix, so the control
+  // MUST exclude it or it would swallow the test leads.
+  // NB: source_placement is lowercased before matching → keys here must be lowercase.
+  'ASSET – TOSCA – RareOps – ABO': {
+    prefix: 'rare-ops_tosca-hottest-value-superyacht',
+    exclude: ['rare-ops_tosca-hottest-value-superyacht-form1'],
+  },
+  'Prava forma - ASSET – TOSCA – RareOps – ABO': 'rare-ops_tosca-hottest-value-superyacht-form1',
+  'ASSET – Dalmatino – RareOps – ABO': {
+    prefix: 'rare-ops_diving_expedition_dalmatino_5-action_last-minute-dalmatincki',
+    exclude: ['rare-ops_diving_expedition_dalmatino_5-action_last-minute-dalmatincki-form1'],
+  },
+  'Prava forma - ASSET – Dalmatino – RareOps – ABO':
+    'rare-ops_diving_expedition_dalmatino_5-action_last-minute-dalmatincki-form1',
+  'ASSET – Anima Maris – RareOps – ABO': {
+    prefix: 'rare-ops_anima-maris-the-experience',
+    exclude: ['rare-ops_anima-maris-the-experience-form1'],
+  },
+  'Prava forma - ASSET – Anima Maris – RareOps – ABO': 'rare-ops_anima-maris-the-experience-form1',
 }
 
 const SPEND_ANOMALY_THRESHOLD = 1000
+
+// SAL = Sales-Accepted Lead. Streak Stage values that mean "sales is actually working
+// this lead", per handoff.md §3.2 (the Qualified set). Deliberately NOT derived from
+// AI score: for ASSET/RareOps campaigns the Streak scoring was tuned separately, so
+// QL (AI ≥ 50) is not comparable across campaign types. Also deliberately NOT derived
+// from form field content (group size, budget range) — a short form collects fewer
+// fields and would be penalised for that alone, which is exactly the bias we're testing.
+const SAL_STAGES = new Set([
+  'standard',
+  'sql',
+  'sql prime',
+  'vip',
+  'ultra vip',
+  'paper work',
+  'start finalisation',
+  'start finalization',
+  'won',
+])
+
+// ENGAGED = the lead answered at least once ('First Reply') or went further.
+// SAL is the metric we care about, but on RareOps only ~13% of leads ever reach it,
+// so over a two-week window SAL is too rare to separate two variants. Engaged sits at
+// ~56% on the same traffic, moves with the same underlying quality, and is still
+// form-agnostic — so it is the signal that is actually readable inside a test window.
+const ENGAGED_STAGES = new Set([...SAL_STAGES, 'first reply'])
+
+function normaliseStage(stage: unknown): string {
+  return String(stage ?? '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+}
+
+function isSalStage(stage: unknown): boolean {
+  return SAL_STAGES.has(normaliseStage(stage))
+}
+
+function isEngagedStage(stage: unknown): boolean {
+  return ENGAGED_STAGES.has(normaliseStage(stage))
+}
+
+type VariantDebug = {
+  fbMatched: number
+  streakMatched: number
+  stagesSeen?: Record<string, number>
+}
 
 type VariantMetrics = {
   spend: number
@@ -45,8 +113,83 @@ type VariantMetrics = {
   qualityRate: number
   cpl: number | null
   cpql: number | null
+  sal: number
+  salRate: number
+  cpsal: number | null
+  engaged: number
+  engagedRate: number
+  cpEngaged: number | null
   bookings: number
   rvc: number
+  // 'hubspot' = counted from hubspot_contacts by form name, not from FB campaigns +
+  // Streak. Spend can't be split per variant there, so the card must not show CPL/CPQL.
+  source?: 'fb-streak' | 'hubspot'
+}
+
+// Tests whose variants are separated by HubSpot FORM, not by campaign — the two LP
+// variants share campaigns and UTMs, so the only thing that tells a lead apart is which
+// form it submitted. Values are exact `recent_conversion_event_name` strings.
+const HUBSPOT_FORM_MAP: Record<string, { A: string; B: string }> = {
+  'CRO-005': {
+    A: 'Luxury Yacht Charters at Unmatched Value - Goolets: Landing pages CROATIA - MULTISTEP form',
+    B: 'Luxury Yacht Charters at Unmatched Value: AI Chat – Croatia',
+  },
+}
+
+// QL proxy for HubSpot-sourced tests. Streak's AI score isn't reachable from HubSpot
+// (streak_sync carries no email to join on), so quality is read from the budget the lead
+// picked: €30k/week is the tier where a Goolets charter becomes genuinely worth working.
+const QL_BUDGET_TIERS = [
+  'from €30,000 to €60,000 per week',
+  'from €60,000 to €100,000 per week',
+  'from €100,000 to €250,000 per week',
+  'from €250,000 to €500,000 per week',
+  'more than €500,000 per week',
+]
+
+// Lifecycle stages that mean sales is actually working the lead — the HubSpot equivalent
+// of the Streak SAL set above.
+const HS_SAL_STAGES = new Set(['salesqualifiedlead', 'opportunity', 'customer'])
+
+function aggregateHubspotVariant(
+  formName: string,
+  startDate: Date | null,
+  endDate: Date | null,
+  contacts: HubSpotContactRow[]
+): VariantMetrics {
+  const matched = contacts.filter((c) => {
+    if (c.recent_conversion_event_name !== formName) return false
+    const d = parseDate(c.createdate)
+    if (!d) return false
+    if (startDate && d < startDate) return false
+    if (endDate && d > endDate) return false
+    return true
+  })
+
+  const leads = matched.length
+  const ql = matched.filter((c) => QL_BUDGET_TIERS.includes((c.budget_range || '').toLowerCase().trim())).length
+  const sal = matched.filter((c) => HS_SAL_STAGES.has(c.lifecyclestage)).length
+  const bookings = matched.filter((c) => c.lifecyclestage === 'customer').length
+
+  return {
+    spend: 0,
+    clicks: 0,
+    lpViews: 0,
+    leads,
+    ql,
+    qualityRate: leads > 0 ? (ql / leads) * 100 : 0,
+    cpl: null,
+    cpql: null,
+    sal,
+    salRate: leads > 0 ? (sal / leads) * 100 : 0,
+    cpsal: null,
+    engaged: 0,
+    engagedRate: 0,
+    cpEngaged: null,
+    bookings,
+    rvc: 0,
+    source: 'hubspot',
+  }
 }
 
 type TestWithVariants = TestTrackerRow & {
@@ -100,19 +243,50 @@ function sourceMatchesCampaign(sourcePlacement: string, campaign: string) {
 }
 
 function sumSafe(values: Array<number | undefined | null>) {
-  return values.reduce((acc, v) => acc + (Number(v) || 0), 0)
+  return values.reduce<number>((acc, v) => acc + (Number(v) || 0), 0)
+}
+
+// Does a single streak lead belong to a single campaign? Extracted so a variant can
+// span several campaigns (see aggregateVariant) without duplicating the rules.
+function leadMatchesCampaign(lead: StreakLeadRow, campaign: string): boolean {
+  // If we have an explicit mapping, use it instead of fuzzy matching
+  const streakMapValue = STREAK_PREFIX_MAP[campaign]
+  if (streakMapValue) {
+    const sp = (lead.source_placement || '').toLowerCase()
+    const cat = ((lead as any).source_category || (lead as any).latest_source_category || '').toUpperCase()
+    if (cat !== 'PAID_SOCIAL') return false
+    // Object form: prefix + optional exclude list (e.g. landing_gulet_ excluding landing_gulet_v2_)
+    if (typeof streakMapValue === 'object') {
+      if (!sp.startsWith(streakMapValue.prefix)) return false
+      return !(streakMapValue.exclude || []).some((ex) => sp.startsWith(ex))
+    }
+    // Trailing '_' → exact prefix match (CRO-001 style)
+    // Contains spaces → exact full match (SS-002 style)
+    // SS-001 keyword match within smart_spirit_ prefix (e.g. '25off', 'family')
+    // Generic startsWith fallback (e.g. 'alessandro_tier' matches 'alessandro_tier1_...')
+    if (streakMapValue.endsWith('_')) {
+      return sp.startsWith(streakMapValue)
+    }
+    if (streakMapValue.includes(' ')) {
+      return sp === streakMapValue
+    }
+    if (sp.startsWith('smart_spirit_') && sp.includes(streakMapValue)) return true
+    return sp.startsWith(streakMapValue)
+  }
+  // Otherwise fall back to existing fuzzy matching (for LF-001 etc.)
+  return sourceMatchesCampaign(lead.source_placement, campaign)
 }
 
 function aggregateVariant(
-  campaignRaw: string,
+  campaignsRaw: string[],
   startDate: Date | null,
   endDate: Date | null,
   fbRows: FbEnrichedRow[],
   streakRows: StreakLeadRow[],
-  debug: { fbMatched: number; streakMatched: number }
+  debug: VariantDebug
 ): VariantMetrics {
-  const campaign = (campaignRaw || '').trim()
-  if (!campaign) {
+  const campaigns = campaignsRaw.map((c) => (c || '').trim()).filter(Boolean)
+  if (campaigns.length === 0) {
     return {
       spend: 0,
       clicks: 0,
@@ -122,16 +296,23 @@ function aggregateVariant(
       qualityRate: 0,
       cpl: null,
       cpql: null,
+      sal: 0,
+      salRate: 0,
+      cpsal: null,
+      engaged: 0,
+      engagedRate: 0,
+      cpEngaged: null,
       bookings: 0,
       rvc: 0,
     }
   }
+  const campaignSet = new Set(campaigns)
 
-  const fbFiltered = fbRows.filter((row, idx) => {
+  const fbFiltered = fbRows.filter((row) => {
     // drop header/formula artifacts where date is missing
     const camp = (row.campaign_name || '').trim()
     if (!camp) return false
-    if (camp !== campaign) return false
+    if (!campaignSet.has(camp)) return false
     const rowDate = getRowDate(row)
     if (!rowDate) return false
     if (startDate && rowDate < startDate) return false
@@ -153,37 +334,15 @@ function aggregateVariant(
       if (!d || d < startDate) return false
     }
     if (endDate && d && d > endDate) return false
-    // If we have an explicit mapping, use it instead of fuzzy matching
-    const streakMapValue = STREAK_PREFIX_MAP[campaign]
-    if (streakMapValue) {
-      const sp = (lead.source_placement || '').toLowerCase()
-      const cat = ((lead as any).source_category || (lead as any).latest_source_category || '').toUpperCase()
-      if (cat !== 'PAID_SOCIAL') return false
-      // Object form: prefix + optional exclude list (e.g. landing_gulet_ excluding landing_gulet_v2_)
-      if (typeof streakMapValue === 'object') {
-        if (!sp.startsWith(streakMapValue.prefix)) return false
-        return !(streakMapValue.exclude || []).some((ex) => sp.startsWith(ex))
-      }
-      // Trailing '_' → exact prefix match (CRO-001 style)
-      // Contains spaces → exact full match (SS-002 style)
-      // SS-001 keyword match within smart_spirit_ prefix (e.g. '25off', 'family')
-      // Generic startsWith fallback (e.g. 'alessandro_tier' matches 'alessandro_tier1_...')
-      if (streakMapValue.endsWith('_')) {
-        return sp.startsWith(streakMapValue)
-      }
-      if (streakMapValue.includes(' ')) {
-        return sp === streakMapValue
-      }
-      if (sp.startsWith('smart_spirit_') && sp.includes(streakMapValue)) return true
-      return sp.startsWith(streakMapValue)
-    }
-    // Otherwise fall back to existing fuzzy matching (for LF-001 etc.)
-    return sourceMatchesCampaign(lead.source_placement, campaign)
+    return campaigns.some((campaign) => leadMatchesCampaign(lead, campaign))
   })
   debug.streakMatched = streakFiltered.length
 
   let ql = 0
+  let sal = 0
+  let engaged = 0
   let bookings = 0
+  const stagesSeen: Record<string, number> = {}
   for (const lead of streakFiltered) {
     const aiRaw = (lead.ai_score as unknown) ?? (lead as any).ai ?? 0
     let ai = Number(aiRaw)
@@ -192,15 +351,26 @@ function aggregateVariant(
       if (Number.isNaN(ai)) ai = 0
     }
     if (ai >= 50) ql += 1
+    const stageKey = normaliseStage(lead.stage) || '(empty)'
+    stagesSeen[stageKey] = (stagesSeen[stageKey] || 0) + 1
+    if (isSalStage(lead.stage)) sal += 1
+    if (isEngagedStage(lead.stage)) engaged += 1
     if (typeof lead.stage === 'string' && lead.stage.toLowerCase().includes('won')) {
       bookings += 1
     }
   }
+  // Surfaced in _debug so an unrecognised Streak stage shows up as a bucket that
+  // never lands in SAL, instead of silently deflating the variant.
+  debug.stagesSeen = stagesSeen
 
   const leads = streakFiltered.length
   const qualityRate = leads > 0 ? (ql / leads) * 100 : 0
   const cpl = leads > 0 ? spend / leads : null
   const cpql = ql > 0 ? spend / ql : null
+  const salRate = leads > 0 ? (sal / leads) * 100 : 0
+  const cpsal = sal > 0 ? spend / sal : null
+  const engagedRate = leads > 0 ? (engaged / leads) * 100 : 0
+  const cpEngaged = engaged > 0 ? spend / engaged : null
 
   return {
     spend,
@@ -211,6 +381,12 @@ function aggregateVariant(
     qualityRate,
     cpl,
     cpql,
+    sal,
+    salRate,
+    cpsal,
+    engaged,
+    engagedRate,
+    cpEngaged,
     bookings,
     rvc: 0,
   }
@@ -218,10 +394,11 @@ function aggregateVariant(
 
 export async function GET() {
   try {
-    const [testsRaw, fbRows, streakRows] = await Promise.all([
+    const [testsRaw, fbRows, streakRows, hubspotRows] = await Promise.all([
       fetchTestTracker(fetchSheet),
       fetchFbEnriched(fetchSheet),
       fetchStreakSync(fetchSheet),
+      fetchHubspotContacts(fetchSheet),
     ])
 
     const campaignSamples = fbRows.slice(0, 5).map((r) => r.campaign_name)
@@ -230,38 +407,42 @@ export async function GET() {
 
     const tests: TestWithVariants[] = testsRaw.map((test, index) => {
       const sheetRowIndex = index + 2 // row 1 = header, data starts at row 2
-      const campaigns = (test.campaigns || '')
-        .split(',')
-        .map((c) => c.trim())
-        .filter(Boolean)
-      const campaignA = campaigns[0] || ''
-      const campaignB = campaigns[1] || ''
+      // "Campaign(s)" format: "<variant A>, <variant B>".
+      // Each side may list several campaigns joined by '|' — used when one test runs
+      // across parallel campaigns (e.g. CRO-004 runs the same form test on three
+      // vessels) and only the pooled sample is big enough to read.
+      const sides = (test.campaigns || '').split(',').map((s) => s.trim())
+      const splitSide = (side: string) =>
+        side
+          .split('|')
+          .map((c) => c.trim())
+          .filter(Boolean)
+      const campaignsA = splitSide(sides[0] || '')
+      const campaignsB = splitSide(sides[1] || '')
+      const campaignA = campaignsA.join(' | ')
+      const campaignB = campaignsB.join(' | ')
+      const setA = new Set(campaignsA)
+      const setB = new Set(campaignsB)
       const startDate = parseDate(test.start_date)
       const endDate = parseDate(test.end_date)
 
-      const debugA = { fbMatched: 0, streakMatched: 0 }
-      const debugB = { fbMatched: 0, streakMatched: 0 }
+      const debugA: VariantDebug = { fbMatched: 0, streakMatched: 0 }
+      const debugB: VariantDebug = { fbMatched: 0, streakMatched: 0 }
 
       // Debug: find ANY fb rows matching campaign names, ignoring dates
-      const fbMatchesA_noDate = fbDataRaw.filter((row) => {
-        const name = String(row[0] || '').trim()
-        return name === campaignA
-      }).length
+      const fbMatchesA_noDate = fbDataRaw.filter((row) => setA.has(String(row[0] || '').trim())).length
 
-      const fbMatchesB_noDate = fbDataRaw.filter((row) => {
-        const name = String(row[0] || '').trim()
-        return name === campaignB
-      }).length
+      const fbMatchesB_noDate = fbDataRaw.filter((row) => setB.has(String(row[0] || '').trim())).length
 
       // Debug: show first 3 matching rows for A
       const fbSampleMatchingA = fbDataRaw
-        .filter((row) => String(row[0] || '').trim() === campaignA)
+        .filter((row) => setA.has(String(row[0] || '').trim()))
         .slice(0, 3)
         .map((row) => ({ name: String(row[0]).trim(), date: row[1], spend: row[2] }))
 
       // Debug: show first 3 matching rows for B
       const fbSampleMatchingB = fbDataRaw
-        .filter((row) => String(row[0] || '').trim() === campaignB)
+        .filter((row) => setB.has(String(row[0] || '').trim()))
         .slice(0, 3)
         .map((row) => ({ name: String(row[0]).trim(), date: row[1], spend: row[2] }))
 
@@ -276,20 +457,27 @@ export async function GET() {
       let variants: { A: VariantMetrics; B: VariantMetrics }
       let frozen = false
 
-      if (isDone && test.frozen_variants) {
+      const hubspotForms = HUBSPOT_FORM_MAP[test.test_id]
+
+      if (hubspotForms) {
+        variants = {
+          A: aggregateHubspotVariant(hubspotForms.A, startDate, endDate, hubspotRows),
+          B: aggregateHubspotVariant(hubspotForms.B, startDate, endDate, hubspotRows),
+        }
+      } else if (isDone && test.frozen_variants) {
         try {
           variants = JSON.parse(test.frozen_variants)
           frozen = true
         } catch {
           variants = {
-            A: aggregateVariant(campaignA, startDate, endDate, fbRows, streakRows, debugA),
-            B: aggregateVariant(campaignB, startDate, endDate, fbRows, streakRows, debugB),
+            A: aggregateVariant(campaignsA, startDate, endDate, fbRows, streakRows, debugA),
+            B: aggregateVariant(campaignsB, startDate, endDate, fbRows, streakRows, debugB),
           }
         }
       } else {
         variants = {
-          A: aggregateVariant(campaignA, startDate, endDate, fbRows, streakRows, debugA),
-          B: aggregateVariant(campaignB, startDate, endDate, fbRows, streakRows, debugB),
+          A: aggregateVariant(campaignsA, startDate, endDate, fbRows, streakRows, debugA),
+          B: aggregateVariant(campaignsB, startDate, endDate, fbRows, streakRows, debugB),
         }
       }
 
@@ -306,7 +494,7 @@ export async function GET() {
           fbMatchesA: fbRows.filter((row) => {
             const camp = (row.campaign_name || '').trim()
             if (!camp) return false
-            if (camp !== campaignA.trim()) return false
+            if (!setA.has(camp)) return false
             if (startDate) {
               const d = parseDate((row as any).date_iso ?? (row as any).date ?? (row as any).date_start)
               if (!d || d < startDate) return false
@@ -316,7 +504,7 @@ export async function GET() {
           fbMatchesB: fbRows.filter((row) => {
             const camp = (row.campaign_name || '').trim()
             if (!camp) return false
-            if (camp !== campaignB.trim()) return false
+            if (!setB.has(camp)) return false
             if (startDate) {
               const d = parseDate((row as any).date_iso ?? (row as any).date ?? (row as any).date_start)
               if (!d || d < startDate) return false
@@ -334,16 +522,18 @@ export async function GET() {
               const d = parseDate(lead.inquiry_date)
               if (!d || d < startDate) return false
             }
-            return sourceMatchesCampaign(lead.source_placement, campaignA)
+            return campaignsA.some((c) => leadMatchesCampaign(lead, c))
           }).length,
           streakMatchesB: streakRows.filter((lead) => {
             if (startDate) {
               const d = parseDate(lead.inquiry_date)
               if (!d || d < startDate) return false
             }
-            return sourceMatchesCampaign(lead.source_placement, campaignB)
+            return campaignsB.some((c) => leadMatchesCampaign(lead, c))
           }).length,
           streakIndividualPlacements,
+          stagesSeenA: debugA.stagesSeen,
+          stagesSeenB: debugB.stagesSeen,
           startDate: test.start_date,
         },
       }

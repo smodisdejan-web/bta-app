@@ -27,8 +27,15 @@ type VariantMetrics = {
   qualityRate: number
   cpl: number | null
   cpql: number | null
+  sal: number
+  salRate: number
+  cpsal: number | null
+  engaged: number
+  engagedRate: number
+  cpEngaged: number | null
   bookings: number
   rvc: number
+  source?: 'fb-streak' | 'hubspot'
 }
 
 type TestWithVariants = TestTrackerRow & {
@@ -73,7 +80,9 @@ function parseTarget(successCriteria?: string): number | null {
 
 function isCostMetric(kpiName: string) {
   const lower = kpiName.toLowerCase()
-  return ['cpql', 'cpa', 'cpl', 'cost', 'cpc', 'cac'].some((k) => lower.includes(k))
+  return ['cp engaged', 'cpengaged', 'cpsal', 'cpql', 'cpa', 'cpl', 'cost', 'cpc', 'cac'].some((k) =>
+    lower.includes(k)
+  )
 }
 
 function isCurrency(kpiName: string) {
@@ -92,6 +101,8 @@ function formatValue(value: number | null, kpiName: string): string {
   if (lower.includes('%')) {
     return `${value.toFixed(1)}%`
   }
+  // Counts (leads, submissions) read as "194", not "194.00" — only ratios need decimals.
+  if (Number.isInteger(value)) return value.toLocaleString()
   return value.toFixed(2)
 }
 
@@ -113,8 +124,8 @@ function barColorCost(value: number | null, target: number | null) {
 
 function formatMetricValue(key: keyof VariantMetrics, value: number | null | undefined) {
   if (value === null || value === undefined) return '—'
-  if (['spend', 'cpl', 'cpql', 'rvc'].includes(key)) return formatCurrencyTerse(value)
-  if (key === 'qualityRate') return `${value.toFixed(1)}%`
+  if (['spend', 'cpl', 'cpql', 'cpsal', 'cpEngaged', 'rvc'].includes(key)) return formatCurrencyTerse(value)
+  if (key === 'qualityRate' || key === 'salRate' || key === 'engagedRate') return `${value.toFixed(1)}%`
   return Math.round(value).toLocaleString()
 }
 
@@ -389,12 +400,26 @@ function SummaryCard({
   )
 }
 
+// Streak's AI score was tuned specifically for asset-marketing campaigns (nearly every
+// lead scores > 50), so QL-derived numbers can't be compared against normal campaigns.
+function usesAssetCampaigns(test: TestWithVariants) {
+  return /\bASSET\b/i.test(test.campaigns || '')
+}
+
 function resolveKpi(kpiName: string, metrics?: VariantMetrics): number | null {
   if (!metrics) return null
   const lower = (kpiName || '').toLowerCase()
+  // Engaged/SAL first: these must not be swallowed by the looser cpl/quality checks below.
+  if (lower.includes('cp engaged') || lower.includes('cpengaged')) return metrics.cpEngaged
+  if (lower.includes('engaged rate')) return metrics.engagedRate
+  if (lower.includes('cpsal')) return metrics.cpsal
+  if (lower.includes('sal rate')) return metrics.salRate
   if (lower.includes('cpql')) return metrics.cpql
   if (lower.includes('cpl')) return metrics.cpl
   if (lower.includes('ql rate') || lower.includes('quality')) return metrics.qualityRate
+  // Lead-count KPIs come last: 'lead' appears inside plenty of KPI names, so it must not
+  // pre-empt the cost/rate checks above.
+  if (lower.includes('lead')) return metrics.leads
   return null
 }
 
@@ -460,6 +485,13 @@ function TestCard({ test }: { test: TestWithVariants }) {
       <p className={cn('mt-3 text-xl text-gray-900', dmSerif.className)}>{test.test_name}</p>
       <p className="mt-1 text-sm text-gray-600">{test.hypothesis}</p>
 
+      {usesAssetCampaigns(test) && (
+        <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          ⚠️ ASSET campaign — the Streak AI score was tuned separately for asset marketing, so{' '}
+          <strong>QL / QL Rate / CPQL are not comparable here</strong>. Read SAL / CPSAL instead.
+        </p>
+      )}
+
       <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-gray-50 p-3 text-sm text-gray-700 md:grid-cols-4">
         <div><span className="font-semibold">Metric</span><div>{test.kpi_name || '—'}</div></div>
         <div><span className="font-semibold">Baseline</span><div>{formatValue(baseline, test.kpi_name)}</div></div>
@@ -469,7 +501,7 @@ function TestCard({ test }: { test: TestWithVariants }) {
 
       <div className={cn('mt-4 flex items-center justify-between rounded-lg px-4 py-3 text-sm shadow-inner', verdict.tone)}>
         <div className="font-semibold">{verdict.text}</div>
-        <div className="text-xs text-gray-700">Confidence: {confidenceText || 'Low'} · Too early to call</div>
+        <div className="text-xs text-gray-700">Confidence: {confidenceText || 'Low'} · {days}d podatkov</div>
       </div>
 
       <div className="mt-4 grid gap-3 md:grid-cols-2">
@@ -570,10 +602,40 @@ function VariantCard({
     { key: 'cpl', label: 'CPL', better: 'lower' },
     { key: 'cpql', label: 'CPQL', better: 'lower' },
   ]
+  // SAL = lead the sales team actually worked (Streak stage in the Qualified set).
+  // Independent of AI score, and independent of how many fields the form collected.
+  const salMetrics: Array<{ key: keyof VariantMetrics; label: string; better: BetterDir; isRate?: boolean }> = [
+    { key: 'engaged', label: 'Engaged', better: 'higher' },
+    { key: 'engagedRate', label: 'Engaged Rate', better: 'higher', isRate: true },
+    { key: 'cpEngaged', label: 'CP Engaged', better: 'lower' },
+    { key: 'sal', label: 'SAL', better: 'higher' },
+    { key: 'salRate', label: 'SAL Rate', better: 'higher', isRate: true },
+    { key: 'cpsal', label: 'CPSAL', better: 'lower' },
+  ]
   const revenueMetrics: Array<{ key: keyof VariantMetrics; label: string; better: BetterDir }> = [
     { key: 'bookings', label: 'Bookings', better: 'higher' },
     { key: 'rvc', label: 'RVC', better: 'higher' },
   ]
+
+  // HubSpot-sourced variants (CRO-005) are counted by form, where spend can't be split
+  // per variant — so show volume + quality only, never CPL/CPQL/CPSAL built on €0.
+  const isHubspot = metrics?.source === 'hubspot' || otherMetrics?.source === 'hubspot'
+  const hubspotMetrics: Array<{ key: keyof VariantMetrics; label: string; better: BetterDir; isRate?: boolean }> = [
+    { key: 'leads', label: 'Leads', better: 'higher' },
+    { key: 'ql', label: 'QL (budget ≥€30k)', better: 'higher' },
+    { key: 'qualityRate', label: 'QL Rate', better: 'higher', isRate: true },
+    { key: 'sal', label: 'SAL (lifecycle)', better: 'higher' },
+    { key: 'salRate', label: 'SAL Rate', better: 'higher', isRate: true },
+    { key: 'bookings', label: 'Customers', better: 'higher' },
+  ]
+
+  // A test whose variants can't be matched to FB campaigns + Streak leads aggregates to
+  // all-zero metrics. Rendering that grid reads as "0 leads, €0 spend" instead of
+  // "not wired up" — so hide it and say so.
+  const hasDelivery = Boolean(
+    (metrics && (metrics.spend || metrics.leads || metrics.clicks)) ||
+    (otherMetrics && (otherMetrics.spend || otherMetrics.leads || otherMetrics.clicks))
+  )
 
   return (
     <div className={cn('relative rounded-xl border p-4 shadow-sm', better ? 'border-green-200 bg-green-50/40' : 'border-gray-200 bg-white')}>
@@ -602,19 +664,35 @@ function VariantCard({
           style={{ width: `${width}%` }}
         />
         <div className="absolute inset-0 flex items-center justify-between px-2 text-[11px] text-gray-600">
-          <span>€0</span>
-          <span>{target ? `Target ${formatValue(target, kpiName)}` : 'Target'}</span>
+          <span>{isCurrency(kpiName) ? '€0' : '0'}</span>
+          <span>{target ? `Target ${formatValue(target, kpiName)}` : ''}</span>
           <span>{formattedValue}</span>
         </div>
       </div>
 
-      <div className="mt-3 space-y-3">
-        <MetricsSection title="Delivery" metrics={deliveryMetrics} metricsData={metrics} other={otherMetrics} />
-        <MetricsSection title="Lead Quality" metrics={leadQualityMetrics} metricsData={metrics} other={otherMetrics} />
-        {(metrics?.bookings || otherMetrics?.bookings || metrics?.rvc || otherMetrics?.rvc) ? (
-          <MetricsSection title="Revenue" metrics={revenueMetrics} metricsData={metrics} other={otherMetrics} />
-        ) : null}
-      </div>
+      {isHubspot ? (
+        <div className="mt-3 space-y-3">
+          <MetricsSection title="HubSpot (po formi)" metrics={hubspotMetrics} metricsData={metrics} other={otherMetrics} />
+          <p className="text-[11px] leading-snug text-gray-500">
+            Šteto po HubSpot formi (recent conversion). Obe varianti tečeta v istih kampanjah z
+            istimi UTM-ji, zato spend ni ločljiv → CPL/CPQL tu namenoma ni.
+          </p>
+        </div>
+      ) : hasDelivery ? (
+        <div className="mt-3 space-y-3">
+          <MetricsSection title="Delivery" metrics={deliveryMetrics} metricsData={metrics} other={otherMetrics} />
+          <MetricsSection title="Lead Quality" metrics={leadQualityMetrics} metricsData={metrics} other={otherMetrics} />
+          <MetricsSection title="Sales Accepted" metrics={salMetrics} metricsData={metrics} other={otherMetrics} />
+          {(metrics?.bookings || otherMetrics?.bookings || metrics?.rvc || otherMetrics?.rvc) ? (
+            <MetricsSection title="Revenue" metrics={revenueMetrics} metricsData={metrics} other={otherMetrics} />
+          ) : null}
+        </div>
+      ) : (
+        <div className="mt-3 border-t border-gray-100 pt-3 text-xs text-gray-500">
+          Delivery / quality metrics niso povezane za ta test — številka zgoraj je vpisana ročno iz vira,
+          ki odloča o zmagovalcu.
+        </div>
+      )}
     </div>
   )
 }
