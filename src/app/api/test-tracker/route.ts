@@ -121,9 +121,14 @@ type VariantMetrics = {
   cpEngaged: number | null
   bookings: number
   rvc: number
-  // 'hubspot' = counted from hubspot_contacts by form name, not from FB campaigns +
-  // Streak. Spend can't be split per variant there, so the card must not show CPL/CPQL.
+  // 'hubspot' = leads counted from hubspot_contacts by form name. Such a test also carries
+  // a Meta block (ad-set spend + Streak-UTM leads) in the meta* fields below; the two are
+  // reported side by side, never mixed into one CPL.
   source?: 'fb-streak' | 'hubspot'
+  metaLeads?: number
+  metaCpl?: number | null
+  metaLpvToLead?: number
+  metaAsOf?: string
 }
 
 // Variants for tests split by HubSpot FORM rather than by campaign (both LP variants run
@@ -133,9 +138,16 @@ type VariantMetrics = {
 function hubspotVariantFrom(row: TestVariantRow | undefined): VariantMetrics | null {
   if (!row) return null
   return {
-    spend: 0,
-    clicks: 0,
-    lpViews: 0,
+    // Meta delivery. Deliberately kept separate from `leads` below: these two blocks
+    // count different populations (Meta ad sets vs every source that reached the form),
+    // so the card labels them and never divides one by the other.
+    spend: row.meta_spend,
+    clicks: row.meta_clicks,
+    lpViews: row.meta_lp_views,
+    metaLeads: row.meta_leads,
+    metaCpl: row.meta_cpl || null,
+    metaLpvToLead: row.meta_lpv_to_lead,
+    metaAsOf: row.meta_as_of,
     leads: row.leads,
     ql: row.ql,
     qualityRate: row.ql_rate,

@@ -1466,6 +1466,16 @@ export type TestVariantRow = {
   sal: number
   sal_rate: number
   bookings: number
+  // Meta block. Spend is an ad-set level snapshot (no automated feed exists at that level),
+  // meta_leads are Streak-UTM attributed — CPL divides the two, never Meta spend by the
+  // HubSpot lead count, which also contains paid search.
+  meta_spend: number
+  meta_clicks: number
+  meta_lp_views: number
+  meta_leads: number
+  meta_cpl: number
+  meta_lpv_to_lead: number
+  meta_as_of: string
   computed_at: string
 }
 
@@ -1484,6 +1494,10 @@ export async function fetchTestVariants(
       test_id: idx('test_id'), variant: idx('variant'), form_name: idx('form_name'),
       leads: idx('leads'), ql: idx('ql'), ql_rate: idx('ql_rate'),
       sal: idx('sal'), sal_rate: idx('sal_rate'), bookings: idx('bookings'),
+      meta_spend: idx('meta_spend'), meta_clicks: idx('meta_clicks'),
+      meta_lp_views: idx('meta_lp_views'), meta_leads: idx('meta_leads'),
+      meta_cpl: idx('meta_cpl'), meta_lpv_to_lead: idx('meta_lpv_to_lead'),
+      meta_as_of: idx('meta_as_of'),
       computed_at: idx('computed_at'),
     }
     return rows
@@ -1497,6 +1511,13 @@ export async function fetchTestVariants(
         sal: toNumberEUorUS(r[I.sal]),
         sal_rate: toNumberEUorUS(r[I.sal_rate]),
         bookings: toNumberEUorUS(r[I.bookings]),
+        meta_spend: toNumberEUorUS(r[I.meta_spend]),
+        meta_clicks: toNumberEUorUS(r[I.meta_clicks]),
+        meta_lp_views: toNumberEUorUS(r[I.meta_lp_views]),
+        meta_leads: toNumberEUorUS(r[I.meta_leads]),
+        meta_cpl: toNumberEUorUS(r[I.meta_cpl]),
+        meta_lpv_to_lead: toNumberEUorUS(r[I.meta_lpv_to_lead]),
+        meta_as_of: String(r[I.meta_as_of] ?? ''),
         computed_at: String(r[I.computed_at] ?? ''),
       }))
       .filter((r) => r.test_id)

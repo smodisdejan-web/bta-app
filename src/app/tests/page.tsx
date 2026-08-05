@@ -36,6 +36,10 @@ type VariantMetrics = {
   bookings: number
   rvc: number
   source?: 'fb-streak' | 'hubspot'
+  metaLeads?: number
+  metaCpl?: number | null
+  metaLpvToLead?: number
+  metaAsOf?: string
 }
 
 type TestWithVariants = TestTrackerRow & {
@@ -125,7 +129,12 @@ function barColorCost(value: number | null, target: number | null) {
 function formatMetricValue(key: keyof VariantMetrics, value: number | null | undefined) {
   if (value === null || value === undefined) return '—'
   if (['spend', 'cpl', 'cpql', 'cpsal', 'cpEngaged', 'rvc'].includes(key)) return formatCurrencyTerse(value)
-  if (key === 'qualityRate' || key === 'salRate' || key === 'engagedRate') return `${value.toFixed(1)}%`
+  // CPL on the Meta block is a two-digit euro figure — rounding it to the nearest euro
+  // would hide the difference the test exists to measure.
+  if (key === 'metaCpl') return `€${value.toFixed(2)}`
+  if (key === 'qualityRate' || key === 'salRate' || key === 'engagedRate' || key === 'metaLpvToLead') {
+    return `${value.toFixed(2)}%`
+  }
   return Math.round(value).toLocaleString()
 }
 
@@ -628,6 +637,18 @@ function VariantCard({
     { key: 'salRate', label: 'SAL Rate', better: 'higher', isRate: true },
     { key: 'bookings', label: 'Customers', better: 'higher' },
   ]
+  // Meta side: spend and the leads that spend actually bought (Streak UTM), so CPL is a
+  // like-for-like number. Only the ad sets that exist on both variants are in here.
+  const metaMetrics: Array<{ key: keyof VariantMetrics; label: string; better: BetterDir; isRate?: boolean }> = [
+    { key: 'spend', label: 'Spend', better: 'lower' },
+    { key: 'metaLeads', label: 'Leads (Streak UTM)', better: 'higher' },
+    { key: 'metaCpl', label: 'CPL', better: 'lower' },
+    { key: 'clicks', label: 'Clicks', better: 'higher' },
+    { key: 'lpViews', label: 'LP Views', better: 'higher' },
+    { key: 'metaLpvToLead', label: 'LPV → Lead', better: 'higher', isRate: true },
+  ]
+  const hasMeta = Boolean(metrics?.spend || otherMetrics?.spend)
+  const metaAsOf = metrics?.metaAsOf || otherMetrics?.metaAsOf
 
   // A test whose variants can't be matched to FB campaigns + Streak leads aggregates to
   // all-zero metrics. Rendering that grid reads as "0 leads, €0 spend" instead of
@@ -672,10 +693,20 @@ function VariantCard({
 
       {isHubspot ? (
         <div className="mt-3 space-y-3">
-          <MetricsSection title="HubSpot (po formi)" metrics={hubspotMetrics} metricsData={metrics} other={otherMetrics} />
+          {hasMeta && (
+            <>
+              <MetricsSection title="Meta (parjeni adseti)" metrics={metaMetrics} metricsData={metrics} other={otherMetrics} />
+              <p className="text-[11px] leading-snug text-gray-500">
+                Samo trije angli, ki obstajajo v obeh variantah (Angle 2, 3, 5) — spend je zato
+                primerljiv 1:1. Leadi so Streak po UTM-ju, torej isti vir kot spend.
+                {metaAsOf ? ` Spend na dan ${metaAsOf}.` : ''}
+              </p>
+            </>
+          )}
+          <MetricsSection title="HubSpot (vsi viri, po formi)" metrics={hubspotMetrics} metricsData={metrics} other={otherMetrics} />
           <p className="text-[11px] leading-snug text-gray-500">
-            Šteto po HubSpot formi (recent conversion). Obe varianti tečeta v istih kampanjah z
-            istimi UTM-ji, zato spend ni ločljiv → CPL/CPQL tu namenoma ni.
+            Šteto po HubSpot formi (recent conversion) — vključuje tudi paid search in organiko,
+            zato je številka večja od Meta leadov zgoraj. Teh dveh blokov ne deli med sabo.
           </p>
         </div>
       ) : hasDelivery ? (
