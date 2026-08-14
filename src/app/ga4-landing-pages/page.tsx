@@ -758,6 +758,11 @@ export default function LpFunnelDashboard() {
           detail={detail}
           loading={detailLoading}
           error={detailError}
+          bounds={bounds}
+          // The report must never contradict the table it was opened from, so it
+          // is fed the same aggregate row rather than re-deriving the metrics.
+          aggregate={data?.aggregates.find(a => a.path === selectedPath) ?? null}
+          siteTotals={data?.totals ?? null}
           onClose={() => setSelectedPath(null)}
         />
       )}
@@ -774,12 +779,18 @@ function DetailModal({
   detail,
   loading,
   error,
+  bounds,
+  aggregate,
+  siteTotals,
   onClose,
 }: {
   path: string
   detail: DetailResponse | null
   loading: boolean
   error: string | null
+  bounds: { from: string; to: string; label: string }
+  aggregate: LPAggregate | null
+  siteTotals: LPFunnelTotals | null
   onClose: () => void
 }) {
   // Close on Escape
@@ -836,6 +847,22 @@ function DetailModal({
               <p className="text-sm">{error}</p>
             </div>
           )}
+
+          {/* Clarity behaviour and the report depend only on the path and the date
+              range, not on the leads detail — so they render even when the detail
+              call fails or legitimately 404s (a page with sessions but no leads
+              this month). Nesting them inside the detail block made them vanish
+              exactly when the behaviour data was the only thing left to look at. */}
+          {!loading && <ClarityCard path={path} bounds={bounds} />}
+          {/* The AI landing page report is built and working (LpReportCard +
+              /api/lp-report + lib/lp-report.ts + lib/lp-purpose.ts) but is NOT
+              rendered: on every run Haiku fabricated or misattributed two to three
+              figures — conflating a channel total with a campaign total, inventing
+              a session count, filing an at-benchmark metric as a problem. A report
+              that looks authoritative while being wrong is worse than none, so it
+              waits for its own task, where the works/doesn't-work classification
+              moves into code and the model only writes prose around fixed points.
+              Re-enable by rendering <LpReportCard /> here. */}
 
           {detail && !loading && !error && (
             <>
@@ -922,6 +949,453 @@ function DetailModal({
           )}
         </div>
       </div>
+    </div>
+  )
+}
+
+// ============================================================================
+// ON-PAGE BEHAVIOUR — Microsoft Clarity
+//
+// Clarity's export API is capped at 1000 unsorted rows per call, and on
+// goolets.net most rows are single-session utm/fbclid URL variants, so per-page
+// figures cover only a slice of real traffic (8.7% measured 2026-08-14). This
+// card therefore shows RATES, never raw event totals, and states the sample size
+// on its face. Heatmaps, first clicks and recordings are UI-only in Clarity, so
+// they are linked rather than rendered.
+// ============================================================================
+
+type ClarityResponse = {
+  dataWindow: { firstDay: string | null; lastDay: string | null; dayCount: number }
+  site: {
+    devices: {
+      device: string
+      sessions: number
+      scrollDepth: number | null
+      engagementTime: number | null
+      deadClicksPct: number | null
+      rageClicksPct: number | null
+      quickbacksPct: number | null
+      scriptErrorsPct: number | null
+    }[]
+    totalSessions: number
+    empty: boolean
+  }
+  landing: {
+    path: string
+    hosts: string[]
+    devices: {
+      device: string
+      sampledSessions: number
+      scrollDepth: number | null
+      engagementTime: number | null
+      deadClicksPct: number | null
+      rageClicksPct: number | null
+      quickbacksPct: number | null
+      scriptErrorsPct: number | null
+      reliable: boolean
+    }[]
+    totalSampledSessions: number
+    overallScrollDepth: number | null
+    daysCovered: number
+    coveragePct: number | null
+    empty: boolean
+    heatmapUrl: string
+    recordingsUrl: string
+    replayLikelyExpired: boolean
+  } | null
+}
+
+const deviceLabel = (d: string) => (d === 'PC' ? 'Desktop' : d)
+
+function ClarityCard({ path, bounds }: { path: string; bounds: { from: string; to: string } }) {
+  const [data, setData] = useState<ClarityResponse | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    const load = async () => {
+      setLoading(true)
+      setError(null)
+      try {
+        const url = `/api/clarity?path=${encodeURIComponent(path)}&from=${encodeURIComponent(bounds.from)}&to=${encodeURIComponent(bounds.to)}`
+        const res = await fetch(url)
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}))
+          throw new Error(err.error || `Request failed ${res.status}`)
+        }
+        const json = (await res.json()) as ClarityResponse
+        if (!cancelled) setData(json)
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load Clarity')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [path, bounds.from, bounds.to])
+
+  const landing = data?.landing
+  const siteByDevice = useMemo(() => {
+    const map = new Map<string, ClarityResponse['site']['devices'][number]>()
+    for (const d of data?.site.devices ?? []) map.set(d.device, d)
+    return map
+  }, [data])
+
+  return (
+    <Card className="p-4">
+      <div className="flex items-start justify-between gap-3 mb-3 flex-wrap">
+        <div>
+          <p className="text-sm font-semibold">On-page behaviour</p>
+          <p className="text-[11px] text-gray-500">Microsoft Clarity · scroll, dead &amp; rage clicks, quick-backs</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <a
+            href={landing?.heatmapUrl || `https://clarity.microsoft.com/projects/view/q81u03b3ab/heatmaps`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-[#e1d8c7] bg-white text-xs text-gray-700 hover:bg-[#f2ede3]"
+          >
+            <ExternalLink className="h-3 w-3" />
+            Heatmap
+          </a>
+          <a
+            href={landing?.recordingsUrl || `https://clarity.microsoft.com/projects/view/q81u03b3ab/impressions`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-[#e1d8c7] bg-white text-xs text-gray-700 hover:bg-[#f2ede3]"
+          >
+            <ExternalLink className="h-3 w-3" />
+            Recordings
+          </a>
+        </div>
+      </div>
+
+      {loading && (
+        <div className="flex items-center py-6 text-sm text-gray-500">
+          <Loader2 className="h-4 w-4 animate-spin mr-2" /> Loading behaviour…
+        </div>
+      )}
+
+      {error && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+          {error}
+        </div>
+      )}
+
+      {data && !loading && !error && landing?.empty && (
+        <div className="rounded-lg border border-[#e1d8c7] bg-[#fbf9f4] p-3 text-sm text-gray-600">
+          No Clarity data for this page in {bounds.from.slice(0, 10)} – {bounds.to.slice(0, 10)}.
+          {data.dataWindow.firstDay ? (
+            <> Snapshots currently run {data.dataWindow.firstDay} – {data.dataWindow.lastDay} ({data.dataWindow.dayCount} day{data.dataWindow.dayCount === 1 ? '' : 's'}), so longer ranges reach back further than Clarity history goes.</>
+          ) : (
+            <> No snapshots have been collected yet.</>
+          )}
+        </div>
+      )}
+
+      {data && !loading && !error && landing && !landing.empty && (
+        <>
+          {/* Sampling is stated before any number is shown, not in a footnote. */}
+          <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 mb-3 text-[11px] text-amber-900">
+            <strong>Sample, not full traffic.</strong> Based on {formatNumber(landing.totalSampledSessions)} sampled
+            session{landing.totalSampledSessions === 1 ? '' : 's'}
+            {landing.coveragePct !== null && <> ≈ {landing.coveragePct}% of sessions</>} over {landing.daysCovered} day
+            {landing.daysCovered === 1 ? '' : 's'} of snapshots. Rates below are directional; absolute event counts are
+            not shown because they would understate reality. Cause: Clarity&apos;s 1000-row export cap is consumed by
+            utm/fbclid URL variants.
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead className="text-left text-gray-500 border-b border-[#e1d8c7]">
+                <tr>
+                  <th className="py-2 px-2">Device</th>
+                  <th className="py-2 px-2 text-right">Sampled sess.</th>
+                  <th className="py-2 px-2 text-right">Scroll depth</th>
+                  <th className="py-2 px-2 text-right">Active time</th>
+                  <th className="py-2 px-2 text-right">Dead clicks<span className="block font-normal text-[10px] text-gray-400">% of sessions</span></th>
+                  <th className="py-2 px-2 text-right">Rage clicks<span className="block font-normal text-[10px] text-gray-400">% of sessions</span></th>
+                  <th className="py-2 px-2 text-right">Quick-backs<span className="block font-normal text-[10px] text-gray-400">% of sessions</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                {landing.devices.map((d) => {
+                  const site = siteByDevice.get(d.device)
+                  return (
+                    <tr key={d.device} className="border-b border-[#f2ede3]">
+                      <td className="py-2 px-2 font-medium text-gray-800">{deviceLabel(d.device)}</td>
+                      <td className="py-2 px-2 text-right text-gray-700">{formatNumber(d.sampledSessions)}</td>
+                      <td className="py-2 px-2 text-right">
+                        {d.scrollDepth === null ? (
+                          <span className="text-gray-400">—</span>
+                        ) : (
+                          <>
+                            <span className="font-semibold text-gray-900">{d.scrollDepth.toFixed(1)}%</span>
+                            {site?.scrollDepth != null && (
+                              <span className="block text-[10px] text-gray-500">
+                                site {site.scrollDepth.toFixed(1)}%
+                              </span>
+                            )}
+                          </>
+                        )}
+                      </td>
+                      <td className="py-2 px-2 text-right text-gray-700">
+                        {d.engagementTime === null ? '—' : `${Math.round(d.engagementTime)}s`}
+                      </td>
+                      {/* Under 30 sampled sessions an incidence rate is noise — one
+                          affected session out of 6 reads as 14% — so the three rate
+                          columns collapse into a single honest "too few" cell. */}
+                      {d.reliable ? (
+                        <>
+                          <RateCell value={d.deadClicksPct} siteValue={site?.deadClicksPct} />
+                          <RateCell value={d.rageClicksPct} siteValue={site?.rageClicksPct} />
+                          <RateCell value={d.quickbacksPct} siteValue={site?.quickbacksPct} />
+                        </>
+                      ) : (
+                        <td colSpan={3} className="py-2 px-2 text-center text-[11px] text-gray-400 italic">
+                          too few sampled sessions for a reliable rate
+                        </td>
+                      )}
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mt-3 space-y-1 text-[11px] text-gray-500">
+            {landing.hosts.length > 1 && (
+              <p>
+                <strong>Note:</strong> this path exists on {landing.hosts.join(', ')} — figures above merge them,
+                since GA4 reports paths without a domain.
+              </p>
+            )}
+            {landing.replayLikelyExpired && (
+              <p>Clarity keeps recordings and heatmaps roughly 30 days, so replay for this range may be gone.</p>
+            )}
+            <p>
+              First clicks, attention heatmaps and recording analysis are not available through Clarity&apos;s API —
+              use the Heatmap and Recordings buttons above.
+            </p>
+          </div>
+        </>
+      )}
+    </Card>
+  )
+}
+
+/**
+ * One incidence cell with its site-wide counterpart underneath. Both are the same
+ * unit (% of sessions), which is the whole point — an earlier version showed
+ * events-per-100 against the site percentage and the mismatch read as a finding.
+ */
+function RateCell({ value, siteValue }: { value: number | null; siteValue?: number | null }) {
+  return (
+    <td className="py-2 px-2 text-right text-gray-700">
+      {value === null ? <span className="text-gray-400">—</span> : `${value.toFixed(2)}%`}
+      {typeof siteValue === 'number' && (
+        <span className="block text-[10px] text-gray-400">site {siteValue.toFixed(2)}%</span>
+      )}
+    </td>
+  )
+}
+
+// ============================================================================
+// AI LANDING PAGE REPORT
+// Four sections, per Tadej's spec: purpose + measurable goal, what works, what
+// does not, improvements. Generated on demand — never on modal open — so opening
+// a page costs nothing.
+// ============================================================================
+
+function LpReportCard({
+  path,
+  bounds,
+  aggregate,
+  siteTotals,
+}: {
+  path: string
+  bounds: { from: string; to: string; label: string }
+  aggregate: LPAggregate | null
+  siteTotals: LPFunnelTotals | null
+}) {
+  const [report, setReport] = useState<string | null>(null)
+  const [basis, setBasis] = useState<{ hasPurpose: boolean; clarityEmpty: boolean; clarityCoveragePct: number | null } | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // A cached report from another page or date range would be misleading.
+  useEffect(() => {
+    setReport(null)
+    setBasis(null)
+    setError(null)
+  }, [path, bounds.from, bounds.to])
+
+  const generate = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/lp-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          path,
+          from: bounds.from,
+          to: bounds.to,
+          metrics: {
+            sessions: aggregate?.sessions,
+            users: aggregate?.users,
+            leads: aggregate?.leads,
+            cvr: aggregate?.cvr,
+            ql: aggregate?.ql,
+            matched: aggregate?.matched_in_streak,
+            ql_rate: aggregate?.ql_rate,
+            avg_ai_score: aggregate?.avg_ai_score,
+            bookings: aggregate?.bookings,
+            revenue: aggregate?.revenue,
+            booking_rate: aggregate?.booking_rate,
+            top_channel: aggregate?.top_channel,
+            top_campaign: aggregate?.top_campaign,
+            top_form: aggregate?.top_form,
+            channel_breakdown: aggregate?.channel_breakdown,
+            site_cvr: siteTotals?.overall_cvr,
+            site_ql_rate: siteTotals?.avg_ql_rate,
+          },
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || `Request failed ${res.status}`)
+      }
+      const json = await res.json()
+      setReport(json.text)
+      setBasis(json.basis ?? null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to generate report')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Card className="p-4">
+      <div className="flex items-start justify-between gap-3 mb-3 flex-wrap">
+        <div>
+          <p className="text-sm font-semibold flex items-center gap-1.5">
+            <Sparkles className="h-4 w-4" style={{ color: ACCENT }} />
+            Landing page report
+          </p>
+          <p className="text-[11px] text-gray-500">
+            Purpose &amp; goal · what works · what doesn&apos;t · improvements — for {bounds.label}
+          </p>
+        </div>
+        <button
+          onClick={generate}
+          disabled={loading}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-white disabled:opacity-60"
+          style={{ backgroundColor: ACCENT }}
+        >
+          {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+          {report ? 'Regenerate' : 'Generate report'}
+        </button>
+      </div>
+
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>
+      )}
+
+      {!report && !loading && !error && (
+        <p className="text-sm text-gray-500 py-2">
+          Generates a short overview from this page&apos;s funnel data, its declared purpose and Clarity behaviour.
+        </p>
+      )}
+
+      {report && (
+        <>
+          {/* Without a declared purpose the model is instructed to say so rather
+              than invent a goal — surface that here so nobody mistakes an
+              undefined page for a passing one. */}
+          {basis && !basis.hasPurpose && (
+            <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 mb-3 text-[11px] text-amber-900">
+              No purpose or goal is defined for this page, so section 1 has no target to judge against. Add one in{' '}
+              <code className="font-mono">src/lib/lp-purpose.ts</code>.
+            </div>
+          )}
+          <ReportProse markdown={report} />
+          {basis && (
+            <p className="mt-3 text-[10px] text-gray-400">
+              Written from the funnel metrics shown above
+              {basis.clarityEmpty
+                ? ' (no Clarity data in this range)'
+                : basis.clarityCoveragePct !== null
+                  ? ` and a ≈${basis.clarityCoveragePct}% Clarity behaviour sample`
+                  : ' and Clarity behaviour data'}
+              . Claude Haiku 4.5.
+            </p>
+          )}
+        </>
+      )}
+    </Card>
+  )
+}
+
+/**
+ * Minimal markdown renderer for the report: headings, bullets and bold only.
+ * A full markdown dependency is not worth adding for four known section types.
+ */
+function ReportProse({ markdown }: { markdown: string }) {
+  const blocks = useMemo(() => {
+    const lines = markdown.split('\n')
+    const out: Array<{ kind: 'h' | 'li' | 'p'; text: string }> = []
+    for (const raw of lines) {
+      const line = raw.trim()
+      if (!line) continue
+      if (line.startsWith('#')) out.push({ kind: 'h', text: line.replace(/^#+\s*/, '') })
+      else if (/^[-*•]\s+/.test(line)) out.push({ kind: 'li', text: line.replace(/^[-*•]\s+/, '') })
+      else out.push({ kind: 'p', text: line })
+    }
+    return out
+  }, [markdown])
+
+  const inline = (text: string) => {
+    // Bold is the only inline markup the prompt produces.
+    const parts = text.split(/(\*\*[^*]+\*\*)/g)
+    return parts.map((p, i) =>
+      p.startsWith('**') && p.endsWith('**') ? (
+        <strong key={i} className="font-semibold text-gray-900">
+          {p.slice(2, -2)}
+        </strong>
+      ) : (
+        <React.Fragment key={i}>{p}</React.Fragment>
+      )
+    )
+  }
+
+  return (
+    <div className="space-y-2 text-sm text-gray-700">
+      {blocks.map((b, i) =>
+        b.kind === 'h' ? (
+          <p
+            key={i}
+            className="text-[11px] uppercase tracking-[0.18em] font-semibold pt-2"
+            style={{ color: ACCENT }}
+          >
+            {b.text.replace(/^\d+\.\s*/, '')}
+          </p>
+        ) : b.kind === 'li' ? (
+          <div key={i} className="flex gap-2 pl-1">
+            <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full" style={{ backgroundColor: ACCENT }} />
+            <span className="leading-relaxed">{inline(b.text)}</span>
+          </div>
+        ) : (
+          <p key={i} className="leading-relaxed">
+            {inline(b.text)}
+          </p>
+        )
+      )}
     </div>
   )
 }
