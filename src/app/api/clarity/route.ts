@@ -33,9 +33,9 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Missing "path" (or pass site=1).' }, { status: 400 })
     }
 
-    const window = clarityDataWindow()
-    const site = getClaritySiteLevel(from, to)
-    const landing = siteOnly ? null : getClarityForLanding(path as string, from, to)
+    const window = await clarityDataWindow()
+    const site = await getClaritySiteLevel(from, to)
+    const landing = siteOnly ? null : await getClarityForLanding(path as string, from, to)
 
     return NextResponse.json({
       // Snapshots only start the day collection began, so a 90-day range will

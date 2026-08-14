@@ -67,8 +67,8 @@ export function buildFactSheet(
   from: string,
   to: string,
   m: IncomingMetrics,
-  clarity: ReturnType<typeof getClarityForLanding>,
-  site: ReturnType<typeof getClaritySiteLevel>
+  clarity: Awaited<ReturnType<typeof getClarityForLanding>>,
+  site: Awaited<ReturnType<typeof getClaritySiteLevel>>
 ): string {
   const purpose = getLpPurpose(path)
 

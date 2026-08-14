@@ -4,11 +4,18 @@
  * WHERE THE DATA COMES FROM
  * -------------------------
  * Not from the Clarity API at request time — that API allows 10 calls per project
- * per day and only serves the last 3 days, so a live call would burn the budget
- * in one page load. Instead the brain snapshots Clarity daily
- * (`code/clarity/fetch-clarity-snapshot.js`) and rolls the history into
- * `src/data/clarity-rollup.json` (`code/clarity/build-clarity-rollup.js`).
- * This module only reads that file.
+ * per day and only serves the last 3 days, so a live call would burn the budget in
+ * one page load. The brain snapshots Clarity daily
+ * (`code/clarity/fetch-clarity-snapshot.js`) and pushes the history into two tabs
+ * of the Goolets production sheet (`code/clarity/push-clarity-to-sheet.js`):
+ *
+ *   clarity_site    Device-level, FULL coverage — the benchmark
+ *   clarity_paths   per landing page, ~9% sampled coverage — see below
+ *
+ * This module reads those tabs through the same Web App every other dataset uses.
+ * It deliberately does NOT read a file bundled into the app: a bundled file is
+ * baked into the Next build, so the daily cron would refresh it locally while
+ * production stayed frozen on the last deployed day.
  *
  * WHAT CLARITY CANNOT GIVE US
  * ---------------------------
@@ -37,7 +44,7 @@
  * cap stops biting and coverage should approach 100%.
  */
 
-import rollupJson from '@/data/clarity-rollup.json'
+import { fetchTab } from './sheetsData'
 
 export const CLARITY_PROJECT_ID = 'q81u03b3ab'
 
@@ -81,18 +88,127 @@ interface ClarityDay {
   perPath: Record<string, Record<string, ClarityDeviceStats>>
 }
 
-interface ClarityRollup {
-  generatedAt: string
-  projectId: string
-  timezone: string
+interface ClarityHistory {
   dayCount: number
   firstDay: string | null
   lastDay: string | null
-  avgCoveragePct: number | null
   days: ClarityDay[]
 }
 
-const rollup = rollupJson as unknown as ClarityRollup
+/**
+ * The two tabs are fetched over HTTP, so results are memoised per process for a
+ * few minutes. Without this every landing page a user clicks would re-pull the
+ * whole history; with it, opening ten pages in a row costs one fetch.
+ */
+const CACHE_TTL_MS = 5 * 60 * 1000
+let cache: { at: number; value: ClarityHistory } | null = null
+
+function num(v: unknown): number {
+  const n = Number(v)
+  return Number.isFinite(n) ? n : 0
+}
+
+/** Blank cells mean "not measured" and must stay null — 0 is a real measurement. */
+function optNum(v: unknown): number | null {
+  if (v === null || v === undefined || v === '') return null
+  const n = Number(v)
+  return Number.isFinite(n) ? n : null
+}
+
+async function loadHistory(): Promise<ClarityHistory> {
+  if (cache && Date.now() - cache.at < CACHE_TTL_MS) return cache.value
+
+  const [siteTab, pathsTab] = await Promise.all([
+    fetchTab('clarity_site'),
+    fetchTab('clarity_paths'),
+  ])
+
+  // fetchTab returns positional arrays plus a separate headers array, so columns
+  // are resolved by name here. Reading by fixed index would break silently the
+  // first time a column is inserted in the sheet.
+  const indexer = (headers: string[]) => {
+    const map = new Map(headers.map((h, i) => [String(h).trim(), i]))
+    return (row: unknown[], name: string): unknown => {
+      const i = map.get(name)
+      return i === undefined ? undefined : row[i]
+    }
+  }
+  const siteAt = indexer(siteTab.headers)
+  const pathAt = indexer(pathsTab.headers)
+
+  const byDay = new Map<string, ClarityDay>()
+  const dayOf = (d: string): ClarityDay => {
+    if (!byDay.has(d)) {
+      byDay.set(d, {
+        day: d,
+        numOfDays: 0,
+        fetchedAt: '',
+        coveragePct: null,
+        rowCapHit: false,
+        site: {},
+        perPath: {},
+      })
+    }
+    return byDay.get(d)!
+  }
+
+  for (const row of siteTab.rows) {
+    const day = String(siteAt(row, 'day') ?? '').slice(0, 10)
+    const device = String(siteAt(row, 'device') ?? '')
+    if (!day || !device) continue
+    dayOf(day).site[device] = {
+      sessions: num(siteAt(row, 'sessions')),
+      scrollDepth: optNum(siteAt(row, 'scroll_depth')),
+      engagementTime: optNum(siteAt(row, 'engagement_time')),
+      deadClicksPct: optNum(siteAt(row, 'dead_clicks_pct')),
+      rageClicksPct: optNum(siteAt(row, 'rage_clicks_pct')),
+      quickbacksPct: optNum(siteAt(row, 'quickbacks_pct')),
+      scriptErrorsPct: optNum(siteAt(row, 'script_errors_pct')),
+    }
+  }
+
+  for (const row of pathsTab.rows) {
+    const day = String(pathAt(row, 'day') ?? '').slice(0, 10)
+    const host = String(pathAt(row, 'host') ?? '')
+    const rowPath = String(pathAt(row, 'path') ?? '')
+    const device = String(pathAt(row, 'device') ?? '')
+    if (!day || !host || !rowPath || !device) continue
+
+    const d = dayOf(day)
+    // Host stays in the key so goolets.net and croatialuxurygulet.com never merge
+    // silently — they genuinely share paths (verified 2026-08-14).
+    const key = `${host}|${rowPath}`
+    if (!d.perPath[key]) d.perPath[key] = {}
+    d.perPath[key][device] = {
+      sessions: num(pathAt(row, 'sessions')),
+      scrollDepth: optNum(pathAt(row, 'scroll_depth')),
+      engagementTime: optNum(pathAt(row, 'engagement_time')),
+      deadClicksPct: optNum(pathAt(row, 'dead_clicks_pct')),
+      rageClicksPct: optNum(pathAt(row, 'rage_clicks_pct')),
+      quickbacksPct: optNum(pathAt(row, 'quickbacks_pct')),
+      scriptErrorsPct: optNum(pathAt(row, 'script_errors_pct')),
+      deadClicks: 0,
+      rageClicks: 0,
+      quickbacks: 0,
+      errorClicks: 0,
+      scriptErrors: 0,
+    }
+    // Coverage is per snapshot, repeated on every row of that day.
+    const cov = optNum(pathAt(row, 'coverage_pct'))
+    if (cov !== null) d.coveragePct = cov
+    if (!d.fetchedAt) d.fetchedAt = String(pathAt(row, 'fetched_at') ?? '')
+  }
+
+  const days = Array.from(byDay.values()).sort((a, b) => a.day.localeCompare(b.day))
+  const value: ClarityHistory = {
+    dayCount: days.length,
+    firstDay: days[0]?.day ?? null,
+    lastDay: days[days.length - 1]?.day ?? null,
+    days,
+  }
+  cache = { at: Date.now(), value }
+  return value
+}
 
 /**
  * Below this many sampled sessions an incidence rate is noise, not signal: on 6
@@ -150,8 +266,13 @@ export interface ClaritySiteSummary {
   empty: boolean
 }
 
-export function clarityDataWindow(): { firstDay: string | null; lastDay: string | null; dayCount: number } {
-  return { firstDay: rollup.firstDay, lastDay: rollup.lastDay, dayCount: rollup.dayCount }
+export async function clarityDataWindow(): Promise<{
+  firstDay: string | null
+  lastDay: string | null
+  dayCount: number
+}> {
+  const h = await loadHistory()
+  return { firstDay: h.firstDay, lastDay: h.lastDay, dayCount: h.dayCount }
 }
 
 /**
@@ -182,10 +303,10 @@ function toDayKey(value: string): string {
   return value.length > 10 ? value.slice(0, 10) : value
 }
 
-function daysInRange(fromISO: string, toISO: string): ClarityDay[] {
+function daysInRange(history: ClarityHistory, fromISO: string, toISO: string): ClarityDay[] {
   const from = toDayKey(fromISO)
   const to = toDayKey(toISO)
-  return rollup.days.filter((d) => d.day >= from && d.day <= to)
+  return history.days.filter((d) => d.day >= from && d.day <= to)
 }
 
 function round(value: number, digits = 2): number {
@@ -235,13 +356,13 @@ function isReplayLikelyExpired(toISO: string): boolean {
   return ageDays > 30
 }
 
-export function getClarityForLanding(
+export async function getClarityForLanding(
   pagePath: string,
   fromISO: string,
   toISO: string
-): ClarityLandingSummary {
+): Promise<ClarityLandingSummary> {
   const wanted = normalizePath(pagePath)
-  const days = daysInRange(fromISO, toISO)
+  const days = daysInRange(await loadHistory(), fromISO, toISO)
 
   const perDevice = new Map<
     ClarityDevice,
@@ -344,8 +465,11 @@ export function getClarityForLanding(
  * export call, which is NOT row-capped — these figures are complete, so they
  * double as the benchmark a single landing gets compared against.
  */
-export function getClaritySiteLevel(fromISO: string, toISO: string): ClaritySiteSummary {
-  const days = daysInRange(fromISO, toISO)
+export async function getClaritySiteLevel(
+  fromISO: string,
+  toISO: string
+): Promise<ClaritySiteSummary> {
+  const days = daysInRange(await loadHistory(), fromISO, toISO)
 
   const acc = new Map<
     ClarityDevice,

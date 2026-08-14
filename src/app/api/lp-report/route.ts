@@ -36,8 +36,8 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const clarity = getClarityForLanding(path, from, to)
-    const site = getClaritySiteLevel(from, to)
+    const clarity = await getClarityForLanding(path, from, to)
+    const site = await getClaritySiteLevel(from, to)
     const factSheet = buildFactSheet(path, from, to, metrics ?? {}, clarity, site)
 
     const anthropic = getAnthropic()
