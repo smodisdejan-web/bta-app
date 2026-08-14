@@ -1,0 +1,450 @@
+{
+  "_meta": {
+    "generatedAt": "2026-08-14T05:06:02.477Z",
+    "portal": "143360943",
+    "window": {
+      "start": "2026-02-15",
+      "end": "2026-08-13",
+      "days": 180
+    },
+    "totalContacts": 12145,
+    "chunks": 6,
+    "truncatedChunks": [],
+    "note": "Poln HubSpot pull po datumskih rezinah (search API ima strop 10.000/poizvedbo). NE meša se z `hubspot_contacts` tabom, ki je filtriran na multistep forme."
+  },
+  "bySource": [
+    {
+      "source": "PAID_SOCIAL",
+      "contacts": 5692,
+      "sqlPlus": 1766,
+      "opportunityPlus": 710,
+      "oppRate": 0.1247364722417428,
+      "isAi": false
+    },
+    {
+      "source": "DIRECT_TRAFFIC",
+      "contacts": 2359,
+      "sqlPlus": 354,
+      "opportunityPlus": 212,
+      "oppRate": 0.08986858838490885,
+      "isAi": false
+    },
+    {
+      "source": "SOCIAL_MEDIA",
+      "contacts": 1084,
+      "sqlPlus": 326,
+      "opportunityPlus": 157,
+      "oppRate": 0.1448339483394834,
+      "isAi": false
+    },
+    {
+      "source": "OFFLINE",
+      "contacts": 1068,
+      "sqlPlus": 29,
+      "opportunityPlus": 29,
+      "oppRate": 0.027153558052434457,
+      "isAi": false
+    },
+    {
+      "source": "PAID_SEARCH",
+      "contacts": 1067,
+      "sqlPlus": 441,
+      "opportunityPlus": 205,
+      "oppRate": 0.19212746016869728,
+      "isAi": false
+    },
+    {
+      "source": "ORGANIC_SEARCH",
+      "contacts": 422,
+      "sqlPlus": 165,
+      "opportunityPlus": 109,
+      "oppRate": 0.25829383886255924,
+      "isAi": false
+    },
+    {
+      "source": "OTHER_CAMPAIGNS",
+      "contacts": 399,
+      "sqlPlus": 3,
+      "opportunityPlus": 0,
+      "oppRate": 0,
+      "isAi": false
+    },
+    {
+      "source": "AI_REFERRALS",
+      "contacts": 39,
+      "sqlPlus": 16,
+      "opportunityPlus": 13,
+      "oppRate": 0.3333333333333333,
+      "isAi": true
+    },
+    {
+      "source": "REFERRALS",
+      "contacts": 10,
+      "sqlPlus": 0,
+      "opportunityPlus": 0,
+      "oppRate": 0,
+      "isAi": false
+    },
+    {
+      "source": "EMAIL_MARKETING",
+      "contacts": 5,
+      "sqlPlus": 3,
+      "opportunityPlus": 1,
+      "oppRate": 0.2,
+      "isAi": false
+    }
+  ],
+  "aiContacts": [
+    {
+      "day": "2026-08-13",
+      "stage": "lead",
+      "rank": 2,
+      "country": "United States",
+      "vendor": "ChatGPT",
+      "conversion": "Yacht Alfa Mario Owners' website: Alfa Mario webpage form",
+      "budgetRange": null
+    },
+    {
+      "day": "2026-08-12",
+      "stage": "lead",
+      "rank": 2,
+      "country": "Italy",
+      "vendor": "ChatGPT",
+      "conversion": "Start Planning Your Yacht Charter - Goolets: Start Planning - MULTISTEP form",
+      "budgetRange": "From €30,000 to €60,000 per week"
+    },
+    {
+      "day": "2026-08-11",
+      "stage": "lead",
+      "rank": 2,
+      "country": "USA",
+      "vendor": "ChatGPT",
+      "conversion": "Dalmatino - Yacht Dalmatino: Dalmatino webpage form",
+      "budgetRange": null
+    },
+    {
+      "day": "2026-08-09",
+      "stage": "lead",
+      "rank": 2,
+      "country": "United States",
+      "vendor": "ChatGPT",
+      "conversion": "Gulet Croatia Owners' website: Croatia webpage form",
+      "budgetRange": null
+    },
+    {
+      "day": "2026-08-01",
+      "stage": "lead",
+      "rank": 2,
+      "country": "The Netherlands",
+      "vendor": "ChatGPT",
+      "conversion": "Start Planning - Luxury Gulet Charter Croatia. Top Luxury Gulets in Croatia: Croatia luxury gulet - NEW",
+      "budgetRange": null
+    },
+    {
+      "day": "2026-07-24",
+      "stage": "salesqualifiedlead",
+      "rank": 4,
+      "country": "USA",
+      "vendor": "ChatGPT",
+      "conversion": "Yacht Dea Del Mare 2026 Update - Goolets: Single yacht Goolets.net",
+      "budgetRange": null
+    },
+    {
+      "day": "2026-07-23",
+      "stage": "opportunity",
+      "rank": 5,
+      "country": "United States",
+      "vendor": "ChatGPT",
+      "conversion": "Private Yacht Charters in Croatia - 2027 - Goolets: Landing pages CROATIA - MULTISTEP form",
+      "budgetRange": "From €100,000 to €250,000 per week"
+    },
+    {
+      "day": "2026-07-19",
+      "stage": "lead",
+      "rank": 2,
+      "country": "United States",
+      "vendor": "ChatGPT",
+      "conversion": "Yacht Alfa Mario Owners' website: Alfa Mario webpage form",
+      "budgetRange": null
+    },
+    {
+      "day": "2026-07-18",
+      "stage": "opportunity",
+      "rank": 5,
+      "country": "China",
+      "vendor": "ChatGPT",
+      "conversion": "开始规划您的游艇租赁之旅 - Goolets: Start Planning - MULTISTEP form",
+      "budgetRange": "From €30,000 to €60,000 per week"
+    },
+    {
+      "day": "2026-07-14",
+      "stage": "salesqualifiedlead",
+      "rank": 4,
+      "country": "USA",
+      "vendor": "ChatGPT",
+      "conversion": "Stella Maris - Luxury Gulet Charter Croatia. Top Luxury Gulets in Croatia: Croatia luxury gulet - NEW",
+      "budgetRange": "From €20,000 to €30,000 per week"
+    },
+    {
+      "day": "2026-07-13",
+      "stage": "opportunity",
+      "rank": 5,
+      "country": "United States of America",
+      "vendor": "ChatGPT",
+      "conversion": "Romanca - Luxury Gulet Charter Croatia. Top Luxury Gulets in Croatia: Croatia luxury gulet - NEW",
+      "budgetRange": null
+    },
+    {
+      "day": "2026-07-09",
+      "stage": "lead",
+      "rank": 2,
+      "country": "Tunisia",
+      "vendor": "ChatGPT",
+      "conversion": "Start Planning Your Luxury Gulet Cruise in Turkey With Us: Turkey luxury gulet",
+      "budgetRange": "From €10,000 to €20,000 per week"
+    },
+    {
+      "day": "2026-07-05",
+      "stage": "lead",
+      "rank": 2,
+      "country": "US",
+      "vendor": "ChatGPT",
+      "conversion": "Luxury Gulet Charter in Turkey - Experience True Türkiye: Turkey luxury gulet (Contact us)",
+      "budgetRange": "Up to €10,000 per week"
+    },
+    {
+      "day": "2026-06-30",
+      "stage": "opportunity",
+      "rank": 5,
+      "country": "Turkey",
+      "vendor": "ChatGPT",
+      "conversion": "Start Planning Your Yacht Charter - Goolets: Start Planning - MULTISTEP form",
+      "budgetRange": "From €20,000 to €30,000 per week"
+    },
+    {
+      "day": "2026-06-27",
+      "stage": "lead",
+      "rank": 2,
+      "country": "France",
+      "vendor": "ChatGPT",
+      "conversion": "Yacht Andi Star Owners' website: Andi Star webpage form",
+      "budgetRange": null
+    },
+    {
+      "day": "2026-06-17",
+      "stage": "lead",
+      "rank": 2,
+      "country": "España",
+      "vendor": "Gemini",
+      "conversion": "Start Planning - Luxury Gulet Charter Croatia. Top Luxury Gulets in Croatia: Croatia luxury gulet - NEW",
+      "budgetRange": null
+    },
+    {
+      "day": "2026-06-16",
+      "stage": "salesqualifiedlead",
+      "rank": 4,
+      "country": "Spain",
+      "vendor": "ChatGPT",
+      "conversion": "Start Planning Your Yacht Charter - Goolets: Start Planning - MULTISTEP form",
+      "budgetRange": "From €10,000 to €20,000 per week"
+    },
+    {
+      "day": "2026-06-13",
+      "stage": "opportunity",
+      "rank": 5,
+      "country": "Argentina",
+      "vendor": "ChatGPT",
+      "conversion": "Start Planning Your Yacht Charter - Goolets: Start Planning - MULTISTEP form",
+      "budgetRange": "From €20,000 to €30,000 per week"
+    },
+    {
+      "day": "2026-06-07",
+      "stage": "lead",
+      "rank": 2,
+      "country": "France",
+      "vendor": "ChatGPT",
+      "conversion": "Start Planning Your Luxury Gulet Cruise in Turkey With Us: Turkey luxury gulet",
+      "budgetRange": "From €30,000 to €60,000 per week"
+    },
+    {
+      "day": "2026-06-05",
+      "stage": "opportunity",
+      "rank": 5,
+      "country": "Lithuania",
+      "vendor": "ChatGPT",
+      "conversion": "Yacht Virtuoso 2026 Update - Goolets: Single yacht Goolets.net",
+      "budgetRange": null
+    },
+    {
+      "day": "2026-06-04",
+      "stage": "lead",
+      "rank": 2,
+      "country": "United Arab Emirates",
+      "vendor": "ChatGPT",
+      "conversion": "Start Planning Your Yacht Charter - Goolets: Start Planning - MULTISTEP form",
+      "budgetRange": "From €10,000 to €20,000 per week"
+    },
+    {
+      "day": "2026-06-04",
+      "stage": "lead",
+      "rank": 2,
+      "country": "Mexico",
+      "vendor": "ChatGPT",
+      "conversion": "Start Planning Your Yacht Charter - Goolets: Start Planning - MULTISTEP form",
+      "budgetRange": "Up to €10,000 per week"
+    },
+    {
+      "day": "2026-05-25",
+      "stage": "opportunity",
+      "rank": 5,
+      "country": "USA",
+      "vendor": "ChatGPT",
+      "conversion": "Start Planning - Luxury Gulet Charter Croatia. Top Luxury Gulets in Croatia: Croatia luxury gulet - NEW",
+      "budgetRange": "From €30,000 to €60,000 per week"
+    },
+    {
+      "day": "2026-05-24",
+      "stage": "opportunity",
+      "rank": 5,
+      "country": "United States",
+      "vendor": "ChatGPT",
+      "conversion": "Start Planning Your Yacht Charter - Goolets: Start Planning - MULTISTEP form",
+      "budgetRange": "From €10,000 to €20,000 per week"
+    },
+    {
+      "day": "2026-05-24",
+      "stage": "opportunity",
+      "rank": 5,
+      "country": "Brazil",
+      "vendor": "ChatGPT",
+      "conversion": "Start Planning - Luxury Gulet Charter Croatia. Top Luxury Gulets in Croatia: Croatia luxury gulet - NEW",
+      "budgetRange": null
+    },
+    {
+      "day": "2026-05-16",
+      "stage": "lead",
+      "rank": 2,
+      "country": null,
+      "vendor": "ChatGPT",
+      "conversion": "Yacht matchmaker start - Goolets: #hs-quiz-form .quiz-lead-form",
+      "budgetRange": null
+    },
+    {
+      "day": "2026-05-10",
+      "stage": "opportunity",
+      "rank": 5,
+      "country": null,
+      "vendor": "Perplexity",
+      "conversion": "11 Ways to Completely Ruin Your Gulet Charter Holiday In Turkey: Gulet Expert (Contact us)",
+      "budgetRange": "More than €1,000,000 per week"
+    },
+    {
+      "day": "2026-05-04",
+      "stage": "lead",
+      "rank": 2,
+      "country": null,
+      "vendor": "Claude",
+      "conversion": "Contact us - Croatia luxury gulet: Croatia luxury gulet (Contact us)",
+      "budgetRange": "From €100,000 to €250,000 per week"
+    },
+    {
+      "day": "2026-05-04",
+      "stage": "opportunity",
+      "rank": 5,
+      "country": "United States",
+      "vendor": "ChatGPT",
+      "conversion": "Yacht matchmaker start - Goolets: #hs-quiz-form .quiz-lead-form",
+      "budgetRange": "From €30,000 to €60,000 per week"
+    },
+    {
+      "day": "2026-04-16",
+      "stage": "lead",
+      "rank": 2,
+      "country": "United States",
+      "vendor": "ChatGPT",
+      "conversion": "Start Planning Your Luxury Gulet Cruise in Turkey With Us: Turkey luxury gulet",
+      "budgetRange": "From €10,000 to €20,000 per week"
+    },
+    {
+      "day": "2026-04-15",
+      "stage": "lead",
+      "rank": 2,
+      "country": "N/A",
+      "vendor": "ChatGPT",
+      "conversion": "Yacht Maya 2026 Update - Goolets: Single yacht Goolets.net",
+      "budgetRange": null
+    },
+    {
+      "day": "2026-04-07",
+      "stage": "lead",
+      "rank": 2,
+      "country": "CANADA",
+      "vendor": "ChatGPT",
+      "conversion": "Start Planning Your Yacht Charter - Goolets: Start planning your charter Goolets.net",
+      "budgetRange": "Up to €10,000 per week"
+    },
+    {
+      "day": "2026-03-31",
+      "stage": "opportunity",
+      "rank": 5,
+      "country": "N/A",
+      "vendor": "Gemini",
+      "conversion": "Inquiry - Goolets: Single yacht Goolets.net",
+      "budgetRange": null
+    },
+    {
+      "day": "2026-03-21",
+      "stage": "lead",
+      "rank": 2,
+      "country": "United States",
+      "vendor": "ChatGPT",
+      "conversion": "Start Planning - Croatia luxury gulet: Croatia luxury gulet",
+      "budgetRange": "From €30,000 to €60,000 per week"
+    },
+    {
+      "day": "2026-03-16",
+      "stage": "lead",
+      "rank": 2,
+      "country": null,
+      "vendor": "ChatGPT",
+      "conversion": "Yacht matchmaker start - Goolets: #hs-quiz-form .quiz-lead-form",
+      "budgetRange": null
+    },
+    {
+      "day": "2026-03-15",
+      "stage": "lead",
+      "rank": 2,
+      "country": "N/A",
+      "vendor": "Gemini",
+      "conversion": "Yacht Amorena 2026 Update - Goolets: Single yacht Goolets.net",
+      "budgetRange": null
+    },
+    {
+      "day": "2026-03-14",
+      "stage": "customer",
+      "rank": 6,
+      "country": "Norge",
+      "vendor": "ChatGPT",
+      "conversion": "Help Me Plan My Gulet Cruise: Gulet Expert",
+      "budgetRange": "From €20,000 to €30,000 per week"
+    },
+    {
+      "day": "2026-03-11",
+      "stage": "lead",
+      "rank": 2,
+      "country": null,
+      "vendor": "ChatGPT",
+      "conversion": "Contact us - Croatia luxury gulet: Croatia luxury gulet (Contact us)",
+      "budgetRange": "From €500,000 to €1,000,000 per week"
+    },
+    {
+      "day": "2026-02-23",
+      "stage": "lead",
+      "rank": 2,
+      "country": "United States",
+      "vendor": "ChatGPT",
+      "conversion": "Luxury Gulet Charter in Turkey - Experience True Türkiye: Turkey luxury gulet (Contact us)",
+      "budgetRange": "Up to €10,000 per week"
+    }
+  ]
+}
