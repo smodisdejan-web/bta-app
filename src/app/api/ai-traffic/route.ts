@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
 import { loadAiTraffic } from '@/lib/ai-traffic'
 
-// Bere ga4_landing_pages (27 MB) na hladni lambdi — daj ji prostor. Topla instanca potem
-// zadene 15-min cache v lib/ai-traffic.ts.
+// Od 21. 8. 2026 bere namenski `ga4_ai_sessions` (~2.000 vrstic) namesto 27 MB
+// `ga4_landing_pages` — hladen klic je sekunde, ne minute. maxDuration ostaja visok,
+// ker gre za en sam Apps Script fetch in strop nič ne stane.
 export const maxDuration = 300
 export const fetchCache = 'default-no-store'
 
@@ -13,8 +14,8 @@ export const fetchCache = 'default-no-store'
 // fazo, zato "SQL +" šteje SQL, opportunity in customer skupaj. Brez tega bi zaporedni
 // prikaz surovih števil izgledal kot rastoč funnel.
 //
-// ⚠️ Seje pokrivajo samo goolets.net, kontakti pa vse tri domene — glej `scopeMismatch`
-// v odgovoru. Sessions→leads razmerje ni primerljivo z drugimi kanali.
+// Seje in kontakti pokrivajo iste tri domene (goolets.net, croatialuxurygulet.com,
+// turkeyluxurygulet.com). `scopeMismatch` je zato null; polje ostaja za primer razhoda.
 
 const headers = {
   'Access-Control-Allow-Origin': '*',

@@ -19,7 +19,12 @@ export type SheetTab = typeof SHEET_TABS[number]
 
 export const SHEETS_TABS = {
   FB_ENRICHED: 'fb_ads_enriched',
-  FB_RAW: 'fb_ads_raw', // fallback only
+  // CUTOVER 2026-08-17: daily FB spend now comes from Meta directly (code/facebook/sync-fb-ads-api.js).
+  // The Mixed Analytics `fb_ads_raw` feed stopped emitting rows on 2026-08-08 and shifted timestamps
+  // into its spend column, so /overview showed €23.898 of August FB spend against a true €36.282 —
+  // ROAS read 3,31x when it was 2,52x. Keep FB_RAW as the emergency fallback only.
+  FB_SPEND_DAILY: 'fb_ads_api',
+  FB_RAW: 'fb_ads_raw', // legacy Mixed Analytics feed — stale + corrupted, fallback only
   FB_ADSETS_ENRICHED: 'fb_adsets_enriched',
   FB_ADS_LEVEL: 'fb_ads_level', // Faza 2: Meta reporting CSV → exact per-ad metrics (ql/cpql/zone pending UTM join)
   FB_AD_COPY: 'fb_ad_copy', // Faza 2: per-ad copy variations (body_asset/title_asset breakdown) + per-variation impr/spend/clicks
@@ -34,6 +39,8 @@ export const SHEETS_TABS = {
   BOOKINGS: 'bookings_api', // CUTOVER 2026-06-15: web-app feed for 'bookings' is stale (no June); bookings_api is a fresh mirror of the live tab (sync-goolets-bookings.js)
   HUBSPOT_CONTACTS: 'hubspot_contacts',
   GA4_LANDING_PAGES: 'ga4_landing_pages',
+  GA4_AI_SESSIONS: 'ga4_ai_sessions', // AI-assistant sessions, split by hostName (code/ga4/sync-goolets-ai-sessions.js). Separate tab because ga4_landing_pages carries no host — see that script's header.
+  GA4_HOST_SESSIONS: 'ga4_host_sessions', // ALL sessions per host × date — denominator for "how much of this site's traffic is AI".
   TURKEY_AVAILABILITY: 'turkey_availability',
   TURKEY_GOOGLE_CAMPAIGNS: 'turkey_google_campaigns',
   TURKEY_GOOGLE_TERMS: 'turkey_google_terms',

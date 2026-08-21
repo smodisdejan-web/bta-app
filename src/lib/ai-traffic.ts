@@ -5,8 +5,9 @@
  *   AI nima impressions, clicks ne spenda. Vsiljevanje v 6-koračni funnel bi zahtevalo
  *   lažne ničle. Zato ločen 4-koračni funnel z lastnimi viri.
  *
- * VIRA (oba že v sheetu, brez novega vodovoda):
- *   - `ga4_landing_pages`  → seje (stolpec `sessionSourceMedium`)
+ * VIRI (vsi v sheetu):
+ *   - `ga4_ai_sessions`   → AI seje po `hostName` (`code/ga4/sync-goolets-ai-sessions.js`)
+ *   - `ga4_host_sessions` → vse seje po hostu = imenovalec za "delež AI prometa te strani"
  *   - `hubspot-ai-latest.json` → leadi + lifecycle, iz namenskega sync-a
  *                            (`code/hubspot/sync-goolets-ai-contacts.js`)
  *
@@ -17,11 +18,10 @@
  * ZAKAJ NE STREAK: `streak_sync` je pri viru PAID-ONLY (StreakSync.gs filtrira ne-paid
  * kategorije — vidna sta samo PAID_SOCIAL in PAID_SEARCH). AI leadov tam ni in ne bo.
  *
- * ⚠️ OBSEG SE MED VIROMA RAZLIKUJE — glej `scopeMismatch` v odgovoru:
- *   seje = SAMO goolets.net (GA4 sync teče na property 311674241)
- *   leadi = goolets.net + croatialuxurygulet + turkey (HubSpot portal 143360943 pokriva vse tri)
- *   Zato je sessions→leads razmerje IZRAČUNANO, a označeno kot neprimerljivo. Ne prikazuj
- *   ga kot navadno konverzijo.
+ * OBSEG (popravljen 21. 8. 2026): seje IN leadi pokrivajo VSE Goolets domene — goolets.net,
+ * croatialuxurygulet.com, turkeyluxurygulet.com, guletexpert.com in ladijske mikrostrani.
+ * Prej so seje pokrivale samo goolets.net, zato je bilo razmerje sessions→leads označeno kot
+ * neprimerljivo (`scopeMismatch`); polje ostaja za primer, da se obsega spet razideta.
  */
 
 import { SHEETS_TABS } from '@/lib/config'
@@ -181,39 +181,122 @@ function isoWeek(day: string): string {
   return `${t.getUTCFullYear()}-W${String(week).padStart(2, '0')}`
 }
 
+/** Ponedeljek ISO tedna, v katerem leži `day`. */
+function mondayOf(day: string): string {
+  const d = new Date(`${day}T00:00:00Z`)
+  if (Number.isNaN(+d)) return day
+  const dow = d.getUTCDay() || 7 // nedelja = 7, ne 0
+  d.setUTCDate(d.getUTCDate() - (dow - 1))
+  return d.toISOString().slice(0, 10)
+}
+
+function addDays(day: string, n: number): string {
+  const d = new Date(`${day}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + n)
+  return d.toISOString().slice(0, 10)
+}
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+/** "18–24 Aug" oziroma "28 Jul – 3 Aug", kadar teden prelomi mesec. */
+function weekLabel(start: string, end: string): string {
+  const [, sm, sd] = start.split('-')
+  const [, em, ed] = end.split('-')
+  const d = (x: string) => String(Number(x))
+  const m = (x: string) => MONTHS[Number(x) - 1]
+  return sm === em ? `${d(sd)}–${d(ed)} ${m(em)}` : `${d(sd)} ${m(sm)} – ${d(ed)} ${m(em)}`
+}
+
+/** "www.X" in "X" sta ista stran — GA4 ju poroča ločeno, HubSpot pa tudi. */
+function normHost(raw?: string | null): string {
+  return String(raw ?? '').trim().toLowerCase().replace(/^www\./, '') || '(not set)'
+}
+
+/** Host brez "www." iz polne prve-obiskane strani. */
+function domainOf(url?: string | null): string | null {
+  const raw = String(url ?? '').trim()
+  if (!raw) return null
+  const host = raw.replace(/^https?:\/\//i, '').split('/')[0].split('?')[0]
+  return host ? normHost(host) : null
+}
+
+const HUBSPOT_PORTAL = '143360943'
+
+/** EU portal — Goolets HubSpot živi na app-eu1, ne na app.hubspot.com. */
+const HUBSPOT_RECORD_URL = (id: string) =>
+  `https://app-eu1.hubspot.com/contacts/${HUBSPOT_PORTAL}/record/0-1/${id}`
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Loaderji
 // ─────────────────────────────────────────────────────────────────────────────
 
-interface SessionRow { day: string; lp: string; vendor: Vendor; sessions: number }
+interface SessionRow {
+  day: string
+  /** Domena brez "www." — goolets.net, croatialuxurygulet.com, guletexpert.com … */
+  host: string
+  lp: string
+  vendor: Vendor
+  sessions: number
+  keyEvents: number
+}
 
-/** GA4 seje iz AI virov. SAMO goolets.net — sync teče na property 311674241. */
+/**
+ * GA4 AI seje, razrezane po `hostName`.
+ *
+ * ⚠️ ENA PROPERTY (311674241), NE TRI. Vse Goolets domene — goolets.net, obe satelitski
+ * strani in ~20 ladijskih mikrostrani — merijo v isto property prek enega GTM containerja;
+ * ločuje jih `hostName`. Propertyja 435237078 (CLG) in 311670855 (Turkey) sta legacy dvojni
+ * tagging: seštevanje vseh treh je 21. 8. 2026 dopoldne dalo 1.859 namesto 1.608, ker sta se
+ * CLG in Turkey šteli dvakrat.
+ *
+ * Bere namenski tab `ga4_ai_sessions`, ne `ga4_landing_pages`: tam je `landingPage` samo pot
+ * brez hosta, tab pa berejo business-funnel (lpViews), /ga4-landing-pages, lp-attribution in
+ * /api/turkey-kpis, ki po hostu ne filtrirajo. ~2.000 vrstic namesto 27 MB.
+ */
 async function loadAiSessions(): Promise<SessionRow[]> {
   return cached('ai-ga4', async () => {
-    const raw = await fetchRows(SHEETS_TABS.GA4_LANDING_PAGES)
-    const agg = new Map<string, number>()
+    const raw = await fetchRows(SHEETS_TABS.GA4_AI_SESSIONS)
+    const agg = new Map<string, { sessions: number; keyEvents: number }>()
     for (const r of raw) {
-      const sm = String(r.sessionSourceMedium ?? '')
-      if (!isAiSourceMedium(sm)) continue
+      // Tab je že filtriran pri viru; to je obramba, če bi kdo v sheet nalil kaj drugega.
+      const source = String(r.sessionSource ?? '')
+      const medium = String(r.sessionMedium ?? '')
+      if (!isAiSource(source, medium)) continue
       const day = toDay(r.date)
       if (!day) continue
+      const host = normHost(r.host)
       const lp = String(r.landingPage ?? '(not set)')
-      const vendor = vendorOf(sm.split('/')[0])
-      // fiksna širina: 10-znakovni dan, nato vendor, nato '|' in pot
-      const k = `${day}${vendor}|${lp}`
-      agg.set(k, (agg.get(k) || 0) + num(r.sessions))
+      const vendor = vendorOf(source)
+      const k = JSON.stringify([day, vendor, host, lp])
+      const cur = agg.get(k) || { sessions: 0, keyEvents: 0 }
+      cur.sessions += num(r.sessions)
+      cur.keyEvents += num(r.keyEvents)
+      agg.set(k, cur)
     }
     const rows: SessionRow[] = []
-    for (const [k, sessions] of agg) {
-      const sep = k.indexOf('|')
-      rows.push({
-        day: k.slice(0, 10),
-        vendor: k.slice(10, sep) as Vendor,
-        lp: k.slice(sep + 1),
-        sessions,
-      })
+    for (const [k, v] of agg) {
+      const [day, vendor, host, lp] = JSON.parse(k) as string[]
+      rows.push({ day, vendor: vendor as Vendor, host, lp, sessions: v.sessions, keyEvents: v.keyEvents })
     }
     return rows
+  })
+}
+
+/** VSE seje po host × dan — imenovalec za "kolikšen delež prometa te strani je AI". */
+async function loadHostSessions(): Promise<{ day: string; host: string; sessions: number }[]> {
+  return cached('ai-hosts', async () => {
+    const raw = await fetchRows(SHEETS_TABS.GA4_HOST_SESSIONS)
+    const agg = new Map<string, number>()
+    for (const r of raw) {
+      const day = toDay(r.date)
+      if (!day) continue
+      const k = JSON.stringify([day, normHost(r.host)])
+      agg.set(k, (agg.get(k) || 0) + num(r.sessions))
+    }
+    return [...agg.entries()].map(([k, sessions]) => {
+      const [day, host] = JSON.parse(k) as string[]
+      return { day, host, sessions }
+    })
   })
 }
 
@@ -224,6 +307,12 @@ interface AiContact {
   country: string | null
   vendor: string
   conversion: string | null
+  budgetRange: string | null
+  id: string | null
+  email: string | null
+  name: string | null
+  /** Prva stran seje — edino polje, ki pove, s KATERE domene je lead prišel. */
+  firstUrl: string | null
 }
 
 interface SourceStat {
@@ -232,6 +321,7 @@ interface SourceStat {
   sqlPlus: number
   opportunityPlus: number
   oppRate: number
+  sqlRate: number
   isAi: boolean
 }
 
@@ -258,7 +348,19 @@ export interface AiStep {
   /** false = vir tega ne zna odgovoriti; UI naj pokaže "—" + badge, NE 0. */
   available: boolean
   note?: string
+  /** Vsebina "i" balončka: kaj točno se šteje v ta korak. */
+  info?: { title: string; lines: string[] }
 }
+
+/**
+ * Streakovi stagi, ki v Goolets pipelineu veljajo za kvalificirane — `handoff.md §3.2`.
+ * Tu so SAMO za orientacijo v balončku: koraki funnela se štejejo iz HubSpota, ne iz
+ * Streaka, in mapiranje ni 1:1. ⚠️ Streakov `Stage` NI linearna lestvica: MQL, CQL in
+ * AI Robot Handled so tam NEkvalificirani, Standard pa kvalificiran.
+ */
+const STREAK_QUALIFIED =
+  'Standard, SQL, SQL Prime, VIP, Ultra VIP, Paper Work, Start Finalisation, Won'
+const STREAK_CLOSING = 'Paper Work, Start Finalisation, Won'
 
 export interface AiTrafficResponse {
   meta: {
@@ -269,14 +371,58 @@ export interface AiTrafficResponse {
     contactScope: string
   }
   steps: AiStep[]
-  /** Zakaj sessions→leads ni navadna konverzija. */
-  scopeMismatch: { affects: string; reason: string }
+  /** Opozorilo, kadar se obseg korakov ne ujema. null = obsegi so poravnani. */
+  scopeMismatch: { affects: string; reason: string } | null
   vendors: { vendor: Vendor; sessions: number; share: number }[]
-  weekly: { week: string; sessions: number }[]
-  landingPages: { lp: string; sessions: number }[]
+  /**
+   * Ena vrstica na spletno stran: koliko AI prometa dobi, kolikšen delež njenega
+   * celotnega prometa to je, in koliko leadov iz tega nastane.
+   */
+  sites: {
+    host: string
+    aiSessions: number
+    /** delež vseh AI sej */
+    share: number
+    /** vse seje te strani v izbranem oknu */
+    totalSessions: number
+    /** aiSessions / totalSessions — kako AI-odvisna je stran */
+    aiShareOfSite: number | null
+    keyEvents: number
+    leads: number
+    /** leads / aiSessions. null, kadar strani ni v GA4. */
+    leadRate: number | null
+    sqlPlus: number
+  }[]
+  /** `label` je človeški datumski razpon tedna — "2026-W22" sam po sebi nikomur nič ne pove. */
+  weekly: { week: string; label: string; start: string; end: string; sessions: number }[]
+  /** Vsak AI lead posebej — ista logika kot tabela na /vessel-funnel. */
+  leads: {
+    day: string
+    name: string | null
+    email: string | null
+    country: string | null
+    vendor: string
+    stage: string | null
+    budgetRange: string | null
+    conversion: string | null
+    /** Domena prve seje (npr. croatialuxurygulet.com), izluščena iz `firstUrl`. */
+    domain: string | null
+    /** Globok link v HubSpot zapis, da je vrstica preverljiva pri viru. */
+    hubspotUrl: string | null
+  }[]
+  /** `lp` je samo pot, zato brez `host` ni enolična — "/" obstaja na skoraj vsaki domeni. */
+  landingPages: { host: string; lp: string; sessions: number; keyEvents: number }[]
   /** Opportunity rate po viru — AI proti ostalim kanalom računa.
    *  POZOR: velja za sync okno, NE za izbrani datumski razpon (glej benchmarkWindow). */
-  benchmark: { source: string; contacts: number; opportunity: number; oppRate: number; isAi: boolean }[]
+  benchmark: {
+    source: string
+    contacts: number
+    sqlPlus: number
+    sqlRate: number
+    opportunity: number
+    oppRate: number
+    isAi: boolean
+  }[]
   benchmarkWindow: { start: string; end: string; totalContacts: number; generatedAt: string; truncated: string[] }
   countries: { country: string; contacts: number }[]
   /** Mesečni AEO snapshot — ROČEN, drug tempo osveževanja kot zgornje. */
@@ -297,7 +443,7 @@ const BLIND_SPOTS = [
 
 export async function loadAiTraffic(opts: { start: string; end: string }): Promise<AiTrafficResponse> {
   const { start, end } = opts
-  const sessionRows = await loadAiSessions()
+  const [sessionRows, hostRows] = await Promise.all([loadAiSessions(), loadHostSessions()])
 
   const inRange = (d: string) => d >= start && d <= end
   const sess = sessionRows.filter((r) => inRange(r.day))
@@ -316,7 +462,7 @@ export async function loadAiTraffic(opts: { start: string; end: string }): Promi
       label: 'AI Sessions',
       value: totalSessions,
       cvrFromPrev: null,
-      source: 'GA4 · goolets.net',
+      source: 'GA4 · all sites',
       available: true,
     },
     {
@@ -326,7 +472,6 @@ export async function loadAiTraffic(opts: { start: string; end: string }): Promi
       cvrFromPrev: div(leads, totalSessions),
       source: 'HubSpot',
       available: true,
-      note: 'Scope differs from sessions — see the warning below.',
     },
     {
       key: 'sql',
@@ -336,6 +481,16 @@ export async function loadAiTraffic(opts: { start: string; end: string }): Promi
       source: 'HubSpot · cumulative',
       available: true,
       note: 'SQL or beyond (includes opportunity and customer).',
+      info: {
+        title: 'What counts as Sales Qualified +',
+        lines: [
+          'Source: HubSpot lifecycle stage, which records the FURTHEST stage a contact reached, not where it sits today.',
+          'Counted: salesqualifiedlead · opportunity · customer.',
+          'Not counted: subscriber · lead · marketingqualifiedlead (MQL).',
+          `Roughly equivalent in Streak: ${STREAK_QUALIFIED}.`,
+          'The Streak line is for orientation only — these numbers come from HubSpot and the two are not reconciled one to one. Note that in Streak, MQL, CQL and AI Robot Handled count as UNqualified, while Standard counts as qualified.',
+        ],
+      },
     },
     {
       key: 'opportunity',
@@ -345,6 +500,16 @@ export async function loadAiTraffic(opts: { start: string; end: string }): Promi
       source: 'HubSpot · cumulative',
       available: true,
       note: 'Rate is off leads, not off SQL — both steps are cumulative.',
+      info: {
+        title: 'What counts as Opportunity +',
+        lines: [
+          'Source: HubSpot lifecycle stage, furthest stage reached.',
+          'Counted: opportunity · customer. These are also inside Sales Qualified +, which is why the two boxes overlap.',
+          'The rate is measured against Leads, not against Sales Qualified +, because both steps are cumulative.',
+          `Roughly equivalent in Streak: ${STREAK_CLOSING} — the deal is being worked or closed, not just accepted by sales.`,
+          'Orientation only: these numbers come from HubSpot, not Streak, and the two are not reconciled one to one.',
+        ],
+      },
     },
     {
       key: 'bookings',
@@ -373,13 +538,82 @@ export async function loadAiTraffic(opts: { start: string; end: string }): Promi
     if (w) weekAgg.set(w, (weekAgg.get(w) || 0) + r.sessions)
   }
   const weekly = [...weekAgg.entries()]
-    .map(([week, sessions]) => ({ week, sessions }))
+    .map(([week, sessions]) => {
+      // Ponedeljek izpeljemo iz katerega koli dneva tega tedna, ne iz številke tedna.
+      const anyDay = sess.find((r) => isoWeek(r.day) === week)?.day ?? ''
+      const wStart = anyDay ? mondayOf(anyDay) : ''
+      const wEnd = wStart ? addDays(wStart, 6) : ''
+      return {
+        week,
+        start: wStart,
+        end: wEnd,
+        label: wStart ? weekLabel(wStart, wEnd) : week,
+        sessions,
+      }
+    })
     .sort((a, b) => a.week.localeCompare(b.week))
 
-  const lpAgg = new Map<string, number>()
-  for (const r of sess) lpAgg.set(r.lp, (lpAgg.get(r.lp) || 0) + r.sessions)
+  // ── ena vrstica na spletno stran ────────────────────────────────────────
+  // Tri neodvisni viri se srečajo tukaj: AI seje (GA4, host), vse seje (GA4, host)
+  // in leadi (HubSpot, domena prve obiskane strani). Stran je lahko v enem viru in
+  // ne v drugem — ladijske mikrostrani imajo leade brez GA4 hosta, če je bil prvi
+  // obisk na domeni, ki je ta hip ne merimo. Zato unija, ne presek.
+  type SiteAcc = { aiSessions: number; keyEvents: number; totalSessions: number; leads: number; sqlPlus: number }
+  const siteAgg = new Map<string, SiteAcc>()
+  const site = (h: string): SiteAcc => {
+    const cur = siteAgg.get(h) || { aiSessions: 0, keyEvents: 0, totalSessions: 0, leads: 0, sqlPlus: 0 }
+    siteAgg.set(h, cur)
+    return cur
+  }
+  for (const r of sess) {
+    const s = site(r.host)
+    s.aiSessions += r.sessions
+    s.keyEvents += r.keyEvents
+  }
+  for (const r of hostRows) {
+    if (!inRange(r.day)) continue
+    site(r.host).totalSessions += r.sessions
+  }
+  for (const c of aiContacts) {
+    const h = domainOf(c.firstUrl)
+    if (!h) continue
+    const s = site(h)
+    s.leads += 1
+    if (c.rank >= STAGE_RANK.salesqualifiedlead) s.sqlPlus += 1
+  }
+
+  const sites = [...siteAgg.entries()]
+    // Strani brez AI sej in brez AI leadov so samo šum iz imenovalca (translate.goog,
+    // gtm-msr.appspot.com in podobno) — te ne sodijo na AI stran.
+    .filter(([, v]) => v.aiSessions > 0 || v.leads > 0)
+    .map(([host, v]) => ({
+      host,
+      aiSessions: v.aiSessions,
+      share: totalSessions ? v.aiSessions / totalSessions : 0,
+      totalSessions: v.totalSessions,
+      aiShareOfSite: v.totalSessions ? v.aiSessions / v.totalSessions : null,
+      keyEvents: v.keyEvents,
+      leads: v.leads,
+      leadRate: v.aiSessions ? v.leads / v.aiSessions : null,
+      sqlPlus: v.sqlPlus,
+    }))
+    .sort((a, b) => b.aiSessions - a.aiSessions || b.leads - a.leads)
+
+  // Ključ je host + pot: "/" je najmočnejša landing stran na skoraj vsaki domeni,
+  // združevanje samo po poti bi jih zlilo v eno vrstico.
+  const lpAgg = new Map<string, { sessions: number; keyEvents: number }>()
+  for (const r of sess) {
+    const k = JSON.stringify([r.host, r.lp])
+    const cur = lpAgg.get(k) || { sessions: 0, keyEvents: 0 }
+    cur.sessions += r.sessions
+    cur.keyEvents += r.keyEvents
+    lpAgg.set(k, cur)
+  }
   const landingPages = [...lpAgg.entries()]
-    .map(([lp, sessions]) => ({ lp, sessions }))
+    .map(([k, v]) => {
+      const [host, lp] = JSON.parse(k) as string[]
+      return { host, lp, sessions: v.sessions, keyEvents: v.keyEvents }
+    })
     .sort((a, b) => b.sessions - a.sessions)
     .slice(0, 15)
 
@@ -390,11 +624,14 @@ export async function loadAiTraffic(opts: { start: string; end: string }): Promi
     .map((r) => ({
       source: r.source,
       contacts: r.contacts,
+      sqlPlus: r.sqlPlus,
+      // Starejši snapshoti nimajo `sqlRate` — izračunaj, če manjka.
+      sqlRate: r.sqlRate ?? (r.contacts ? r.sqlPlus / r.contacts : 0),
       opportunity: r.opportunityPlus,
       oppRate: r.oppRate,
       isAi: r.isAi,
     }))
-    .sort((a, b) => b.oppRate - a.oppRate)
+    .sort((a, b) => b.sqlRate - a.sqlRate)
 
   // HubSpot country je prosto polje — isti trg pride kot "USA", "United States",
   // "United States of America". Brez tega se največji trg razbije na tri vrstice.
@@ -419,23 +656,39 @@ export async function loadAiTraffic(opts: { start: string; end: string }): Promi
     .sort((a, b) => b.contacts - a.contacts)
     .slice(0, 10)
 
+  // Vsak lead posebej, najnovejši zgoraj. Brez rezanja — 44 vrstic v izbranem oknu,
+  // striženje opravi UI z gumbom "See more".
+  const leadRows = aiContacts
+    .slice()
+    .sort((a, b) => (a.day < b.day ? 1 : a.day > b.day ? -1 : 0))
+    .map((c) => ({
+      day: c.day,
+      name: c.name ?? null,
+      email: c.email ?? null,
+      country: c.country ? normCountry(c.country) : null,
+      vendor: c.vendor,
+      stage: c.stage ?? null,
+      budgetRange: c.budgetRange ?? null,
+      conversion: c.conversion ?? null,
+      domain: domainOf(c.firstUrl),
+      hubspotUrl: c.id ? HUBSPOT_RECORD_URL(c.id) : null,
+    }))
+
   return {
     meta: {
       start,
       end,
       generatedAt: new Date().toISOString(),
-      sessionScope: 'goolets.net (GA4 property 311674241)',
-      contactScope: 'goolets.net + croatialuxurygulet.com + turkeyluxurygulet.com (HubSpot 143360943)',
+      sessionScope: 'all Goolets sites (GA4 property 311674241, split by hostname)',
+      contactScope: 'all Goolets sites (HubSpot 143360943)',
     },
     steps,
-    scopeMismatch: {
-      affects: 'sessions \u2192 leads',
-      reason:
-        'Sessions cover goolets.net only, while leads cover all three domains (the HubSpot portal ' +
-        'is shared). The rate is therefore an upper bound and is NOT comparable to other channels. ' +
-        'The step counts themselves are correct.',
-    },
+    // Do 21. 8. 2026 so seje pokrivale samo goolets.net, kontakti pa vse tri domene, zato je
+    // bilo razmerje sessions\u2192leads ozna\u010deno kot neprimerljivo. Zdaj sta obsega enaka.
+    scopeMismatch: null,
     vendors,
+    sites,
+    leads: leadRows,
     weekly,
     landingPages,
     benchmark,
