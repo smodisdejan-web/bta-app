@@ -1202,6 +1202,19 @@ export async function loadBusinessFunnel(opts: {
     roas: spend > 0 ? cur.revenue / spend : null,
   }
 
+  // Every metric above divides by `spend`. When the Meta feed stops before the end of the window,
+  // its missing days contribute 0 spend while revenue and leads keep counting the whole window,
+  // so the denominator collapses and every cost metric flatters. fb_ads_raw froze on 2026-08-08:
+  // the 7-day view printed ROAS 69.75x on Google-only spend, and August read 6.43x against a true
+  // 3.43x. A partly-measured denominator is worse than an absent one — null them and say why.
+  const metaInScope = channel !== 'google'
+  const fbCoversWindow = !metaInScope || (!!fb.coverage.max && fb.coverage.max >= end)
+  if (!fbCoversWindow) {
+    for (const k of ['spend', 'cpm', 'cpc', 'cpl', 'cpql', 'costPerBooking', 'roas'] as const) {
+      values[k] = null
+    }
+  }
+
   // ── Attribution remainder (Streak leads in range that match no campaign) ──
   let totalLeads = 0
   let unattributedLeads = 0
@@ -1252,6 +1265,9 @@ export async function loadBusinessFunnel(opts: {
         'Revenue = RVC, which is already the Goolets commission — it is never multiplied by a margin.',
         'Leads and QL come from Streak (SSOT), never from FB pixel counts.',
         `bookings_api currently ends ${bookings.coverage.max || 'n/a'} — bookings for months after that read 0 because they are not synced yet, not because none happened.`,
+        !fbCoversWindow
+          ? `fb_ads_raw ends ${fb.coverage.max || 'n/a'}, before this window's ${end} — spend, CPM, CPC, CPL, CPQL, cost/booking and ROAS are reported as null rather than computed on a Meta denominator that is missing days.`
+          : null,
         'attribution.unattributed is the GLOBAL remainder: Streak leads in range that match none of the 6 campaigns. It is the same figure on every view (channel-filtered when a channel is set).',
         channel !== 'all'
           ? 'lpViews on a channel view counts PAID sessions only (GA4 sessionSourceMedium: paid|cpc|ppc). The All view counts every session, so meta + google will NOT sum to All — the gap is organic, direct, referral and email traffic. Expected, not a reconciliation error.'

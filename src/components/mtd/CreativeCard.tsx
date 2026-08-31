@@ -3,7 +3,7 @@
 import React, { useState } from 'react'
 import { Play, ExternalLink, Image as ImageIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { eur, eur2, pct1, intFmt, cpqlColor, type FbAd } from './mtd-shared'
+import { eur, eur2, pct1, intFmt, type FbAd } from './mtd-shared'
 
 /* Thumbnail: local `thumb` path if set → else remote thumbnail_url (no-referrer) → else grey placeholder */
 function Thumb({ ad }: { ad: FbAd }) {
@@ -59,7 +59,7 @@ const CTA_LABELS: Record<string, string> = {
   NO_BUTTON: 'No button',
 }
 
-export function CreativeCard({ ad, turkey, highlight = false }: { ad: FbAd; turkey: boolean; highlight?: boolean }) {
+export function CreativeCard({ ad, highlight = false }: { ad: FbAd; turkey?: boolean; highlight?: boolean }) {
   const [expanded, setExpanded] = useState(false)
   const [bodyIdx, setBodyIdx] = useState(0)
   const [titleOpen, setTitleOpen] = useState(false)
@@ -101,7 +101,11 @@ export function CreativeCard({ ad, turkey, highlight = false }: { ad: FbAd; turk
       <div className="grid grid-cols-3 gap-x-1 gap-y-2 py-2 border-y border-gray-100">
         <Stat label="Spend" value={eur(ad.spend)} />
         <Stat label="Leads" value={intFmt(ad.landing_leads)} />
-        <Stat label="CPL" value={ad.cpl > 0 ? eur2(ad.cpl) : '–'} tone={ad.cpl > 0 ? cpqlColor(ad.cpl, turkey) : undefined} />
+        {/* Uncoloured on purpose. CPL is priced on ~1,600 Meta pixel Landing Leads while the CPQL
+            zones (EUR 96 / 150 / 240) are priced on ~780 Streak QL, so CPL runs at roughly half of
+            CPQL by construction and painting it with that palette turned 74 of 78 ads green. The
+            caption on the parent accordion already promises these are uncoloured. */}
+        <Stat label="CPL" value={ad.cpl > 0 ? eur2(ad.cpl) : '–'} />
         <Stat label="CTR" value={pct1(ad.ctr)} />
         <Stat label="Play rate" value={ad.hook_rate != null ? pct1(ad.hook_rate * 100) : '–'} />
         <Stat label="ThruPlay" value={ad.hold_rate != null ? pct1(ad.hold_rate * 100) : '–'} />

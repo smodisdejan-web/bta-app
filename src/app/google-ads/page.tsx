@@ -78,7 +78,6 @@ export default function GoogleAdsPage() {
   const cpm = view.impressions > 0 ? (view.spend / view.impressions) * 1000 : 0
   const ctr = view.impressions > 0 ? (view.clicks / view.impressions) * 100 : 0
   const costPerConv = view.conv > 0 ? view.spend / view.conv : 0
-  const scoredRate = view.conv > 0 ? (view.scored / view.conv) * 100 : 0
 
   const q = norm(search.trim())
   const filteredCamps = useMemo(
@@ -110,7 +109,9 @@ export default function GoogleAdsPage() {
           title="Google Ads"
           eyebrow="Goolets · MTD"
           subtitle="Month-to-date deep dive — campaign level, Streak-scored quality."
-          through={data.generated}
+          window={data.window}
+          builtAt={data.builtAt}
+          generated={data.generated}
         />
 
         <div className="flex flex-col md:flex-row md:items-center gap-3 md:justify-between">
@@ -147,7 +148,9 @@ export default function GoogleAdsPage() {
             { label: 'CPM', rate: cpm > 0 ? eur2(cpm) : '–' },
             { label: 'CTR', rate: pct1(ctr) },
             { label: 'cost/conv', rate: costPerConv > 0 ? eur2(costPerConv) : '–' },
-            { label: 'scored', rate: pct0(scoredRate) },
+            // Rate-less: Google-tracked conversions and Streak-scored leads are two
+            // different measurement systems. Dividing them printed "SCORED 117%".
+            { label: 'Google conv → CRM', rate: null },
             { label: 'QL%', rate: pct0(view.qRate) },
           ]}
         />
@@ -225,7 +228,15 @@ export default function GoogleAdsPage() {
         <UnattributedRow
           scored={view.unScored}
           quality={view.unQuality}
-          note={`No campaign UTM — fix ad naming to attribute · Streak Google leads ${data.meta.gLeads} vs matched ${data.meta.gMatched}`}
+          note={`Not chargeable to any campaign running this month · Streak Google leads ${data.meta.gLeads} vs matched ${data.meta.gMatched}`}
+          sources={(data.meta.gUnmatchedSources || []).map(
+            (u) => `${u.source} — ${u.leads} leads, ${u.quality} QL`
+          )}
+          sourcesNote={
+            'Most of these are not a naming problem. A lead whose UTM names a paused campaign is ' +
+            'correctly unattributed: there is no spend this month to price it against. Only rows ' +
+            'reading "(no campaign UTM)" or an obvious test are an ad-naming to-do.'
+          }
         />
 
         {/* Footer meta */}

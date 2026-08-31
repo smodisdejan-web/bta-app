@@ -62,11 +62,15 @@ type DailyRow = {
 type SummaryData = {
   spend: number
   leads: number
+  /** Platform-reported leads (Meta forms + landing + Google conversions). Different measuring
+   *  system from `leads`/`qualityLeads` (Streak CRM) — never mix the two in one ratio. */
+  platformLeads: number
   qualityLeads: number
   avgAi: number
   bookings: number
   revenue: number
-  lpViews: number
+  /** null when the Facebook feed does not cover this window — never a half-measured number. */
+  lpViews: number | null
 }
 
 const gold = '#B39262'
@@ -100,8 +104,8 @@ export default function HomePage() {
 
   // Fetch combined totals from API when range changes
   useEffect(() => {
-    const startISO = dateBounds.start.toISOString().slice(0, 10)
-    const endISO = dateBounds.end.toISOString().slice(0, 10)
+    const startISO = toLocalISODate(dateBounds.start)
+    const endISO = toLocalISODate(dateBounds.end)
     fetch(`/api/dashboard-totals?start=${startISO}&end=${endISO}`)
       .then((res) => res.json())
       .then((data) => setApiTotals(data))
@@ -116,7 +120,7 @@ export default function HomePage() {
         const sheetUrl = getSheetsUrl()
         const [{ headers: dailyHeaders, rows: dailyRows }, fbRows, streakAll, bookingRows] =
           await Promise.all([
-            fetchTab('daily', sheetUrl),
+            fetchTab('daily_api', sheetUrl), // CUTOVER 2026-06-15: Google Ads API (was Mixed Analytics 'daily')
             fetchFbEnriched(fetchFbEnrichedSheet, sheetUrl),
             fetchStreakSync(fetchFbEnrichedSheet, sheetUrl),
             fetchBookings(fetchFbEnrichedSheet)
@@ -151,23 +155,24 @@ export default function HomePage() {
     return `${fmt(start)} - ${fmt(end)}`
   }, [dateBounds, range])
 
-  const monthsInRange = useMemo(() => getMonthsInRange(range), [range])
-
+  // Bookings honour the SAME day window as spend and leads. They used to be bucketed by whole
+  // CALENDAR MONTH (getMonthsInRange: 7d -> 1 month, 30d -> 2, 60d -> 3, 90d -> 4), so "7 Days"
+  // priced the whole month's revenue against seven days of spend and printed ROAS 19.33x in a
+  // green SCALE badge when the window's true ceiling was ~3.4x. Only This Month and Last Month
+  // happened to line up. Compare on LOCAL calendar days, the same basis dateBounds uses.
   const filteredBookings = useMemo(() => {
+    const { start, end } = dateBounds
+    const startKey = toLocalISODate(start)
+    const endKey = toLocalISODate(end)
     return bookings.filter((b) => {
-      const dateStr = String(b.booking_date || '')
-      let bookingMonth: string
-      if (dateStr.includes('T')) {
-        const date = new Date(dateStr)
-        const year = date.getFullYear()
-        const month = String(date.getMonth() + 1).padStart(2, '0')
-        bookingMonth = `${year}-${month}`
-      } else {
-        bookingMonth = dateStr.substring(0, 7)
-      }
-      return monthsInRange.includes(bookingMonth)
+      const raw = String(b.booking_date || '')
+      if (!raw) return false
+      // A bare "YYYY-MM-DD" is already a local calendar day; an ISO timestamp must be converted
+      // to local parts first, or a late-evening UTC stamp lands on the wrong side of a boundary.
+      const key = raw.includes('T') ? toLocalISODate(new Date(raw)) : raw.slice(0, 10)
+      return key >= startKey && key <= endKey
     })
-  }, [bookings, monthsInRange])
+  }, [bookings, dateBounds])
 
   const revenueTotals = useMemo(() => {
     const totalRevenue = filteredBookings.reduce((sum, b) => sum + (b.rvc || 0), 0)
@@ -225,6 +230,24 @@ export default function HomePage() {
     () => fbEnrichedFiltered.reduce((sum, r: any) => sum + (r.lp_views || 0), 0),
     [fbEnrichedFiltered]
   )
+  // fb_ads_enriched is a Mixed Analytics feed that has been frozen since 2026-08-09. Reading it
+  // for a window it does not cover returns a partial sum that LOOKS like a measurement: LP Views
+  // showed 32,438 (1-9 Aug only) added to 17,905 Google clicks for all 31 days, and the "7 Days"
+  // view returned 0. Detect the gap and render "no data" instead of a number that is 50-60% low.
+  const fbEnrichedCoversWindow = useMemo(() => {
+    if (!fbEnriched.length) return false
+    const { start, end } = dateBounds
+    let maxDate = ''
+    for (const r of fbEnriched as any[]) {
+      const d = String(r.date_iso || r.date_start || '').slice(0, 10)
+      if (d && d > maxDate) maxDate = d
+    }
+    if (!maxDate) return false
+    // The feed must reach the end of the window, allowing one day of normal reporting lag.
+    const lagDay = new Date(end)
+    lagDay.setDate(lagDay.getDate() - 1)
+    return maxDate >= toLocalISODate(lagDay)
+  }, [fbEnriched, dateBounds])
   const googleSpend = useMemo(
     () => googleDailyFiltered.reduce((sum, r) => sum + (r.cost || 0), 0),
     [googleDailyFiltered]
@@ -236,13 +259,18 @@ export default function HomePage() {
 
   const totals: SummaryData = useMemo(() => {
     const totalSpend = apiTotals?.combined?.spend ?? fbSpend + googleSpend
-    const totalLeads = apiTotals?.combined?.leads ?? leadsFiltered.length
+    // LEADS = Streak CRM, the same set QL / QL% / CPQL are counted from. The platform-reported
+    // count is a different measuring system and is kept separate, never as a QL denominator.
+    const totalLeads = leadsFiltered.length
+    const platformLeads = apiTotals?.combined?.leads ?? 0
     const totalQuality = qualityCount(leadsFiltered)
     const avgAi = avgAiScore(leadsFiltered)
     const bookingsCount = filteredBookings.length
     const revenue = revenueTotals.totalRevenue
-    const lpViews = fbLpViews + googleClicks
-    return { spend: totalSpend, leads: totalLeads, qualityLeads: totalQuality, avgAi, bookings: bookingsCount, revenue, lpViews }
+    // null, not 0, when the Facebook half cannot be measured for this window — the funnel and the
+    // "CPC" arrow both read this, and a half-measured denominator is worse than an absent one.
+    const lpViews = fbEnrichedCoversWindow ? fbLpViews + googleClicks : null
+    return { spend: totalSpend, leads: totalLeads, platformLeads, qualityLeads: totalQuality, avgAi, bookings: bookingsCount, revenue, lpViews }
   }, [apiTotals, fbSpend, googleSpend, leadsFiltered, filteredBookings.length, revenueTotals.totalRevenue, fbLpViews, googleClicks])
 
   const cacValue = useMemo(() => {
@@ -254,9 +282,21 @@ export default function HomePage() {
 
   const roasValue = useMemo(() => (totals.spend > 0 ? totals.revenue / totals.spend : 0), [totals])
 
+  // Fail loud: a QL rate above 100% means numerator and denominator came from different
+  // measuring systems. Show nothing rather than an impossible number.
+  const qlRate = useMemo(() => {
+    if (totals.leads <= 0) return null
+    if (totals.qualityLeads > totals.leads) {
+      console.error('[bta] QL > leads — mismatched sources', { ql: totals.qualityLeads, leads: totals.leads })
+      return null
+    }
+    return (totals.qualityLeads / totals.leads) * 100
+  }, [totals])
+
   const channelFb = useMemo(() => {
     const quality = qualityCount(leadsFbFiltered)
-    const leadsCount = (apiTotals?.fb?.fbFormLeads || 0) + (apiTotals?.fb?.landingLeads || 0)
+    const leadsCount = leadsFbFiltered.length
+    const platformLeads = (apiTotals?.fb?.fbFormLeads || 0) + (apiTotals?.fb?.landingLeads || 0)
     const qRate = leadsCount > 0 ? Math.round((quality / leadsCount) * 100) : 0
     const bookingsFb = filteredBookings.filter((b) => b.source.startsWith('fb_'))
     const revenueFb = bookingsFb.reduce((s, b) => s + (b.rvc || 0), 0)
@@ -266,6 +306,7 @@ export default function HomePage() {
     return {
       spend,
       leads: leadsCount,
+      platformLeads,
       quality,
       qRate,
       cpql,
@@ -277,7 +318,8 @@ export default function HomePage() {
 
   const channelGoogle = useMemo(() => {
     const quality = qualityCount(leadsGoogleFiltered)
-    const leadsCount = apiTotals?.google?.conversions ?? leadsGoogleFiltered.length
+    const leadsCount = leadsGoogleFiltered.length
+    const platformLeads = apiTotals?.google?.conversions ?? 0
     const qRate = leadsCount > 0 ? Math.round((quality / leadsCount) * 100) : 0
     const bookingsGoogle = filteredBookings.filter((b) => b.source === 'google')
     const revenueGoogle = bookingsGoogle.reduce((s, b) => s + (b.rvc || 0), 0)
@@ -287,6 +329,7 @@ export default function HomePage() {
     return {
       spend,
       leads: leadsCount,
+      platformLeads,
       quality,
       qRate,
       cpql,
@@ -357,7 +400,7 @@ export default function HomePage() {
 
   const funnel = useMemo(() => {
     const steps = [
-      { label: 'LP Views', value: totals.lpViews },
+      { label: 'LP Views', value: totals.lpViews ?? 0 },
       { label: 'Leads', value: totals.leads },
       { label: 'Quality Leads', value: totals.qualityLeads },
       { label: 'Bookings', value: totals.bookings },
@@ -381,15 +424,22 @@ export default function HomePage() {
     const today = new Date()
     today.setHours(23, 59, 59, 999)
 
+    // Bucket and label on the SAME calendar. The key used to be `toISOString()` (UTC) while the
+    // label was `toLocaleDateString()` (local): in CEST every lead stamped 22:00-24:00Z fell into
+    // the next UTC day, so August built 32 buckets for 31 days, 30 x-axis labels were produced by
+    // two different buckets, and 166 of 1,902 leads sat on the wrong day. The DoD badge read the
+    // last two buckets and so compared a 3-lead sliver against a full 54-lead day.
     const map = new Map<string, { totalLeads: number; qualityLeads: number; avgAi: number; count: number; label: string; bucketEnd: Date }>()
     leadsFiltered.forEach((l) => {
       const d = new Date(l.inquiry_date)
-      const key = groupByWeek ? weekKey(d) : d.toISOString().slice(0, 10)
-      const label = groupByWeek ? weekLabel(d) : d.toLocaleDateString()
-      const bucketStart = new Date(groupByWeek ? weekKey(d) : d.toISOString().slice(0, 10))
-      const bucketEnd = new Date(bucketStart)
-      bucketEnd.setDate(bucketEnd.getDate() + (groupByWeek ? 6 : 0))
-      bucketEnd.setHours(23, 59, 59, 999)
+      const dayKey = toLocalISODate(d)
+      const key = groupByWeek ? weekKey(d) : dayKey
+      const label = groupByWeek ? weekLabel(d) : dayKey
+      // Build the bucket end from local calendar parts. `new Date("2026-08-31")` parses as UTC
+      // midnight, so the later setHours(23,59,...) produced a moment equal to `today` and the
+      // `>` test was never true — isPartial was dead for every daily range.
+      const [by, bm, bd] = (groupByWeek ? weekKey(d) : dayKey).split('-').map(Number)
+      const bucketEnd = new Date(by, bm - 1, bd + (groupByWeek ? 6 : 0), 23, 59, 59, 999)
       const entry = map.get(key) || { totalLeads: 0, qualityLeads: 0, avgAi: 0, count: 0, label, bucketEnd }
       entry.totalLeads += 1
       if (l.ai_score >= 50) entry.qualityLeads += 1
@@ -411,7 +461,10 @@ export default function HomePage() {
           isPartial
         }
       })
-      .sort((a, b) => new Date(a.label).getTime() - new Date(b.label).getTime())
+      // Sort on the ISO key, not the rendered label. `new Date(a.label)` could not parse a
+      // Slovenian locale date ("31. 8. 2026") -> NaN comparator -> the chart silently fell back
+      // to the Streak feed's newest-first order. Labels are ISO now, so this is stable anywhere.
+      .sort((a, b) => (a.label < b.label ? -1 : a.label > b.label ? 1 : 0))
   }, [leadsFiltered, groupByWeek])
 
   const qlRateDelta = useMemo(() => {
@@ -423,8 +476,8 @@ export default function HomePage() {
   }, [leadTrend])
 
   const handleAsk = async (prompt: string) => {
-    const startISO = dateBounds.start.toISOString().slice(0, 10)
-    const endISO = dateBounds.end.toISOString().slice(0, 10)
+    const startISO = toLocalISODate(dateBounds.start)
+    const endISO = toLocalISODate(dateBounds.end)
     const res = await fetch('/api/insights/ask', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -482,33 +535,53 @@ export default function HomePage() {
     funnel
   }), [range, totals, roasValue, cacValue, cacMode, channelFb, channelGoogle, revenueBySource, topMarkets, leadTrend, funnel])
 
+  // The summary used to fire on every change of `aiMetricsPayload`, starting with the FIRST
+  // render — before any sheet had loaded. That first POST carried an all-zero payload, and the
+  // route hands the payload to the model as ground truth, so the model correctly described what
+  // it was given: "All metrics in the payload are zero ... a tracking/data sync issue". The page
+  // then rendered that verdict above KPI cards reading EUR 82,097 spend and 1,902 leads. Up to
+  // eight POSTs went out per page view, one model call each.
+  //
+  // Two guards: never ask about a payload that has no data in it yet, and debounce so the
+  // in-between payloads (as each feed lands) coalesce into one request for the settled numbers.
   useEffect(() => {
-    const loadSummary = async () => {
-      try {
-        const startISO = dateBounds.start.toISOString().slice(0, 10)
-        const endISO = dateBounds.end.toISOString().slice(0, 10)
-        const res = await fetch('/api/insights/summary', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            filters: {
-              dateRange: range === 'mtd' || range === 'lastMonth' ? 'custom' : range,
-              customStart: startISO,
-              customEnd: endISO
-            },
-            sheetUrl: getSheetsUrl(),
-            metrics: aiMetricsPayload
+    if (loading) return
+    const hasData = totals.spend > 0 || totals.leads > 0 || totals.revenue > 0
+    if (!hasData) return
+
+    let cancelled = false
+    const timer = setTimeout(() => {
+      const loadSummary = async () => {
+        try {
+          const startISO = toLocalISODate(dateBounds.start)
+          const endISO = toLocalISODate(dateBounds.end)
+          const res = await fetch('/api/insights/summary', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              filters: {
+                dateRange: range === 'mtd' || range === 'lastMonth' ? 'custom' : range,
+                customStart: startISO,
+                customEnd: endISO
+              },
+              sheetUrl: getSheetsUrl(),
+              metrics: aiMetricsPayload
+            })
           })
-        })
-        if (!res.ok) return
-        const data = await res.json()
-        setAiBullets(Array.isArray(data.bullets) ? data.bullets : [])
-      } catch (err) {
-        console.error('AI summary load failed', err)
+          if (!res.ok || cancelled) return
+          const data = await res.json()
+          // A late response from a superseded payload must never overwrite a newer summary.
+          if (cancelled) return
+          setAiBullets(Array.isArray(data.bullets) ? data.bullets : [])
+        } catch (err) {
+          console.error('AI summary load failed', err)
+        }
       }
-    }
-    loadSummary()
-  }, [range, dateBounds, aiMetricsPayload])
+      loadSummary()
+    }, 800)
+
+    return () => { cancelled = true; clearTimeout(timer) }
+  }, [range, dateBounds, aiMetricsPayload, loading, totals.spend, totals.leads, totals.revenue])
 
   if (loading) {
     return (
@@ -652,13 +725,18 @@ export default function HomePage() {
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
           <MetricCard title="Total Spend" value={formatCurrency(totals.spend, 'EUR')} subtitle="All channels" icon={<DollarSign className="h-4 w-4 text-[#B39262]" />} />
-          <MetricCard title="Total Leads" value={totals.leads.toLocaleString()} subtitle="All sources" icon={<Users className="h-4 w-4 text-[#B39262]" />} />
+          <MetricCard
+            title="Total Leads"
+            value={totals.leads.toLocaleString()}
+            subtitle={`Streak CRM${totals.platformLeads > 0 ? ` · platform-reported ${totals.platformLeads.toLocaleString()}` : ''}`}
+            icon={<Users className="h-4 w-4 text-[#B39262]" />}
+          />
           <MetricCard
             title="Quality Leads"
-            value={`${totals.qualityLeads.toLocaleString()}${totals.leads > 0 ? ` (${Math.round((totals.qualityLeads / totals.leads) * 100)}%)` : ''}`}
+            value={`${totals.qualityLeads.toLocaleString()}${qlRate !== null ? ` (${Math.round(qlRate)}%)` : ''}`}
             subtitle="AI ≥ 50"
             icon={<Sparkles className="h-4 w-4 text-[#B39262]" />}
-            zone={totals.leads > 0 ? zoneForQlRate((totals.qualityLeads / totals.leads) * 100) : undefined}
+            zone={qlRate !== null ? zoneForQlRate(qlRate) : undefined}
             target=">45% of leads"
           />
           <MetricCard
@@ -704,6 +782,7 @@ export default function HomePage() {
             metrics={[
               { label: 'Spend', value: formatCurrency(channelFb.spend, 'EUR') },
               { label: 'Leads', value: channelFb.leads.toLocaleString() },
+              { label: 'Platform leads', value: channelFb.platformLeads.toLocaleString() },
               { label: 'Quality Leads', value: `${channelFb.quality.toLocaleString()} (${channelFb.qRate}%)` },
               { label: 'CPQL', value: formatCurrency(channelFb.cpql, 'EUR') },
               { label: 'Bookings', value: channelFb.bookings.toString() },
@@ -717,6 +796,7 @@ export default function HomePage() {
             metrics={[
               { label: 'Spend', value: formatCurrency(channelGoogle.spend, 'EUR') },
               { label: 'Leads', value: channelGoogle.leads.toLocaleString() },
+              { label: 'Platform leads', value: channelGoogle.platformLeads.toLocaleString() },
               { label: 'Quality Leads', value: `${channelGoogle.quality.toLocaleString()} (${channelGoogle.qRate}%)` },
               { label: 'CPQL', value: formatCurrency(channelGoogle.cpql, 'EUR') },
               { label: 'Bookings', value: channelGoogle.bookings.toString() },
@@ -864,29 +944,35 @@ export default function HomePage() {
               <div className="flex flex-col items-center px-2">
                 <span className="text-gray-400">→</span>
                 <span className="text-xs text-gray-500">
-                  {totals.lpViews > 0 ? formatCurrency(totals.spend / totals.lpViews, 'EUR') : '—'}
+                  {totals.lpViews && totals.lpViews > 0 ? formatCurrency(totals.spend / totals.lpViews, 'EUR') : '—'}
                 </span>
                 <span className="text-[11px] text-gray-500">CPC</span>
               </div>
               <div className="flex-1 min-w-[140px] bg-white rounded-lg shadow-sm border border-[#e1d8c7] p-4 text-center">
-                <div className="text-2xl font-bold text-gray-900">{totals.lpViews.toLocaleString()}</div>
+                <div className="text-2xl font-bold text-gray-900">
+                  {totals.lpViews != null ? totals.lpViews.toLocaleString() : '—'}
+                </div>
                 <div className="text-sm text-gray-500">LP Views</div>
+                {totals.lpViews == null && (
+                  <div className="text-[11px] text-amber-700 mt-1">Facebook feed stale — not measurable</div>
+                )}
               </div>
               <div className="flex flex-col items-center px-2">
                 <span className="text-gray-400">→</span>
                 <span className="text-xs text-gray-500">
-                  {calcRate(totals.leads, totals.lpViews)}
+                  {calcRate(totals.platformLeads, totals.lpViews ?? 0)}
                 </span>
-                <span className="text-[11px] text-gray-500">LP→Leads</span>
+                <span className="text-[11px] text-gray-500">LP→Leads (platform)</span>
               </div>
               <div className="flex-1 min-w-[140px] bg-white rounded-lg shadow-sm border border-[#e1d8c7] p-4 text-center">
                 <div className="text-2xl font-bold text-gray-900">{totals.leads.toLocaleString()}</div>
                 <div className="text-sm text-gray-500">Leads</div>
+                <div className="text-xs text-gray-400 mt-1">platform {totals.platformLeads.toLocaleString()}</div>
               </div>
               <div className="flex flex-col items-center px-2">
                 <span className="text-gray-400">→</span>
                 <span className="text-xs text-gray-500">
-                  {calcRate(totals.qualityLeads, totals.leads)}
+                  {qlRate !== null ? `${qlRate.toFixed(1)}%` : '—'}
                 </span>
                 <span className="text-[11px] text-gray-500">Leads→Quality</span>
               </div>
@@ -894,12 +980,20 @@ export default function HomePage() {
                 <div className="text-2xl font-bold text-gray-900">{totals.qualityLeads.toLocaleString()}</div>
                 <div className="text-sm text-gray-500">Quality Leads</div>
               </div>
+              {/* PERIOD metric, deliberately — not a cohort conversion rate (Dejan, 2026-08-31).
+                  Goolets counts a booking in the month it CLOSES and a lead in the month it
+                  ARRIVES, so an August booking off a July lead belongs to August on both sides
+                  of the business. Only 1 of the 11 August bookings has an August inquiry date;
+                  that is expected under this convention and is NOT a defect. Do not "fix" this
+                  into a cohort rate and do not remove it — it is the number the team steers on.
+                  The label says "per period" so nobody reads it as a cohort conversion. */}
               <div className="flex flex-col items-center px-2">
                 <span className="text-gray-400">→</span>
                 <span className="text-xs text-gray-500">
                   {calcRate(totals.bookings, totals.qualityLeads)}
                 </span>
                 <span className="text-[11px] text-gray-500">Quality→Bookings</span>
+                <span className="text-[10px] text-gray-400">per period</span>
               </div>
               <div className="flex-1 min-w-[140px] bg-white rounded-lg shadow-sm border border-[#e1d8c7] p-4 text-center">
                 <div className="text-2xl font-bold text-gray-900">{totals.bookings.toLocaleString()}</div>
@@ -1043,20 +1137,20 @@ function mapDailyRows(headers: string[], rows: any[][]): DailyRow[] {
   }))
 }
 
+/** ISO date of the Monday starting this date's local week. */
 function weekKey(d: Date) {
   const copy = new Date(d)
   const day = copy.getDay()
   const diff = copy.getDate() - day + (day === 0 ? -6 : 1)
   copy.setDate(diff)
   copy.setHours(0, 0, 0, 0)
-  return copy.toISOString().slice(0, 10)
+  // toISOString() would shift local Monday midnight back to Sunday 22:00Z in CEST and name the
+  // week after the wrong day (Thu 27 Aug -> "2026-08-23", a Sunday). Read local parts instead.
+  return toLocalISODate(copy)
 }
 
 function weekLabel(d: Date) {
-  const start = new Date(weekKey(d))
-  const end = new Date(start)
-  end.setDate(end.getDate() + 6)
-  return `${start.toLocaleDateString()}`
+  return weekKey(d)
 }
 
 function getMonthsInRange(range: Range): string[] {
@@ -1082,6 +1176,21 @@ function getMonthsInRange(range: Range): string[] {
     months.push(fmt(d))
   }
   return months
+}
+
+/**
+ * Format a Date as YYYY-MM-DD using its LOCAL calendar parts.
+ *
+ * Do not use toISOString().slice(0,10) for these window bounds. computeDateBounds() returns local
+ * midnight, and in CEST (UTC+2) toISOString() renders 1 Aug 00:00 as "2026-07-31T22:00:00Z", so
+ * every MTD query silently started on 31 July and dragged an extra day of spend into the KPIs
+ * (on 2026-08-17 that was €2.360 of FB + €485 of Google, which inflated spend and depressed ROAS).
+ */
+function toLocalISODate(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
 }
 
 function computeDateBounds(range: Range): { start: Date; end: Date } {
@@ -1136,15 +1245,53 @@ function formatCurrencyNoCents(value: number, currency: 'EUR' | 'USD' = 'EUR') {
   }).format(value || 0)
 }
 
+/**
+ * One country, one row. Anything not aliased used to fall through to `country.toUpperCase()`,
+ * which split real markets across several rows and corrupted both QL counts and close rates:
+ * UK 132 + GB 33 + SCOTLAND 1 (true 166, close rate shown 1.5% vs a true 1.2%), BRAZIL 31 +
+ * BRASIL 14 (true 45, shown 3.2% vs a true 2.2%), plus SPAIN/ESPAÑA, FRANCE/FR, ITALY/ITALIA,
+ * NETHERLANDS/NL and GERMANY/DE. Sorted by QL, "GB" surfaced as a top-8 market in its own right.
+ * Add a synonym here rather than letting a new spelling quietly open a second row.
+ */
+const COUNTRY_ALIASES: Record<string, string> = {
+  us: 'USA', usa: 'USA', 'united states': 'USA', 'united states of america': 'USA', america: 'USA',
+  uk: 'UK', gb: 'UK', 'united kingdom': 'UK', 'great britain': 'UK', britain: 'UK',
+  england: 'UK', scotland: 'UK', wales: 'UK', 'northern ireland': 'UK',
+  uae: 'UAE', 'united arab emirates': 'UAE',
+  ca: 'Canada', canada: 'Canada',
+  au: 'Australia', aus: 'Australia', australia: 'Australia',
+  br: 'Brazil', brazil: 'Brazil', brasil: 'Brazil',
+  es: 'Spain', spain: 'Spain', 'españa': 'Spain', espana: 'Spain',
+  fr: 'France', france: 'France',
+  it: 'Italy', italy: 'Italy', italia: 'Italy',
+  nl: 'Netherlands', netherlands: 'Netherlands', holland: 'Netherlands',
+  de: 'Germany', germany: 'Germany', deutschland: 'Germany',
+  ie: 'Ireland', ireland: 'Ireland',
+  il: 'Israel', israel: 'Israel',
+  ch: 'Switzerland', switzerland: 'Switzerland',
+  at: 'Austria', austria: 'Austria',
+  be: 'Belgium', belgium: 'Belgium',
+  se: 'Sweden', sweden: 'Sweden',
+  no: 'Norway', norway: 'Norway',
+  dk: 'Denmark', denmark: 'Denmark',
+  pl: 'Poland', poland: 'Poland',
+  nz: 'New Zealand', 'new zealand': 'New Zealand',
+  za: 'South Africa', 'south africa': 'South Africa',
+  mx: 'Mexico', mexico: 'Mexico',
+  ar: 'Argentina', argentina: 'Argentina',
+  si: 'Slovenia', slovenia: 'Slovenia',
+  hr: 'Croatia', croatia: 'Croatia',
+  tr: 'Turkey', turkey: 'Turkey', turkiye: 'Turkey', 'türkiye': 'Turkey',
+}
+
 function normalizeCountry(country: string) {
   const c = (country || '').trim().toLowerCase()
-  if (!c) return 'Unknown'
-  if (['us', 'usa', 'united states', 'united states of america'].includes(c)) return 'USA'
-  if (['uk', 'united kingdom', 'great britain', 'england'].includes(c)) return 'UK'
-  if (['uae', 'united arab emirates'].includes(c)) return 'UAE'
-  if (c === 'canada' || c === 'ca') return 'Canada'
-  if (c === 'australia' || c === 'au') return 'Australia'
-  return country.toUpperCase()
+  // "n/a" is the same absence of information as an empty cell — one row, not two.
+  if (!c || c === 'n/a' || c === 'na' || c === '-' || c === 'unknown') return 'Unknown'
+  const alias = COUNTRY_ALIASES[c]
+  if (alias) return alias
+  // Title Case, so an unaliased country reads like a name instead of shouting.
+  return c.replace(/\b\w/g, (m) => m.toUpperCase())
 }
 
 function MetricCard({ title, value, subtitle, icon, accent, zone, zoneLabel, target }: MetricCardProps) {

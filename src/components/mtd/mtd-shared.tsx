@@ -28,7 +28,7 @@ export interface BookingCell { bookings: number; revenue: number }
 export interface ScoredCell { scored: number; quality: number }
 
 export interface FbTotals {
-  spend: number; clicks: number; lpViews: number; landingLeads: number
+  spend: number; clicks: number; linkClicks?: number | null; lpViews: number; landingLeads: number
   streakLeads: number; quality: number; attributedLeads: number
   attributedQuality: number; qRate: number; cpql: number
 }
@@ -38,6 +38,17 @@ export interface GoogleTotals extends Omit<FbTotals, 'lpViews' | 'landingLeads'>
 
 export interface FbCampaign {
   name: string; spend: number; clicks: number; ctr: number; impressions: number
+  /** Meta link clicks. `clicks` is all-clicks (reactions, expansions) — ~2x higher. */
+  linkClicks?: number | null
+  /** Campaign objective's result label from Meta, e.g. "Landing Lead", "Post Interaction". */
+  resultLabel?: string | null
+  /** Set by the build when the campaign is NOT part of the lead programme. */
+  nonLeadReason?: 'objective' | 'recruitment' | null
+  /** Name of the twin campaign that runs the same ads under the same utm_campaign. Set on the
+   *  twin whose leads are indistinguishable, so the page says so instead of printing a zero. */
+  sharesAttributionWith?: string | null
+  /** On the primary of such a pair: the pair's combined spend, which its CPQL is priced on. */
+  sharedAttributionSpend?: number | null
   lpViews: number; landingLeads: number; status: string; streakLeads: number
   qualityTracked: boolean; quality: number; excellent: number; qRate: number
   avgAI: number; cpql: number; cpl: number; market: CampaignMarket
@@ -67,6 +78,9 @@ export interface GCampaign {
 export interface MtdData {
   month: string
   generated: string
+  builtAt?: string
+  /** The period every number in this file covers (build sets it from the FB dump window). */
+  window?: { since: string | null; until: string | null }
   bookings: { fb: Record<MarketKey, BookingCell>; google: Record<MarketKey, BookingCell> }
   totals: { fb: FbTotals; google: GoogleTotals; combined: Record<string, number> }
   streakTotals: { fb: Record<MarketKey, ScoredCell>; google: Record<MarketKey, ScoredCell> }
@@ -75,7 +89,11 @@ export interface MtdData {
   ads: FbAd[]
   gCampaigns: GCampaign[]
   fbUnmatchedSources: string[]
-  meta: { fbLeadsAI: number; gLeads: number; gMatched: number; driveMatched: number; corruptRowsDropped: unknown[] }
+  meta: {
+    fbLeadsAI: number; gLeads: number; gMatched: number; driveMatched: number; corruptRowsDropped: unknown[]
+    /** Google leads that matched no campaign running this month, by their raw SOURCE DETAIL. */
+    gUnmatchedSources?: { source: string; leads: number; quality: number }[]
+  }
 }
 
 /* ---------- Market chips ---------- */
@@ -115,16 +133,50 @@ export function pct0(n: number | null | undefined): string {
 
 /* ---------- Page header (bta pattern) ---------- */
 
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+/** "2026-08-01".."2026-08-27" -> "1-27 Aug 2026"; cross-month -> "1 Jul - 3 Aug 2026". */
+export function fmtWindow(w?: { since: string | null; until: string | null } | null): string | null {
+  if (!w || !w.since || !w.until) return null
+  const [ay, am, ad] = w.since.split('-').map(Number)
+  const [by, bm, bd] = w.until.split('-').map(Number)
+  if (!ay || !by) return null
+  if (ay === by && am === bm) return `${ad}-${bd} ${MON[bm - 1]} ${by}`
+  if (ay === by) return `${ad} ${MON[am - 1]} - ${bd} ${MON[bm - 1]} ${by}`
+  return `${ad} ${MON[am - 1]} ${ay} - ${bd} ${MON[bm - 1]} ${by}`
+}
+
+/** ISO timestamp -> "29 Aug 12:16" (local). */
+export function fmtBuilt(iso?: string | null): string | null {
+  if (!iso) return null
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return null
+  const hh = String(d.getHours()).padStart(2, '0')
+  const mm = String(d.getMinutes()).padStart(2, '0')
+  return `${d.getDate()} ${MON[d.getMonth()]} ${hh}:${mm}`
+}
+
+
+/**
+ * `window` is the period the numbers actually cover; `builtAt` is when the file was
+ * assembled. They are NOT the same day and must never be conflated: the page used to render
+ * "Data through {generated}" and so claimed 2026-08-28 over FB spend that stopped on the 27th.
+ * If `window` is absent (frozen archives built before 2026-08-29) we fall back to the build
+ * date and say so, rather than passing a build date off as a data window.
+ */
 export function PageHeader({
-  icon, iconBg, title, eyebrow, subtitle, through,
+  icon, iconBg, title, eyebrow, subtitle, window: dataWindow, builtAt, generated,
 }: {
   icon: React.ReactNode
   iconBg: string
   title: string
   eyebrow: string
   subtitle: string
-  through: string
+  window?: { since: string | null; until: string | null } | null
+  builtAt?: string | null
+  generated: string
 }) {
+  const range = fmtWindow(dataWindow)
   return (
     <div className="flex items-start justify-between gap-4 flex-wrap">
       <div className="flex items-center gap-4">
@@ -142,7 +194,12 @@ export function PageHeader({
           <p className="text-sm text-gray-500 mt-1">{subtitle}</p>
         </div>
       </div>
-      <div className="text-xs text-gray-400 mt-2">Data through {through}</div>
+      <div className="text-xs mt-2 text-right">
+        <div className={range ? 'text-gray-600 font-medium' : 'text-amber-700 font-medium'}>
+          {range ? `Data ${range}` : `Data through ${generated} (window unverified)`}
+        </div>
+        <div className="text-gray-400">built {fmtBuilt(builtAt) || generated}</div>
+      </div>
     </div>
   )
 }
@@ -252,7 +309,13 @@ export function KpiTile({
 /* ---------- Horizontal funnel ---------- */
 
 export interface FunnelStep { label: string; value: string; sub?: string }
-export interface FunnelConn { label: string; rate: string }
+/**
+ * `rate` is optional on purpose. Two steps measured by different systems (Meta pixel vs
+ * Streak CRM) have no meaningful step-conversion between them — dividing one by the other
+ * produced "SCORED 117%" on the Google page and a plausible-looking but equally bogus
+ * "SCORED 91%" on the FB one. Omit `rate` there and the arrow renders bare.
+ */
+export interface FunnelConn { label: string; rate?: string | null }
 
 export function Funnel({ steps, conns }: { steps: FunnelStep[]; conns: FunnelConn[] }) {
   return (
@@ -268,7 +331,7 @@ export function Funnel({ steps, conns }: { steps: FunnelStep[]; conns: FunnelCon
             {i < conns.length && (
               <div className="flex flex-col items-center justify-center px-1 min-w-[54px] shrink-0">
                 <span className="text-gray-300 text-sm leading-none">→</span>
-                <span className="text-[11px] font-semibold text-gray-500 mt-0.5">{conns[i].rate}</span>
+                {conns[i].rate && <span className="text-[11px] font-semibold text-gray-500 mt-0.5">{conns[i].rate}</span>}
                 <span className="text-[9px] uppercase tracking-[0.03em] text-gray-400">{conns[i].label}</span>
               </div>
             )}
@@ -369,15 +432,35 @@ export function MarketBadge({ market }: { market: CampaignMarket }) {
 const MIN_SPEND = 300
 const MIN_LEADS = 5
 
+/** Objectives that cannot produce a lead — grading them on CPQL is meaningless. */
+const LEAD_RESULTS = new Set(['Landing Lead', 'Landing Lead (CLG)', 'Lead (Form)', 'Complete Registration', 'Contact'])
+
 export type Verdict =
   | { kind: 'turkey' }
   | { kind: 'early' }
+  | { kind: 'nonLead' }
   | { kind: 'untracked' }
+  | { kind: 'shared'; twinOf: string }
   | { kind: 'zone'; zone: Zone }
 
-export function campaignVerdict(c: { market: CampaignMarket; spend: number; landingLeads: number; qualityTracked: boolean; cpql: number }): Verdict {
+/**
+ * Grades on STREAK leads, not pixel landing leads. Keying "TOO EARLY" off the pixel count
+ * meant a hiring campaign (JOB POST, EUR 561) and an engagement boost (EUR 962) were badged
+ * "too early" when they will never produce a lead, while Yacht Matchmaker read "TOO EARLY"
+ * next to a CUT-grade CPQL of EUR 433 in the same row (caught 2026-08-28).
+ */
+export function campaignVerdict(c: {
+  market: CampaignMarket; spend: number; streakLeads: number
+  qualityTracked: boolean; cpql: number; resultLabel?: string | null
+  nonLeadReason?: 'objective' | 'recruitment' | null
+  sharesAttributionWith?: string | null
+}): Verdict {
   if (c.market === 'Turkey') return { kind: 'turkey' }
-  if (c.spend < MIN_SPEND || c.landingLeads < MIN_LEADS) return { kind: 'early' }
+  if (c.nonLeadReason || (c.resultLabel && !LEAD_RESULTS.has(c.resultLabel))) return { kind: 'nonLead' }
+  // Graded with its twin, not on its own zero. Must come before the TOO EARLY test, which would
+  // otherwise read "no leads yet" over leads that exist but cannot be told apart.
+  if (c.sharesAttributionWith) return { kind: 'shared', twinOf: c.sharesAttributionWith }
+  if (c.spend < MIN_SPEND || c.streakLeads < MIN_LEADS) return { kind: 'early' }
   if (!c.qualityTracked || c.cpql <= 0) return { kind: 'untracked' }
   return { kind: 'zone', zone: zoneForCac(c.cpql) }
 }
@@ -392,6 +475,19 @@ export function VerdictBadge({ verdict }: { verdict: Verdict }) {
   }
   if (verdict.kind === 'early') {
     return <span className="text-[10px] font-bold tracking-[0.04em] px-2 py-1 rounded bg-gray-100 text-gray-500">TOO EARLY</span>
+  }
+  if (verdict.kind === 'nonLead') {
+    return <span className="text-[10px] font-bold tracking-[0.04em] px-2 py-1 rounded bg-gray-100 text-gray-500">NOT A LEAD CAMPAIGN</span>
+  }
+  if (verdict.kind === 'shared') {
+    return (
+      <span
+        className="text-[10px] font-bold tracking-[0.04em] px-2 py-1 rounded bg-gray-100 text-gray-500"
+        title={`Same ads and same utm_campaign as "${verdict.twinOf}" — leads cannot be split between them, so the pair is graded together on that row.`}
+      >
+        SHARED WITH TWIN
+      </span>
+    )
   }
   if (verdict.kind === 'untracked') {
     return <span className="text-[10px] font-bold tracking-[0.04em] px-2 py-1 rounded bg-gray-100 text-gray-500">NO QL YET</span>
