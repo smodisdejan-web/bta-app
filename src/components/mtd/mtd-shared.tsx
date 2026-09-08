@@ -483,7 +483,11 @@ export function campaignVerdict(c: {
   if (c.sharesAttributionWith) return { kind: 'shared', twinOf: c.sharesAttributionWith }
   if (c.spend < MIN_SPEND || c.streakLeads < MIN_LEADS) return { kind: 'early' }
   if (!c.qualityTracked || c.cpql <= 0) return { kind: 'untracked' }
-  return { kind: 'zone', zone: zoneForCac(c.cpql) }
+  // zoneForCac returns null for anything unmeasured. The guard above already excluded that,
+  // but never invent a zone if it ever slips through.
+  const zone = zoneForCac(c.cpql)
+  if (!zone) return { kind: 'untracked' }
+  return { kind: 'zone', zone }
 }
 
 export function VerdictBadge({ verdict }: { verdict: Verdict }) {
@@ -545,7 +549,8 @@ export function VerdictBadge({ verdict }: { verdict: Verdict }) {
 /* CPQL colored text (campaign tile / adset) — neutral for Turkey */
 export function cpqlColor(cpql: number, turkey: boolean): string {
   if (turkey || cpql <= 0) return '#7e8ea0'
-  return ZONE_STYLES[zoneForCac(cpql)].text
+  const zone = zoneForCac(cpql)
+  return zone ? ZONE_STYLES[zone].text : '#7e8ea0'
 }
 
 /* ---------- Footer meta ---------- */

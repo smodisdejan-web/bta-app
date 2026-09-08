@@ -9,8 +9,14 @@ export const ROAS_THRESHOLDS = { cut: 2, optimize: 2.8, maintain: 4 } // x (2.8 
 export const AI_SCORE_THRESHOLDS = { cut: 40, optimize: 48, maintain: 55 }
 export const QL_RATE_THRESHOLDS = { cut: 35, optimize: 45, maintain: 55 } // %
 
-export function zoneForCac(value: number): Zone {
-  if (value === 0) return 'maintain'
+/**
+ * CPQL / CAC zone. Returns null when there is nothing to grade: a missing value, or a zero
+ * that only ever means "no quality leads / no spend measured yet". It used to answer
+ * 'maintain' for 0, so a dead feed painted a calm gold MAINTAIN badge over a number nobody
+ * had measured. No measurement, no zone.
+ */
+export function zoneForCac(value: number | null | undefined): Zone | null {
+  if (value == null || !Number.isFinite(value) || value <= 0) return null
   if (value < CAC_THRESHOLDS.scale) return 'scale'
   if (value < CAC_THRESHOLDS.maintain) return 'maintain'
   if (value < CAC_THRESHOLDS.optimize) return 'optimize'

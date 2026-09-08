@@ -42,7 +42,10 @@ type MetricCardProps = {
 type ChannelMetric = {
   label: string
   value: string
-  emphasis?: boolean
+  /** Colour source. A Zone paints its own colour, null paints grey (n/a - nothing measured),
+   *  undefined leaves the value in plain ink. Never hard-code green here: ROAS used to render
+   *  in #1d7a3d whatever it said, so "0.00x" on a dead feed looked like a good month. */
+  zone?: Zone | null
 }
 
 type ChannelCardProps = {
@@ -207,6 +210,25 @@ export default function HomePage() {
   // only ranges where a revenue-over-spend ratio is a real measurement.
   const revenueWindowIsWholeMonth = range === 'mtd' || range === 'lastMonth'
 
+  // Does `bookings_api` actually reach the window we are drawing? The feed is MONTHLY
+  // ("YYYY-MM"), so "live" means it carries the last month the window touches. A feed that
+  // stops short cannot be told apart from a month that has genuinely closed nothing yet, so
+  // it reads n/a - never a green zero. Eight days of "EUR 0,00 / OK 0 deals closed /
+  // ROAS 0.00x", all painted green, is exactly what this flag exists to prevent.
+  const bookingsFeedState = useMemo<'live' | 'stale' | 'missing'>(() => {
+    if (!bookings.length) return 'missing'
+    let maxMonth = ''
+    for (const b of bookings) {
+      const raw = String(b.booking_date || '')
+      if (!raw) continue
+      const m = raw.includes('T') ? toLocalISODate(new Date(raw)).slice(0, 7) : raw.slice(0, 7)
+      if (/^\d{4}-\d{2}$/.test(m) && m > maxMonth) maxMonth = m
+    }
+    if (!maxMonth) return 'missing'
+    const lastWindowMonth = Array.from(windowMonths).sort().pop() || ''
+    return maxMonth >= lastWindowMonth ? 'live' : 'stale'
+  }, [bookings, windowMonths])
+
   const revenueTotals = useMemo(() => {
     const totalRevenue = filteredBookings.reduce((sum, b) => sum + (b.rvc || 0), 0)
     const deals = filteredBookings.length
@@ -310,6 +332,19 @@ export default function HomePage() {
     () => googleDailyFiltered.reduce((sum, r) => sum + (r.clicks || 0), 0),
     [googleDailyFiltered]
   )
+  /** Does `daily_api` (Google spend) reach this window? Same one-day lag allowance as FB. */
+  const googleFeedCoversWindow = useMemo(() => {
+    if (!googleDaily.length) return false
+    let maxDate = ''
+    for (const r of googleDaily) {
+      const d = String(r.date || '').slice(0, 10)
+      if (d && d > maxDate) maxDate = d
+    }
+    if (!maxDate) return false
+    const lagDay = new Date(dateBounds.end)
+    lagDay.setDate(lagDay.getDate() - 1)
+    return maxDate >= toLocalISODate(lagDay)
+  }, [googleDaily, dateBounds])
 
   const totals: SummaryData = useMemo(() => {
     // Spend precedence: fb_ads_api (Meta, daily) > /api/dashboard-totals > fb_ads_enriched.
@@ -343,8 +378,39 @@ export default function HomePage() {
   }, [totals, cacMode])
 
   const roasValue = useMemo(() => (totals.spend > 0 ? totals.revenue / totals.spend : 0), [totals])
-  /** null = not measurable for this window (month-level bookings vs. a rolling day window). */
-  const roasDisplay = revenueWindowIsWholeMonth && totals.spend > 0 ? roasValue : null
+  /** null = not measurable for this window: month-level bookings vs. a rolling day window, no
+   *  spend, or a bookings feed that does not reach the window. A dead feed must never be able
+   *  to produce "0.00x" - that is a measurement, and there was none. */
+  const roasDisplay =
+    revenueWindowIsWholeMonth && totals.spend > 0 && bookingsFeedState === 'live' ? roasValue : null
+
+  // Total Spend is a SUM of two feeds. When one of them is dead its zero vanishes into the
+  // total and the card still says "All channels" - that is how September printed EUR 6,029.99
+  // (Google only) and nothing on screen said the Facebook half was missing. Name the gap.
+  const spendHealth = useMemo(() => {
+    const fbOk = fbSpendFromApi.covered || (apiTotals?.fb?.spend ?? 0) > 0
+    const googleOk = googleFeedCoversWindow || (apiTotals?.google?.spend ?? 0) > 0
+    const warning: string | null = fbOk && googleOk ? null : fbOk ? 'Google n/a' : googleOk ? 'FB n/a' : 'n/a'
+    const subtitle = fbOk && googleOk ? 'All channels' : fbOk ? 'Facebook only' : googleOk ? 'Google only' : 'no live spend feed'
+    return { fbOk, googleOk, warning, subtitle }
+  }, [fbSpendFromApi.covered, googleFeedCoversWindow, apiTotals])
+
+  const bothSpendFeedsDead = !spendHealth.fbOk && !spendHealth.googleOk
+
+  // How the Live Revenue card is painted. Green belongs to a live feed WITH money on it;
+  // a real zero next to real spend is red; an unreachable feed is grey and says n/a.
+  const revenueStatus = useMemo(() => {
+    if (bookingsFeedState !== 'live') {
+      return { tone: 'na' as const, dot: '#9ca3af', text: '#6b7280', label: 'Revenue n/a' }
+    }
+    if (revenueTotals.totalRevenue > 0) {
+      return { tone: 'live' as const, dot: '#22c55e', text: '#16a34a', label: 'Live Revenue' }
+    }
+    if (totals.spend > 5000) {
+      return { tone: 'alert' as const, dot: '#dc2626', text: '#991b1b', label: 'No revenue booked' }
+    }
+    return { tone: 'quiet' as const, dot: '#9ca3af', text: '#6b7280', label: 'Revenue' }
+  }, [bookingsFeedState, revenueTotals.totalRevenue, totals.spend])
 
   // Fail loud: a QL rate above 100% means numerator and denominator came from different
   // measuring systems. Show nothing rather than an impossible number.
@@ -402,6 +468,13 @@ export default function HomePage() {
       roas
     }
   }, [apiTotals, leadsGoogleFiltered, filteredBookings, googleSpend])
+
+  // A channel ROAS is measurable on exactly the same terms as the headline one: a whole
+  // calendar month, a live bookings feed and spend > 0. Anything else is n/a, never 0.00x.
+  const channelRoasDisplay = (spend: number, roas: number): number | null =>
+    revenueWindowIsWholeMonth && bookingsFeedState === 'live' && spend > 0 ? roas : null
+  const fbRoasDisplay = channelRoasDisplay(channelFb.spend, channelFb.roas)
+  const googleRoasDisplay = channelRoasDisplay(channelGoogle.spend, channelGoogle.roas)
 
   const revenueBySource = useMemo(() => {
     const map: Record<string, number> = { 'FB Landing': 0, 'FB Lead': 0, Google: 0 }
@@ -735,22 +808,38 @@ export default function HomePage() {
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <Card className="border-[#e1d8c7] bg-white shadow-sm transition-all duration-300 hover:border-[#B39262]/50 hover:shadow-md hover:-translate-y-0.5 lg:col-span-2">
             <CardContent className="p-6 space-y-3">
-              <div className="flex items-center gap-2 text-sm font-medium text-green-600">
-                <span className="h-2 w-2 rounded-full bg-green-500" />
-                Live Revenue
+              <div className="flex items-center gap-2 text-sm font-medium" style={{ color: revenueStatus.text }}>
+                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: revenueStatus.dot }} />
+                {revenueStatus.label}
               </div>
               <p className="text-xs tracking-[0.2em] text-gray-500">{monthRangeLabel}</p>
               <p className="text-xs tracking-[0.2em] text-gray-500">TOTAL REVENUE WON</p>
-              <div className="text-4xl font-semibold" style={{ color: gold }}>
-                {formatCurrency(revenueTotals.totalRevenue, 'EUR')}
+              <div
+                className="text-4xl font-semibold"
+                style={{
+                  color:
+                    revenueStatus.tone === 'na' ? '#9ca3af' : revenueStatus.tone === 'alert' ? '#991b1b' : gold
+                }}
+              >
+                {revenueStatus.tone === 'na' ? 'n/a' : formatCurrency(revenueTotals.totalRevenue, 'EUR')}
               </div>
-              <div className="flex flex-wrap items-center gap-3 text-sm text-gray-700">
-                <span className="flex items-center gap-1 text-green-700">
-                  ✅ <span>{revenueTotals.deals} deals closed</span>
-                </span>
-                <span className="h-4 w-px bg-gray-200" />
-                <span>Avg {formatCurrency(revenueTotals.avgDeal, 'EUR')} per deal</span>
-              </div>
+              {revenueStatus.tone === 'na' ? (
+                <div className="text-sm text-gray-500">
+                  Bookings feed does not reach {monthRangeLabel} — deals and revenue are not measurable.
+                </div>
+              ) : (
+                <div className="flex flex-wrap items-center gap-3 text-sm text-gray-700">
+                  <span
+                    className="flex items-center gap-1"
+                    style={{ color: revenueTotals.deals > 0 ? '#15803d' : '#6b7280' }}
+                  >
+                    {revenueTotals.deals > 0 ? '✅' : ''}
+                    <span>{revenueTotals.deals} deals closed</span>
+                  </span>
+                  <span className="h-4 w-px bg-gray-200" />
+                  <span>Avg {revenueTotals.deals > 0 ? formatCurrency(revenueTotals.avgDeal, 'EUR') : 'n/a'} per deal</span>
+                </div>
+              )}
                 </CardContent>
             </Card>
 
@@ -788,7 +877,15 @@ export default function HomePage() {
                 </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
-          <MetricCard title="Total Spend" value={formatCurrency(totals.spend, 'EUR')} subtitle="All channels" icon={<DollarSign className="h-4 w-4 text-[#B39262]" />} />
+          <MetricCard
+            title="Total Spend"
+            value={bothSpendFeedsDead ? 'n/a' : formatCurrency(totals.spend, 'EUR')}
+            subtitle={spendHealth.subtitle}
+            icon={<DollarSign className="h-4 w-4 text-[#B39262]" />}
+            zone={spendHealth.warning ? 'optimize' : undefined}
+            zoneLabel={spendHealth.warning || undefined}
+            target={spendHealth.warning ? 'One spend feed is not answering for this window - the total is incomplete.' : undefined}
+          />
           <MetricCard
             title="Total Leads"
             value={totals.leads.toLocaleString()}
@@ -813,10 +910,10 @@ export default function HomePage() {
           />
           <MetricCard
             title={cacMode === 'deals' ? 'CAC' : 'CPQL'}
-            value={formatCurrency(cacValue, 'EUR')}
+            value={cacValue > 0 ? formatCurrency(cacValue, 'EUR') : 'n/a'}
             subtitle={cacMode === 'deals' ? 'spend / booking' : 'spend / quality lead'}
             icon={<Target className="h-4 w-4 text-[#B39262]" />}
-            zone={cacMode === 'leads' && cacValue > 0 ? zoneForCac(cacValue) : undefined}
+            zone={(cacMode === 'leads' ? zoneForCac(cacValue) : null) ?? undefined}
             target={cacMode === 'leads' ? '€96 SCALE · €150 OPTIMIZE · €240 CUT' : undefined}
           />
           <MetricCard
@@ -849,9 +946,13 @@ export default function HomePage() {
               { label: 'Platform leads', value: channelFb.platformLeads.toLocaleString() },
               { label: 'Quality Leads', value: `${channelFb.quality.toLocaleString()} (${channelFb.qRate}%)` },
               { label: 'CPQL', value: formatCurrency(channelFb.cpql, 'EUR') },
-              { label: 'Bookings', value: channelFb.bookings.toString() },
-              { label: 'Revenue', value: formatCurrency(channelFb.revenue, 'EUR') },
-              { label: 'ROAS', value: `${channelFb.roas.toFixed(2)}x`, emphasis: true }
+              { label: 'Bookings', value: bookingsFeedState === 'live' ? channelFb.bookings.toString() : 'n/a' },
+              { label: 'Revenue', value: bookingsFeedState === 'live' ? formatCurrency(channelFb.revenue, 'EUR') : 'n/a' },
+              {
+                label: 'ROAS',
+                value: fbRoasDisplay !== null ? `${fbRoasDisplay.toFixed(2)}x` : 'n/a',
+                zone: fbRoasDisplay !== null ? zoneForRoas(fbRoasDisplay) : null
+              }
             ]}
           />
           <ChannelCard
@@ -863,9 +964,13 @@ export default function HomePage() {
               { label: 'Platform leads', value: channelGoogle.platformLeads.toLocaleString() },
               { label: 'Quality Leads', value: `${channelGoogle.quality.toLocaleString()} (${channelGoogle.qRate}%)` },
               { label: 'CPQL', value: formatCurrency(channelGoogle.cpql, 'EUR') },
-              { label: 'Bookings', value: channelGoogle.bookings.toString() },
-              { label: 'Revenue', value: formatCurrency(channelGoogle.revenue, 'EUR') },
-              { label: 'ROAS', value: `${channelGoogle.roas.toFixed(2)}x`, emphasis: true }
+              { label: 'Bookings', value: bookingsFeedState === 'live' ? channelGoogle.bookings.toString() : 'n/a' },
+              { label: 'Revenue', value: bookingsFeedState === 'live' ? formatCurrency(channelGoogle.revenue, 'EUR') : 'n/a' },
+              {
+                label: 'ROAS',
+                value: googleRoasDisplay !== null ? `${googleRoasDisplay.toFixed(2)}x` : 'n/a',
+                zone: googleRoasDisplay !== null ? zoneForRoas(googleRoasDisplay) : null
+              }
             ]}
           />
                     </div>
@@ -1054,14 +1159,29 @@ export default function HomePage() {
               <div className="flex flex-col items-center px-2">
                 <span className="text-gray-400">→</span>
                 <span className="text-xs text-gray-500">
-                  {calcRate(totals.bookings, totals.qualityLeads)}
+                  {bookingsFeedState === 'live' ? calcRate(totals.bookings, totals.qualityLeads) : '—'}
                 </span>
                 <span className="text-[11px] text-gray-500">Quality→Bookings</span>
                 <span className="text-[10px] text-gray-400">per period</span>
               </div>
               <div className="flex-1 min-w-[140px] bg-white rounded-lg shadow-sm border border-[#e1d8c7] p-4 text-center">
-                <div className="text-2xl font-bold text-gray-900">{totals.bookings.toLocaleString()}</div>
+                <div
+                  className="text-2xl font-bold"
+                  style={{
+                    color:
+                      bookingsFeedState !== 'live'
+                        ? '#9ca3af'
+                        : totals.bookings === 0 && totals.spend > 5000
+                        ? '#991b1b'
+                        : '#111827'
+                  }}
+                >
+                  {bookingsFeedState === 'live' ? totals.bookings.toLocaleString() : 'n/a'}
+                </div>
                 <div className="text-sm text-gray-500">Bookings</div>
+                {bookingsFeedState !== 'live' && (
+                  <div className="text-[11px] text-amber-700 mt-1">Bookings feed stale — not measurable</div>
+                )}
               </div>
               <div className="flex flex-col items-center px-2">
                 <span className="text-gray-400">→</span>
@@ -1071,9 +1191,22 @@ export default function HomePage() {
                 <span className="text-[11px] text-gray-500">avg deal</span>
               </div>
               <div className="flex-1 min-w-[140px] bg-white rounded-lg shadow-sm border border-[#e1d8c7] p-4 text-center">
-                <div className="text-2xl font-bold text-[#B39262]">{formatCurrencyNoCents(totals.revenue, 'EUR')}</div>
+                <div
+                  className="text-2xl font-bold"
+                  style={{
+                    color:
+                      revenueStatus.tone === 'na' ? '#9ca3af' : revenueStatus.tone === 'alert' ? '#991b1b' : gold
+                  }}
+                >
+                  {revenueStatus.tone === 'na' ? 'n/a' : formatCurrencyNoCents(totals.revenue, 'EUR')}
+                </div>
                 <div className="text-sm text-gray-500">Revenue</div>
-                <div className="text-xs text-gray-400 mt-1">ROAS {roasValue.toFixed(2)}x</div>
+                <div
+                  className="text-xs mt-1"
+                  style={{ color: roasDisplay === null ? '#9ca3af' : ZONE_STYLES[zoneForRoas(roasDisplay)].text }}
+                >
+                  ROAS {roasDisplay === null ? 'n/a' : `${roasDisplay.toFixed(2)}x`}
+                </div>
               </div>
             </div>
           </CardContent>
@@ -1422,12 +1555,18 @@ function ChannelCard({ title, icon, metrics }: ChannelCardProps) {
                     </div>
                 </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {metrics.map((metric) => (
-            <div key={metric.label} className="rounded-lg border border-[#e1d8c7] bg-[#fbf9f4] p-3">
-              <div className="text-xs text-muted-foreground">{metric.label}</div>
-              <div className={`text-sm font-semibold ${metric.emphasis ? 'text-[#1d7a3d]' : 'text-gray-900'}`}>{metric.value}</div>
-            </div>
-          ))}
+          {metrics.map((metric) => {
+            // undefined zone = plain ink. null = grey, nothing was measured. A Zone brings its
+            // own colour, so CUT reads red instead of the old unconditional green.
+            const zoneColor =
+              metric.zone === undefined ? '#111827' : metric.zone === null ? '#6b7280' : ZONE_STYLES[metric.zone].text
+            return (
+              <div key={metric.label} className="rounded-lg border border-[#e1d8c7] bg-[#fbf9f4] p-3">
+                <div className="text-xs text-muted-foreground">{metric.label}</div>
+                <div className="text-sm font-semibold" style={{ color: zoneColor }}>{metric.value}</div>
+              </div>
+            )
+          })}
         </div>
       </CardContent>
     </Card>
