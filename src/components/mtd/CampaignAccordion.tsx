@@ -10,11 +10,11 @@ import {
 } from './mtd-shared'
 import { CreativeCard } from './CreativeCard'
 
-export type FbSortField = 'spend' | 'landingLeads' | 'quality' | 'qRate' | 'cpql'
+export type FbSortField = 'spend' | 'streakLeads' | 'quality' | 'qRate' | 'cpql'
 
 export const FB_SORT_OPTIONS: { key: FbSortField; label: string }[] = [
   { key: 'spend', label: 'Spend' },
-  { key: 'landingLeads', label: 'Leads' },
+  { key: 'streakLeads', label: 'Leads' },
   { key: 'quality', label: 'QL' },
   { key: 'qRate', label: 'QL%' },
   { key: 'cpql', label: 'CPQL' },
@@ -32,7 +32,7 @@ function compareCampaigns(a: FbCampaign, b: FbCampaign, field: FbSortField, dir:
     return (av - bv) * mul
   }
   const pick = (c: FbCampaign): number =>
-    field === 'landingLeads' ? c.landingLeads
+    field === 'streakLeads' ? c.streakLeads
     : field === 'quality' ? c.quality
     : field === 'qRate' ? c.qRate
     : c.spend
@@ -96,8 +96,17 @@ function AdsetRow({ view, turkey, searchActive }: { view: AdsetView; turkey: boo
         </div>
         <div className="flex flex-wrap gap-x-5 gap-y-1 ml-auto">
           <CTile label="Spend" value={eur(adset.spend)} />
-          <CTile label="Leads" value={intFmt(adset.landing_leads)} />
-          <CTile label="CPL" value={adset.cpl > 0 ? eur2(adset.cpl) : '–'} tone={adset.cpl > 0 ? cpqlColor(adset.cpl, turkey) : undefined} />
+          {adset.altLeadValue != null ? (
+            <>
+              <CTile label={adset.altLeadLabel ?? 'Alt leads'} value={intFmt(adset.altLeadValue)} sub="Meta conv." />
+              <CTile label="CPL" value={adset.altCpl && adset.altCpl > 0 ? eur2(adset.altCpl) : '–'} />
+            </>
+          ) : (
+            <>
+              <CTile label="Leads" value={intFmt(adset.landing_leads)} />
+              <CTile label="CPL" value={adset.cpl > 0 ? eur2(adset.cpl) : '–'} />
+            </>
+          )}
           <CTile label="CTR" value={pct1(adset.ctr)} />
         </div>
       </button>
@@ -139,21 +148,47 @@ function CampaignRow({ view, searchActive }: { view: CampaignView; searchActive:
         </div>
         <div className="flex flex-wrap gap-x-6 gap-y-1.5 ml-auto">
           <CTile label="Spend" value={eur(c.spend)} />
-          <CTile label="Leads" value={intFmt(c.landingLeads)} />
+          {/* Leads = Streak, the same population QL / QL% / CPQL are computed on. Showing the
+              Meta pixel count here instead made every row self-contradict (QL 27 of "30" when
+              the QL% was 27/37, rows with 0 leads and 1 QL) — fixed 2026-08-29. */}
+          <CTile label="Leads" value={intFmt(c.streakLeads)} sub="Streak" />
+          {/* A lead MAGNET converts on its own Meta custom conversion (calculator unlock,
+              registration), never on the Landing Lead pixel — so its row shows that count and
+              its own CPL instead of a hard zero under "LP leads". */}
+          {c.altLeadValue != null ? (
+            <>
+              <CTile label={c.altLeadLabel ?? 'Alt leads'} value={intFmt(c.altLeadValue)} sub="Meta conv." />
+              <CTile label="CPL" value={c.altCpl && c.altCpl > 0 ? eur2(c.altCpl) : '–'} sub="lead magnet" />
+            </>
+          ) : (
+            <CTile label="LP leads" value={intFmt(c.landingLeads)} sub="Meta pixel" />
+          )}
           <CTile label="QL" value={c.qualityTracked ? intFmt(c.quality) : '–'} />
           <CTile label="QL%" value={c.qualityTracked ? pct0(c.qRate) : '–'} tone={c.qualityTracked ? (qlGood ? '#047857' : undefined) : undefined} />
           <CTile
             label="CPQL"
             value={c.qualityTracked && c.cpql > 0 ? eur2(c.cpql) : '–'}
-            tone={c.qualityTracked && c.cpql > 0 ? cpqlColor(c.cpql, turkey) : undefined}
-            sub="on tracked QL"
+            // A lead magnet's own CPQL is real but must not be painted with the charter CPQL
+            // zones — it is not competing for the same budget and its spend never enters the
+            // blended account CPQL.
+            tone={c.qualityTracked && c.cpql > 0 && c.altLeadValue == null ? cpqlColor(c.cpql, turkey) : undefined}
+            sub={c.altLeadValue != null ? 'excl. from blended' : 'on tracked QL'}
           />
         </div>
       </button>
       {open && hasChildren && (
         <div className="px-4 pb-4 pt-1 border-t bg-[#FAF8F5] space-y-2">
+          {c.altLeadValue != null && (
+            <p className="text-[11px] pt-2" style={{ color: '#8a6d3b' }}>
+              <strong>Lead magnet.</strong> Converts on the Meta custom conversion &ldquo;{c.altLeadLabel}&rdquo;, which never
+              becomes a Streak inquiry — so this campaign carries no QL and its spend is <strong>excluded from the blended
+              account CPQL</strong>. The count is <strong>Meta-attributed, not CRM-confirmed</strong> (25 HubSpot form submits
+              against 64 Meta conversions, 2–8 Sep).
+            </p>
+          )}
           <p className="text-[11px] text-gray-400 italic pt-2">
-            Ad sets &amp; ads show <strong>Landing Leads / CPL</strong> (Meta exact); QL/CPQL live at campaign level only.
+            Ad sets &amp; ads show <strong>Meta pixel Landing Leads / CPL</strong> — a different population from the
+            Streak leads above, and uncoloured because the CPQL zones do not apply to pixel leads. QL/CPQL live at campaign level only.
           </p>
           {adsetViews.map((v) => <AdsetRow key={v.adset.id} view={v} turkey={turkey} searchActive={searchActive} />)}
         </div>

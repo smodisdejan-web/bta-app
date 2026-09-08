@@ -100,12 +100,14 @@ export function CreativeCard({ ad, highlight = false }: { ad: FbAd; turkey?: boo
       {/* 6-stat grid */}
       <div className="grid grid-cols-3 gap-x-1 gap-y-2 py-2 border-y border-gray-100">
         <Stat label="Spend" value={eur(ad.spend)} />
-        <Stat label="Leads" value={intFmt(ad.landing_leads)} />
+        {/* Lead-magnet ads convert on their own Meta custom conversion (calculator unlock,
+            registration) and never on the Landing Lead pixel — show that count, not a zero. */}
+        <Stat label={ad.altLeadValue != null ? (ad.altLeadLabel ?? 'Alt leads') : 'Leads'} value={intFmt(ad.altLeadValue != null ? ad.altLeadValue : ad.landing_leads)} />
         {/* Uncoloured on purpose. CPL is priced on ~1,600 Meta pixel Landing Leads while the CPQL
             zones (EUR 96 / 150 / 240) are priced on ~780 Streak QL, so CPL runs at roughly half of
             CPQL by construction and painting it with that palette turned 74 of 78 ads green. The
             caption on the parent accordion already promises these are uncoloured. */}
-        <Stat label="CPL" value={ad.cpl > 0 ? eur2(ad.cpl) : '–'} />
+        <Stat label="CPL" value={(ad.altLeadValue != null ? (ad.altCpl ?? 0) : ad.cpl) > 0 ? eur2(ad.altLeadValue != null ? ad.altCpl : ad.cpl) : '–'} />
         <Stat label="CTR" value={pct1(ad.ctr)} />
         <Stat label="Play rate" value={ad.hook_rate != null ? pct1(ad.hook_rate * 100) : '–'} />
         <Stat label="ThruPlay" value={ad.hold_rate != null ? pct1(ad.hold_rate * 100) : '–'} />

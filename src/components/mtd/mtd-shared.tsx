@@ -25,7 +25,9 @@ export type MarketKey = 'all' | 'Croatia/Other' | 'Turkey'
 export type CampaignMarket = 'Croatia/Other' | 'Turkey'
 
 export interface BookingCell { bookings: number; revenue: number }
-export interface ScoredCell { scored: number; quality: number }
+/** `excellent` is written by the build from the SAME Streak population as scored/quality.
+ *  Optional because archived months predate it — callers fall back to the campaign sum. */
+export interface ScoredCell { scored: number; quality: number; excellent?: number }
 
 export interface FbTotals {
   spend: number; clicks: number; linkClicks?: number | null; lpViews: number; landingLeads: number
@@ -42,8 +44,15 @@ export interface FbCampaign {
   linkClicks?: number | null
   /** Campaign objective's result label from Meta, e.g. "Landing Lead", "Post Interaction". */
   resultLabel?: string | null
-  /** Set by the build when the campaign is NOT part of the lead programme. */
-  nonLeadReason?: 'objective' | 'recruitment' | null
+  /** Set by the build when the campaign is NOT part of the lead programme.
+   *  'not-goolets' = runs in the Goolets ad account but is not Goolets marketing. */
+  nonLeadReason?: 'objective' | 'recruitment' | 'not-goolets' | null
+  /** LEAD MAGNET result (calculator unlock, lead-magnet registration): a real conversion that
+   *  never reaches Streak, so it is priced on its own CPL and kept out of the blended CPQL. */
+  altLeadLabel?: string | null
+  altLeadValue?: number | null
+  altCpl?: number | null
+  leadMagnet?: boolean
   /** Name of the twin campaign that runs the same ads under the same utm_campaign. Set on the
    *  twin whose leads are indistinguishable, so the page says so instead of printing a zero. */
   sharesAttributionWith?: string | null
@@ -56,7 +65,9 @@ export interface FbCampaign {
 export interface FbAdset {
   id: string; name: string; status: string; campaign_name: string
   spend: number; clicks: number; ctr: number; impressions: number
+  linkClicks?: number | null
   landing_leads: number; cpl: number
+  altLeadLabel?: string | null; altLeadValue?: number | null; altCpl?: number | null
 }
 export interface CopyVariant {
   text: string; spend: number; impressions: number; clicks: number; ctr: number
@@ -64,6 +75,8 @@ export interface CopyVariant {
 export interface FbAd {
   id: string; adset_id: string; name: string; status: string; spend: number
   impressions: number; clicks: number; ctr: number; landing_leads: number; cpl: number
+  linkClicks?: number | null
+  altLeadLabel?: string | null; altLeadValue?: number | null; altCpl?: number | null
   hook_rate: number | null; hold_rate: number | null; body: string; title: string
   cta: string; thumbnail_url: string | null; thumb: string | null; is_video: boolean
   drive_url?: string | null; drive_confidence?: string | null
@@ -433,12 +446,14 @@ const MIN_SPEND = 300
 const MIN_LEADS = 5
 
 /** Objectives that cannot produce a lead — grading them on CPQL is meaningless. */
-const LEAD_RESULTS = new Set(['Landing Lead', 'Landing Lead (CLG)', 'Lead (Form)', 'Complete Registration', 'Contact'])
+const LEAD_RESULTS = new Set(['Landing Lead', 'Landing Lead (CLG)', 'Lead (Form)', 'Complete Registration', 'Contact', 'Calculator Lead'])
 
 export type Verdict =
   | { kind: 'turkey' }
   | { kind: 'early' }
   | { kind: 'nonLead' }
+  | { kind: 'notGoolets' }
+  | { kind: 'leadMagnet'; leadLabel: string }
   | { kind: 'untracked' }
   | { kind: 'shared'; twinOf: string }
   | { kind: 'zone'; zone: Zone }
@@ -452,10 +467,16 @@ export type Verdict =
 export function campaignVerdict(c: {
   market: CampaignMarket; spend: number; streakLeads: number
   qualityTracked: boolean; cpql: number; resultLabel?: string | null
-  nonLeadReason?: 'objective' | 'recruitment' | null
+  nonLeadReason?: 'objective' | 'recruitment' | 'not-goolets' | null
   sharesAttributionWith?: string | null
+  altLeadLabel?: string | null
 }): Verdict {
+  // Not Goolets marketing at all — must outrank every other grade, including Turkey.
+  if (c.nonLeadReason === 'not-goolets') return { kind: 'notGoolets' }
   if (c.market === 'Turkey') return { kind: 'turkey' }
+  // A lead MAGNET converts (calculator unlock, registration) but never produces a Streak QL,
+  // so it can be graded neither on CPQL nor as "not a lead campaign". Its own row, its own CPL.
+  if (c.altLeadLabel) return { kind: 'leadMagnet', leadLabel: c.altLeadLabel }
   if (c.nonLeadReason || (c.resultLabel && !LEAD_RESULTS.has(c.resultLabel))) return { kind: 'nonLead' }
   // Graded with its twin, not on its own zero. Must come before the TOO EARLY test, which would
   // otherwise read "no leads yet" over leads that exist but cannot be told apart.
@@ -478,6 +499,27 @@ export function VerdictBadge({ verdict }: { verdict: Verdict }) {
   }
   if (verdict.kind === 'nonLead') {
     return <span className="text-[10px] font-bold tracking-[0.04em] px-2 py-1 rounded bg-gray-100 text-gray-500">NOT A LEAD CAMPAIGN</span>
+  }
+  if (verdict.kind === 'notGoolets') {
+    return (
+      <span
+        className="text-[10px] font-bold tracking-[0.04em] px-2 py-1 rounded bg-gray-100 text-gray-500"
+        title="Dejan's personal-brand boost, billed through the Goolets ad account. Not Goolets marketing — excluded from every headline."
+      >
+        NOT GOOLETS
+      </span>
+    )
+  }
+  if (verdict.kind === 'leadMagnet') {
+    return (
+      <span
+        className="text-[10px] font-bold tracking-[0.04em] px-2 py-1 rounded"
+        style={{ color: '#8a6d3b', backgroundColor: '#B392621f' }}
+        title={`Lead magnet: converts on ${verdict.leadLabel}, which never becomes a Streak inquiry. Priced on its own CPL — excl. from the blended CPQL.`}
+      >
+        LEAD MAGNET
+      </span>
+    )
   }
   if (verdict.kind === 'shared') {
     return (
