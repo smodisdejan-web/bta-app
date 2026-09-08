@@ -16,7 +16,7 @@ import {
 } from 'lucide-react'
 import { Pie, PieChart, ResponsiveContainer, Cell, Tooltip, Legend, ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { fetchFbEnriched, fetchStreakSync, fetchTab, fetchBookings, BookingRecord, StreakLeadRow } from '@/lib/sheetsData'
-import { getSheetsUrl } from '@/lib/config'
+import { getSheetsUrl, SHEETS_TABS } from '@/lib/config'
 import { formatCurrency } from '@/lib/utils'
 import { AiAsk } from '@/components/overview/AiAsk'
 import {
@@ -49,6 +49,12 @@ type ChannelCardProps = {
   title: string
   icon: React.ReactNode
   metrics: ChannelMetric[]
+}
+
+type FbSpendApiRow = {
+  date: string
+  campaign: string
+  spend: number
 }
 
 type DailyRow = {
@@ -90,6 +96,7 @@ export default function HomePage() {
   const [bookings, setBookings] = useState<BookingRecord[]>([])
   const [fbEnriched, setFbEnriched] = useState<any[]>([])
   const [googleDaily, setGoogleDaily] = useState<DailyRow[]>([])
+  const [fbSpendApi, setFbSpendApi] = useState<FbSpendApiRow[]>([])
   const [streakFb, setStreakFb] = useState<StreakLeadRow[]>([])
   const [streakGoogle, setStreakGoogle] = useState<StreakLeadRow[]>([])
   const [aiBullets, setAiBullets] = useState<string[]>([])
@@ -118,12 +125,18 @@ export default function HomePage() {
       setError(null)
       try {
         const sheetUrl = getSheetsUrl()
-        const [{ headers: dailyHeaders, rows: dailyRows }, fbRows, streakAll, bookingRows] =
+        const [{ headers: dailyHeaders, rows: dailyRows }, fbRows, streakAll, bookingRows, fbApi] =
           await Promise.all([
             fetchTab('daily_api', sheetUrl), // CUTOVER 2026-06-15: Google Ads API (was Mixed Analytics 'daily')
             fetchFbEnriched(fetchFbEnrichedSheet, sheetUrl),
             fetchStreakSync(fetchFbEnrichedSheet, sheetUrl),
-            fetchBookings(fetchFbEnrichedSheet)
+            fetchBookings(fetchFbEnrichedSheet),
+            // FB spend straight from Meta (code/facebook/sync-fb-ads-api.js). Read on the CLIENT,
+            // not via /api/dashboard-totals: that route re-fetches the same Apps Script web app
+            // while these four calls are in flight, hits the Apps Script concurrency limit and
+            // hangs for minutes, so `apiTotals` stays null and FB spend silently fell back to the
+            // dead `fb_ads_enriched` column -> EUR 0 for September. See 2026-09-08 diagnosis.
+            fetchTab(SHEETS_TABS.FB_SPEND_DAILY, sheetUrl)
           ])
 
         const fbLeads = (streakAll || []).filter((l) => (l as any).platform === 'facebook')
@@ -134,6 +147,7 @@ export default function HomePage() {
         setStreakGoogle(googleLeads || [])
         setBookings(bookingRows || [])
         setGoogleDaily(mapDailyRows(dailyHeaders, dailyRows))
+        setFbSpendApi(mapFbSpendApiRows(fbApi?.headers || [], fbApi?.rows || []))
       } catch (e) {
         console.error('Failed to load overview data', e)
         setError('Failed to load data')
@@ -160,19 +174,38 @@ export default function HomePage() {
   // priced the whole month's revenue against seven days of spend and printed ROAS 19.33x in a
   // green SCALE badge when the window's true ceiling was ~3.4x. Only This Month and Last Month
   // happened to line up. Compare on LOCAL calendar days, the same basis dateBounds uses.
-  const filteredBookings = useMemo(() => {
+  // `bookings_api` carries MONTH granularity only -- `booking_date` is "YYYY-MM", both in the
+  // sheet and after fetchBookings() truncates it. Comparing that against day keys (the 2026-08-31
+  // "day window" rewrite did: "2026-09" >= "2026-09-01" is FALSE in JS, a shorter string sorts
+  // before its own prefix extension) silently dropped EVERY booking in EVERY range: Live Revenue
+  // read EUR 0.00 / 0 deals / ROAS 0.00x from 31.8. onwards, while September actually held four
+  // bookings worth EUR 91,800. Match on the months the window touches instead.
+  const windowMonths = useMemo(() => {
     const { start, end } = dateBounds
-    const startKey = toLocalISODate(start)
-    const endKey = toLocalISODate(end)
+    const months = new Set<string>()
+    const cur = new Date(start.getFullYear(), start.getMonth(), 1)
+    const last = new Date(end.getFullYear(), end.getMonth(), 1)
+    while (cur <= last) {
+      months.add(`${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}`)
+      cur.setMonth(cur.getMonth() + 1)
+    }
+    return months
+  }, [dateBounds])
+
+  const filteredBookings = useMemo(() => {
     return bookings.filter((b) => {
       const raw = String(b.booking_date || '')
       if (!raw) return false
-      // A bare "YYYY-MM-DD" is already a local calendar day; an ISO timestamp must be converted
-      // to local parts first, or a late-evening UTC stamp lands on the wrong side of a boundary.
-      const key = raw.includes('T') ? toLocalISODate(new Date(raw)) : raw.slice(0, 10)
-      return key >= startKey && key <= endKey
+      const month = raw.includes('T') ? toLocalISODate(new Date(raw)).slice(0, 7) : raw.slice(0, 7)
+      return windowMonths.has(month)
     })
-  }, [bookings, dateBounds])
+  }, [bookings, windowMonths])
+
+  // A rolling day window (7d/30d/60d/90d) can never be priced against month-level bookings: it
+  // would put a whole month of revenue over a few days of spend -- the 19.33x ROAS the 31.8.
+  // commit was right to kill. This Month / Last Month ARE whole calendar months, so they are the
+  // only ranges where a revenue-over-spend ratio is a real measurement.
+  const revenueWindowIsWholeMonth = range === 'mtd' || range === 'lastMonth'
 
   const revenueTotals = useMemo(() => {
     const totalRevenue = filteredBookings.reduce((sum, b) => sum + (b.rvc || 0), 0)
@@ -222,6 +255,27 @@ export default function HomePage() {
     () => fbEnrichedFiltered.reduce((sum, r: any) => sum + (r.spend || 0), 0),
     [fbEnrichedFiltered]
   )
+  // Authoritative FB spend: `fb_ads_api` (Meta -> sheet, daily). `fb_ads_enriched` is a Mixed
+  // Analytics feed frozen since 2026-08-09, so its spend column is 0 for anything after that.
+  const fbSpendFromApi = useMemo(() => {
+    const startKey = toLocalISODate(dateBounds.start)
+    const endKey = toLocalISODate(dateBounds.end)
+    let total = 0
+    let covered = false
+    for (const r of fbSpendApi) {
+      if (r.date >= startKey && r.date <= endKey) {
+        total += r.spend
+        covered = true
+      }
+    }
+    return { total, covered }
+  }, [fbSpendApi, dateBounds])
+  /** Last day `fb_ads_api` carries — used to say how fresh the FB half of Total Spend is. */
+  const fbSpendLastDay = useMemo(() => {
+    let max = ''
+    for (const r of fbSpendApi) if (r.date > max) max = r.date
+    return max
+  }, [fbSpendApi])
   const fbLeads = useMemo(
     () => fbEnrichedFiltered.reduce((sum, r: any) => sum + (r.fb_form_leads || 0) + (r.landing_leads || 0), 0),
     [fbEnrichedFiltered]
@@ -258,7 +312,15 @@ export default function HomePage() {
   )
 
   const totals: SummaryData = useMemo(() => {
-    const totalSpend = apiTotals?.combined?.spend ?? fbSpend + googleSpend
+    // Spend precedence: fb_ads_api (Meta, daily) > /api/dashboard-totals > fb_ads_enriched.
+    // The old line trusted `apiTotals` first and fell all the way back to `fbSpend` (enriched)
+    // when that route did not answer. On 2026-09-08 the route hung on the Apps Script
+    // concurrency limit, enriched had no September rows, and Total Spend printed EUR 6,029.99
+    // (Google only) instead of EUR 20,526.69 -- CPQL EUR 31.41 instead of EUR 106.91.
+    const fbSpendFinal = fbSpendFromApi.covered
+      ? fbSpendFromApi.total
+      : apiTotals?.fb?.spend ?? fbSpend
+    const totalSpend = fbSpendFinal + (apiTotals?.google?.spend ?? googleSpend)
     // LEADS = Streak CRM, the same set QL / QL% / CPQL are counted from. The platform-reported
     // count is a different measuring system and is kept separate, never as a QL denominator.
     const totalLeads = leadsFiltered.length
@@ -271,7 +333,7 @@ export default function HomePage() {
     // "CPC" arrow both read this, and a half-measured denominator is worse than an absent one.
     const lpViews = fbEnrichedCoversWindow ? fbLpViews + googleClicks : null
     return { spend: totalSpend, leads: totalLeads, platformLeads, qualityLeads: totalQuality, avgAi, bookings: bookingsCount, revenue, lpViews }
-  }, [apiTotals, fbSpend, googleSpend, leadsFiltered, filteredBookings.length, revenueTotals.totalRevenue, fbLpViews, googleClicks])
+  }, [apiTotals, fbSpend, fbSpendFromApi, googleSpend, leadsFiltered, filteredBookings.length, revenueTotals.totalRevenue, fbLpViews, googleClicks])
 
   const cacValue = useMemo(() => {
     if (cacMode === 'deals') {
@@ -281,6 +343,8 @@ export default function HomePage() {
   }, [totals, cacMode])
 
   const roasValue = useMemo(() => (totals.spend > 0 ? totals.revenue / totals.spend : 0), [totals])
+  /** null = not measurable for this window (month-level bookings vs. a rolling day window). */
+  const roasDisplay = revenueWindowIsWholeMonth && totals.spend > 0 ? roasValue : null
 
   // Fail loud: a QL rate above 100% means numerator and denominator came from different
   // measuring systems. Show nothing rather than an impossible number.
@@ -300,7 +364,7 @@ export default function HomePage() {
     const qRate = leadsCount > 0 ? Math.round((quality / leadsCount) * 100) : 0
     const bookingsFb = filteredBookings.filter((b) => b.source.startsWith('fb_'))
     const revenueFb = bookingsFb.reduce((s, b) => s + (b.rvc || 0), 0)
-    const spend = apiTotals?.fb?.spend ?? fbSpend
+    const spend = fbSpendFromApi.covered ? fbSpendFromApi.total : apiTotals?.fb?.spend ?? fbSpend
     const roas = spend > 0 ? revenueFb / spend : 0
     const cpql = quality > 0 ? spend / quality : 0
     return {
@@ -314,7 +378,7 @@ export default function HomePage() {
       revenue: revenueFb,
       roas
     }
-  }, [apiTotals, leadsFbFiltered, filteredBookings, fbSpend])
+  }, [apiTotals, leadsFbFiltered, filteredBookings, fbSpend, fbSpendFromApi])
 
   const channelGoogle = useMemo(() => {
     const quality = qualityCount(leadsGoogleFiltered)
@@ -506,7 +570,7 @@ export default function HomePage() {
     avgAiScore: totals.avgAi,
     totalBookings: totals.bookings,
     totalRevenue: totals.revenue,
-    overallROAS: roasValue,
+    overallROAS: roasDisplay,
     overallCAC: cacValue,
     cacMode,
     facebook: {
@@ -533,7 +597,7 @@ export default function HomePage() {
     topMarkets,
     leadTrend,
     funnel
-  }), [range, totals, roasValue, cacValue, cacMode, channelFb, channelGoogle, revenueBySource, topMarkets, leadTrend, funnel])
+  }), [range, totals, roasDisplay, cacValue, cacMode, channelFb, channelGoogle, revenueBySource, topMarkets, leadTrend, funnel])
 
   // The summary used to fire on every change of `aiMetricsPayload`, starting with the FIRST
   // render — before any sheet had loaded. That first POST carried an all-zero payload, and the
@@ -757,11 +821,11 @@ export default function HomePage() {
           />
           <MetricCard
             title="ROAS"
-            value={`${roasValue.toFixed(2)}x`}
-            subtitle="return on ad spend"
+            value={roasDisplay !== null ? `${roasDisplay.toFixed(2)}x` : 'n/a'}
+            subtitle={roasDisplay !== null ? 'return on ad spend' : 'bookings are month-level'}
             icon={<BarChart3 className="h-4 w-4 text-[#34a853]" />}
             accent="#34a853"
-            zone={totals.spend > 0 ? zoneForRoas(roasValue) : undefined}
+            zone={roasDisplay !== null ? zoneForRoas(roasDisplay) : undefined}
             target="ROMI break-even 2.8x"
           />
             </div>
@@ -1135,6 +1199,22 @@ function mapDailyRows(headers: string[], rows: any[][]): DailyRow[] {
     conv: Number(r[idx.conv]) || 0,
     value: Number(r[idx.value]) || 0
   }))
+}
+
+/** Rows of the `fb_ads_api` tab: one (date, campaign, spend) triple straight from Meta. */
+function mapFbSpendApiRows(headers: string[], rows: any[][]): FbSpendApiRow[] {
+  if (!headers?.length || !rows?.length) return []
+  const norm = (v: any) => String(v || '').trim().toLowerCase()
+  const col = (name: string) => headers.findIndex((h) => norm(h) === name)
+  const idx = { date: col('date'), campaign: col('campaign'), spend: col('spend') }
+  if (idx.date === -1 || idx.spend === -1) return []
+  return rows
+    .map((r) => ({
+      date: String(r[idx.date] || '').slice(0, 10),
+      campaign: idx.campaign === -1 ? '' : String(r[idx.campaign] || ''),
+      spend: Number(r[idx.spend]) || 0
+    }))
+    .filter((r) => /^\d{4}-\d{2}-\d{2}$/.test(r.date))
 }
 
 /** ISO date of the Monday starting this date's local week. */
