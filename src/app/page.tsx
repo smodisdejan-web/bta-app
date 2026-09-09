@@ -427,6 +427,15 @@ export default function HomePage() {
     const quality = qualityCount(leadsFbFiltered)
     const leadsCount = leadsFbFiltered.length
     const platformLeads = (apiTotals?.fb?.fbFormLeads || 0) + (apiTotals?.fb?.landingLeads || 0)
+    // `fb_ads_enriched` is the ONLY source for FB platform leads / clicks / LP views and it
+    // stopped emitting rows on 2026-08-08 (last date in the tab). Spend still arrives, because
+    // fetchFacebookAds backfills it from fb_ads_api, so the card kept printing "Platform leads 0"
+    // next to EUR 16,360 of spend — a dead feed rendered as a measurement of zero. No window can
+    // truthfully carry spend with zero clicks AND zero LP views AND zero leads, so when all four
+    // enriched-derived fields are empty the feed did not cover the window and the tile says n/a.
+    // Display only — platformLeads itself is untouched.
+    const platformLeadsMeasured =
+      ((apiTotals?.fb?.clicks || 0) + (apiTotals?.fb?.lpViews || 0) + platformLeads) > 0
     const qRate = leadsCount > 0 ? Math.round((quality / leadsCount) * 100) : 0
     const bookingsFb = filteredBookings.filter((b) => b.source.startsWith('fb_'))
     const revenueFb = bookingsFb.reduce((s, b) => s + (b.rvc || 0), 0)
@@ -437,6 +446,7 @@ export default function HomePage() {
       spend,
       leads: leadsCount,
       platformLeads,
+      platformLeadsMeasured,
       quality,
       qRate,
       cpql,
@@ -943,7 +953,11 @@ export default function HomePage() {
             metrics={[
               { label: 'Spend', value: formatCurrency(channelFb.spend, 'EUR') },
               { label: 'Leads', value: channelFb.leads.toLocaleString() },
-              { label: 'Platform leads', value: channelFb.platformLeads.toLocaleString() },
+              {
+                label: 'Platform leads',
+                value: channelFb.platformLeadsMeasured ? channelFb.platformLeads.toLocaleString() : 'n/a',
+                zone: channelFb.platformLeadsMeasured ? undefined : null
+              },
               { label: 'Quality Leads', value: `${channelFb.quality.toLocaleString()} (${channelFb.qRate}%)` },
               { label: 'CPQL', value: formatCurrency(channelFb.cpql, 'EUR') },
               { label: 'Bookings', value: bookingsFeedState === 'live' ? channelFb.bookings.toString() : 'n/a' },
