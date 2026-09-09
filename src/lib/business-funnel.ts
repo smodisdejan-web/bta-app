@@ -2081,10 +2081,12 @@ export async function loadBusinessFunnel(opts: {
         'Revenue = RVC, which is already the Goolets commission — it is never multiplied by a margin.',
         'Leads and QL come from Streak (SSOT), never from FB pixel counts.',
         `bookings_api currently ends ${bookings.coverage.max || 'n/a'} — months after that are null (not synced yet), never 0.`,
-        `streak_sync starts ${streak.coverage.min || 'n/a'}: there are no lead or QL numbers before that date, at all.`,
+        `The Streak lead feed starts ${streak.coverage.min || 'n/a'}: there are no lead or QL numbers before that date, at all.`,
         'attribution.unattributed is the GLOBAL remainder: Streak leads in range that match none of the umbrellas (empty utm_content, bare "Facebook", "ig / instagram_stories", raw ids). It is the same figure on every view (channel-filtered when a channel is set).',
         'campaignMembership.umbrellas: 14 mutually-exclusive umbrellas resolved by EXACT platform campaign name first, then the fallback regexes in an explicit order. umbrellas + unattributed = master for spend, leads, bookings and revenue (for QL use qualityLeadsIncludingAsset — the master QL step excludes ASSET by design). nonKpi umbrellas (boost, youtube, matchmaker) are inside master totals but flagged so the frontend can drop them from CPL/CPQL comparisons.',
-        `campaignMembership.unattributed.members lists platform campaigns whose spend lands in no umbrella — it must be empty, and unattributed.spend must be 0. Currently ${orphanSpend.size} such campaign(s).`,
+        orphanSpend.size
+          ? `campaignMembership.unattributed.members lists the ${orphanSpend.size} platform campaign(s) whose spend lands in no umbrella (EUR ${campaignMembership.unattributed.spend.toFixed(2)}, ${masterAgg.spend > 0 ? ((campaignMembership.unattributed.spend / masterAgg.spend) * 100).toFixed(1) : '0.0'}% of spend). On a window reaching back to January this is expected — the 14 umbrellas were defined for the campaigns running since June, so campaigns retired earlier fall here by design rather than by accident. They are still inside every master total; umbrellas + unattributed = master.`
+          : 'campaignMembership.unattributed.members is empty: every platform campaign with spend in this window belongs to an umbrella.',
         slug === 'master'
           ? `campaignSummary[].campaigns lists the EXACT platform campaign names under each umbrella (same strings as fb_ads_api / daily_api / the Acq Channel sheet). Sub-rows always sum back to the umbrella totals; whatever cannot be pinned to one real campaign sits in "${UNASSIGNED}" rather than being guessed onto one.`
           : null,
