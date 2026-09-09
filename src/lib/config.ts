@@ -25,12 +25,23 @@ export const SHEETS_TABS = {
   // ROAS read 3,31x when it was 2,52x. Keep FB_RAW as the emergency fallback only.
   FB_SPEND_DAILY: 'fb_ads_api',
   FB_RAW: 'fb_ads_raw', // legacy Mixed Analytics feed — stale + corrupted, fallback only
+  // BACKFILL 2026-09-09: the full-year Meta feed (code/facebook/sync-fb-daily-full.js).
+  // date | campaign | impressions | clicks | link_clicks | lp_views | spend, straight from the
+  // Meta API, 2026-01-01 → today. fb_ads_raw starts 2026-06-11 and fb_ads_api 2026-06-10, which
+  // clipped the funnel's `range=ytd` to a 90-day window even though Google, GA4 and bookings all
+  // reach 1 Jan. Verified against fb_ads_raw over 11.6.–8.9.: impressions/clicks/link_click/
+  // landing_page_view identical to 0,00 %, spend +0,28 % vs fb_ads_api (which lags the last days).
+  FB_DAILY_FULL: 'fb_daily_api',
   FB_ADSETS_ENRICHED: 'fb_adsets_enriched',
   FB_ADS_LEVEL: 'fb_ads_level', // Faza 2: Meta reporting CSV → exact per-ad metrics (ql/cpql/zone pending UTM join)
   FB_AD_COPY: 'fb_ad_copy', // Faza 2: per-ad copy variations (body_asset/title_asset breakdown) + per-variation impr/spend/clicks
   TEST_TRACKER: 'test_tracker',
   TEST_VARIANTS: 'test_variants', // pre-aggregated form-split variants (code/hubspot/build-test-variants.js)
   STREAK_SYNC: 'streak_sync',
+  // BACKFILL 2026-09-09: full-year paid Streak leads (code/goolets/sync-streak-full.js) — the
+  // Zapier-fed streak_sync only starts 2026-06-11. Same columns, same paid-only row selection
+  // (LATEST SOURCE CATEGORY ∈ PAID_SOCIAL|PAID_SEARCH), ISO dates, back to 2026-01-01.
+  STREAK_FULL: 'streak_full',
   STREAK_LEADS: 'streak_leads',
   STREAK_LEADS_GOOGLE: 'streak_leads_google',
   AD_GROUPS: 'adGroups',

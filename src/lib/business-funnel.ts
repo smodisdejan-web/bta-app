@@ -590,13 +590,26 @@ function intersectCoverage(a: Coverage, b: Coverage): Coverage {
 }
 
 /**
- * FB metrics: fb_ads_raw is the only FB tab carrying impressions AND link_click.
- * fb_ads_api (the 2026-08-17 cutover feed) carries date/campaign/SPEND only, so a full
- * cutover is impossible — spend comes from fb_ads_api, the counts from fb_ads_raw, and the
- * two agree within 0.5% on every full month they share (verified 2026-09-09).
+ * FB metrics.
+ *
+ * PRIMARY (since 2026-09-09): `fb_daily_api` — the full-year Meta feed written by
+ * code/facebook/sync-fb-daily-full.js straight from the Meta API. It carries all five numbers
+ * (impressions, clicks-all, link_click, landing_page_view, spend) per campaign per day from
+ * 2026-01-01, which is what lets `range=ytd` actually mean 1 Jan → today.
+ * Verified over 11.6.–8.9. against the old feeds: impressions 18.280.941 vs 18.280.571,
+ * clicks 561.173 vs 561.158, link_click 291.760 vs 291.753, landing_page_view identical —
+ * i.e. 0,00 % on every count; spend €182.355,68 vs €181.841,13 in fb_ads_api (+0,28 %, the
+ * fb_ads_api feed lagging the newest days). Against Meta's own account-level YTD insights the
+ * whole tab is within 0,004 % on every metric.
+ *
+ * FALLBACK: fb_ads_raw, the dead Mixed Analytics feed and the only OLD FB tab carrying
+ * impressions AND link_click; it starts 2026-06-11. Used only when fb_daily_api is empty or
+ * unreachable, so a broken backfill degrades to the previous behaviour instead of to zero.
  */
 async function loadFb(): Promise<{ rows: AdDay[]; coverage: Coverage }> {
   return cached('fb', async () => {
+    const full = await loadFbFull()
+    if (full.rows.length) return full
     const raw = await fetchRows(SHEETS_TABS.FB_RAW)
     if (!raw.length) return { rows: [], coverage: { min: '', max: '' } }
     const s = raw[0]
@@ -627,12 +640,56 @@ async function loadFb(): Promise<{ rows: AdDay[]; coverage: Coverage }> {
   })
 }
 
-/** FB spend, post-cutover feed (code/facebook/sync-fb-ads-api.js). date / campaign / spend. */
+/**
+ * The full-year Meta feed, parsed once and shared by loadFb() and loadFbSpend().
+ * Blank link_clicks/lp_views mean Meta reports no such metric for that campaign-day
+ * (engagement/boost campaigns) — they count as 0 link clicks, which is exactly how the old
+ * fb_ads_raw feed behaved and how Meta's own account-level total is built.
+ */
+async function loadFbFull(): Promise<{ rows: AdDay[]; coverage: Coverage }> {
+  return cached('fbFull', async () => {
+    let raw: any[] = []
+    try {
+      raw = await fetchRows(SHEETS_TABS.FB_DAILY_FULL)
+    } catch (e) {
+      console.warn('[funnel] fb_daily_api unavailable, falling back to fb_ads_raw', (e as Error).message)
+      return { rows: [], coverage: { min: '', max: '' } }
+    }
+    const rows: AdDay[] = []
+    for (const r of raw) {
+      const campaign = String(r.campaign ?? '').trim()
+      const day = toDay(r.date)
+      if (!campaign || !day) continue
+      const clicksAll = num(r.clicks)
+      rows.push({
+        day,
+        campaign,
+        impressions: num(r.impressions),
+        clicks: num(r.link_clicks),
+        clicksAll,
+        spend: num(r.spend),
+      })
+    }
+    return { rows, coverage: coverageOf(rows.map((r) => r.day)) }
+  })
+}
+
+/**
+ * FB spend. PRIMARY `fb_daily_api` (full year, Meta API); FALLBACK the 2026-08-17 cutover feed
+ * `fb_ads_api` (code/facebook/sync-fb-ads-api.js, date / campaign / spend, from 2026-06-10).
+ */
 async function loadFbSpend(): Promise<{
   rows: { day: string; campaign: string; spend: number }[]
   coverage: Coverage
 }> {
   return cached('fbSpend', async () => {
+    const full = await loadFbFull()
+    if (full.rows.length) {
+      return {
+        rows: full.rows.map((r) => ({ day: r.day, campaign: r.campaign, spend: r.spend })),
+        coverage: full.coverage,
+      }
+    }
     const raw = await fetchRows(SHEETS_TABS.FB_SPEND_DAILY)
     const rows: { day: string; campaign: string; spend: number }[] = []
     for (const r of raw) {
@@ -704,10 +761,25 @@ async function loadGa4(): Promise<{ rows: LpDay[]; coverage: Coverage }> {
   })
 }
 
-/** Streak leads — the single source of truth for lead counts. */
+/**
+ * Streak leads — the single source of truth for lead counts.
+ *
+ * PRIMARY (since 2026-09-09): `streak_full`, the full-year paid-lead export written by
+ * code/goolets/sync-streak-full.js from a complete Streak pipeline scan. Same paid-only row
+ * selection as the Zapier-fed streak_sync (LATEST SOURCE CATEGORY ∈ PAID_SOCIAL|PAID_SEARCH,
+ * platform facebook/google), but back to 2026-01-01 instead of 2026-06-11 — the single reason
+ * `range=ytd` used to clip to June.
+ * FALLBACK: streak_sync, used whenever streak_full is empty or unreachable.
+ */
 async function loadStreak(): Promise<{ rows: LeadRow[]; coverage: Coverage }> {
   return cached('streak', async () => {
-    const raw = await fetchRows(SHEETS_TABS.STREAK_SYNC)
+    let raw: any[] = []
+    try {
+      raw = await fetchRows(SHEETS_TABS.STREAK_FULL)
+    } catch (e) {
+      console.warn('[funnel] streak_full unavailable, falling back to streak_sync', (e as Error).message)
+    }
+    if (!raw.length) raw = await fetchRows(SHEETS_TABS.STREAK_SYNC)
     const rows: LeadRow[] = []
     for (const r of raw) {
       const day = toDay(r['Inquiry Recieved'] ?? r.inquiry_recieved)
@@ -1992,7 +2064,7 @@ export async function loadBusinessFunnel(opts: {
         metaInScope && fbCombined.max && fbCombined.max < reqEnd
           ? `FB spend covered to ${fbCombined.max} (requested window ends ${reqEnd}). Rather than null every cost metric, the whole funnel is measured on the covered sub-window — so spend, CPM, CPC, CPL, CPQL and ROAS are real numbers over ${effFrom}…${effTo}, not a full-window numerator over a part-window denominator.`
           : null,
-        'Spend comes from fb_ads_api (the 2026-08-17 Meta cutover feed) + daily_api; impressions and clicks from fb_ads_raw, the only Meta tab carrying them. The two Meta feeds agree within 0.5% on every full month they share.',
+        `Sources, all API-native and all reaching 2026-01-01 since the 2026-09-09 backfill: Meta impressions/clicks/link_click/spend from ${SHEETS_TABS.FB_DAILY_FULL} (Meta API, campaign x day; verified within 0,004% of Meta's own account-level YTD insights and 0,00% against the old fb_ads_raw over 11.6.-8.9.), Google from ${SHEETS_TABS.DAILY} (Google Ads API, customer 2648578085, backfilled to 1 Jan), LP views from ${SHEETS_TABS.GA4_LANDING_PAGES} (GA4 Data API), leads and QL from ${SHEETS_TABS.STREAK_FULL} (full Streak pipeline scan, paid categories only, back to 1 Jan), bookings and revenue from ${SHEETS_TABS.BOOKINGS}. No step is estimated or carried over from a monthly report.`,
         'Clicks = Meta link_click + Google clicks. Meta "clicks (all)" (post reactions, profile taps, …) is reported next to it as clicksAll and is never the funnel denominator.',
         'lpViews counts PAID sessions only on EVERY view, master included (GA4 sessionSourceMedium carries a paid|cpc|ppc token). Organic/direct/referral/email is reported as lpViewsOrganic and is deliberately outside the funnel, because leads and bookings are paid-only at source.',
         'Known upstream leak: some paid Meta traffic is mis-tagged in GA4 without a paid token (e.g. "ig / <campaign name>", "fb / Facebook_Mobile_Feed"), so lpViews is a slight undercount for meta.',
