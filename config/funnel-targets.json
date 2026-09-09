@@ -1,0 +1,181 @@
+{
+  "_readme": "Targets for /api/funnel. Fill in numbers to switch the funnel from 'benchmark only' to 'benchmark + target'. Leave null for anything you do not want to grade. See config/README.md.",
+  "_units": {
+    "spend": "EUR for the whole window",
+    "leads": "count for the whole window",
+    "qualityLeads": "count for the whole window (Streak AI >= 50)",
+    "bookings": "count for the whole window",
+    "revenue": "EUR RVC for the whole window",
+    "cpl": "EUR per lead",
+    "cpql": "EUR per quality lead",
+    "costPerBooking": "EUR per booking",
+    "roas": "revenue / spend, e.g. 3.5"
+  },
+  "master": {
+    "spend": null,
+    "leads": null,
+    "qualityLeads": null,
+    "bookings": null,
+    "revenue": null,
+    "cpl": null,
+    "cpql": null,
+    "costPerBooking": null,
+    "roas": null
+  },
+  "umbrellas": {
+    "turkey": {
+      "spend": null,
+      "leads": null,
+      "qualityLeads": null,
+      "bookings": null,
+      "revenue": null,
+      "cpl": null,
+      "cpql": null,
+      "costPerBooking": null,
+      "roas": null
+    },
+    "dalmatincki": {
+      "spend": null,
+      "leads": null,
+      "qualityLeads": null,
+      "bookings": null,
+      "revenue": null,
+      "cpl": null,
+      "cpql": null,
+      "costPerBooking": null,
+      "roas": null
+    },
+    "asset": {
+      "spend": null,
+      "leads": null,
+      "qualityLeads": null,
+      "bookings": null,
+      "revenue": null,
+      "cpl": null,
+      "cpql": null,
+      "costPerBooking": null,
+      "roas": null
+    },
+    "bofu": {
+      "spend": null,
+      "leads": null,
+      "qualityLeads": null,
+      "bookings": null,
+      "revenue": null,
+      "cpl": null,
+      "cpql": null,
+      "costPerBooking": null,
+      "roas": null
+    },
+    "croatia": {
+      "spend": null,
+      "leads": null,
+      "qualityLeads": null,
+      "bookings": null,
+      "revenue": null,
+      "cpl": null,
+      "cpql": null,
+      "costPerBooking": null,
+      "roas": null
+    },
+    "earlybook": {
+      "spend": null,
+      "leads": null,
+      "qualityLeads": null,
+      "bookings": null,
+      "revenue": null,
+      "cpl": null,
+      "cpql": null,
+      "costPerBooking": null,
+      "roas": null
+    },
+    "brand": {
+      "spend": null,
+      "leads": null,
+      "qualityLeads": null,
+      "bookings": null,
+      "revenue": null,
+      "cpl": null,
+      "cpql": null,
+      "costPerBooking": null,
+      "roas": null
+    },
+    "pmax": {
+      "spend": null,
+      "leads": null,
+      "qualityLeads": null,
+      "bookings": null,
+      "revenue": null,
+      "cpl": null,
+      "cpql": null,
+      "costPerBooking": null,
+      "roas": null
+    },
+    "clg": {
+      "spend": null,
+      "leads": null,
+      "qualityLeads": null,
+      "bookings": null,
+      "revenue": null,
+      "cpl": null,
+      "cpql": null,
+      "costPerBooking": null,
+      "roas": null
+    },
+    "smarter": {
+      "spend": null,
+      "leads": null,
+      "qualityLeads": null,
+      "bookings": null,
+      "revenue": null,
+      "cpl": null,
+      "cpql": null,
+      "costPerBooking": null,
+      "roas": null
+    },
+    "dobrik": {
+      "spend": null,
+      "leads": null,
+      "qualityLeads": null,
+      "bookings": null,
+      "revenue": null,
+      "cpl": null,
+      "cpql": null,
+      "costPerBooking": null,
+      "roas": null
+    },
+    "youtube": {
+      "spend": null,
+      "leads": null,
+      "qualityLeads": null,
+      "bookings": null,
+      "revenue": null,
+      "cpl": null,
+      "cpql": null,
+      "costPerBooking": null,
+      "roas": null
+    },
+    "matchmaker": {
+      "spend": null,
+      "leads": null,
+      "qualityLeads": null,
+      "bookings": null,
+      "revenue": null,
+      "cpl": null,
+      "cpql": null,
+      "costPerBooking": null,
+      "roas": null
+    },
+    "boost": {
+      "spend": null,
+      "leads": null,
+      "qualityLeads": null,
+      "bookings": null,
+      "revenue": null,
+      "cpl": null,
+      "cpql": null,
+      "costPerBooking": null,
+      "roas": null
+    }
+  }
+}

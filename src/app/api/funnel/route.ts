@@ -1,46 +1,69 @@
 import { NextResponse } from 'next/server'
-import { loadBusinessFunnel, CAMPAIGNS, type Channel } from '@/lib/business-funnel'
+import {
+  loadBusinessFunnel,
+  resolveRange,
+  CAMPAIGNS,
+  RANGE_KEYS,
+  UMBRELLA_ORDER,
+  type Channel,
+} from '@/lib/business-funnel'
 
 // NB: deliberately NOT `dynamic = 'force-dynamic'` — that makes Next stamp
 // `max-age=0, must-revalidate` over our Cache-Control. The handler reads request.url, so
 // it is dynamic regardless, and our own s-maxage survives to the CDN.
-// GA4 (27 MB) + fb_ads_raw (4 MB) on a cold lambda — give it room; warm instances then hit
+// GA4 (32 MB) + fb_ads_raw (5 MB) on a cold lambda — give it room; warm instances then hit
 // the module-level 15-min cache inside lib/business-funnel.ts.
 export const maxDuration = 300
 export const fetchCache = 'default-no-store'
 
 // GET /api/funnel?start=YYYY-MM-DD&end=YYYY-MM-DD[&campaign=slug][&channel=meta|google]
+// GET /api/funnel?range=3m|90d|this_month|last_month|ytd[&campaign=…][&channel=…]
 //
-// Business Health Funnel for the Goolets Content Portal. One master funnel + 6 campaign
+// Business Health Funnel for the Goolets Content Portal. One master funnel + 14 umbrella
 // drill-downs, 100% live. Every step uses the SAME date range; anything that cannot be
 // computed from a real source is null — never a placeholder number.
 //
-// Campaign → entity mapping (derived from the live entity names, 2026-08-06):
+// `range` (2026-09-09): a named window, resolved server-side in Europe/Ljubljana time.
+//   3m          the 1st of the month three months back → today (2026-09-09 ⇒ 2026-06-01…today)
+//   90d         alias of 3m, kept so old links keep working
+//   this_month  1st of the current month → today
+//   last_month  the whole previous month
+//   ytd         1 January → today
+//   (omitted)   start/end are used verbatim, meta.range.requested = "custom"
+// The response always says which key was asked for and which was used:
+// meta.range = { requested, effective, from, to }.
 //
-//   slug         FB campaign            Google campaign     Streak key                 GA4 landing page
-//   ───────────────────────────────────────────────────────────────────────────────────────────────────
-//   clg          /cro lux gulet/        /^clg\b/            cro-lux | clg              /luxury-yacht-charter-in-croatia
-//   dalmatincki  /dalmatin|nocturno/    —                   /dalmatin/                 smart-luxury-sailing, sail-smarter,
-//                                                                                      exclusive-seasonal-selection,
-//                                                                                      dalmatino, nocturno, rare-opportunit
-//   earlybook    /early booking/        —                   ^earlybook2027|^early-      /private-yacht-charters-in-croatia-2027
-//                                                           booking
-//   turkey       /turkey|tosca|belgin|  /turkey/            same token set              turkey|belgin|tosca|esma|arabella
-//                 esma/
-//   smarter      /the smarter way/      —                   ^alessandro_smarter        /alessandro-the-smarter-way
-//   dobrik       /dobrik/               /dobrik/            ^dobrik                    /dobrik-*
+// The 14 umbrellas (see lib/business-funnel.ts for the exact platform campaign names that
+// must land in each), in the explicit first-match order the fallback regexes are applied in:
 //
-// Google leads are attributed by Streak SOURCE DETAIL (= the Google campaign name, the only
-// Google attribution key Streak carries); Facebook leads by SOURCE PLACEMENT (utm_content,
-// whose suffix is the campaign token — the same convention lib/fuzzy-match.ts encodes).
+//   asset       ASSET / RareOps — every campaign containing "ASSET" or "RareOps".
+//               aiScoreInflated: master QL excludes it.
+//   dobrik      David Dobrik (Meta + Google YouTube)
+//   matchmaker  Yacht Matchmaker lead magnet — nonKpi (metric is complete_registration)
+//   boost       BOOST / JOB POST / personal-brand boosts — nonKpi
+//   youtube     All - YouTube video views + subscriptions (Google) — nonKpi
+//   brand       All - Search - Brand Campaign (Google)
+//   pmax        Performance Max (Google, incl. the live "Perfromance" typo)
+//   clg         Croatia Luxury Gulet
+//   earlybook   Early Booking 2027 + CORE 7 Social Proof
+//   turkey      Turkey (Belgin / Tosca / Landing Turkey / Search - Turkey - EN / YT RMK)
+//   dalmatincki Last minute Dalmatinčki (Julij campaigns, Sail Smarter, Nocturno, Dalmatino)
+//   smarter     Alessandro / The Smarter Way
+//   bofu        BOFU / Landing (Attainable Luxury, Landing Gulets, Unmatched Value)
+//   croatia     Croatia generic / Last minute — the generic bucket, matched LAST
 //
-// `channel` (optional, composable with `campaign`): omit for both channels — that path is
-// unchanged. `meta` / `google` scope ads to fb_ads_raw / daily_api, leads+QL to
-// streak_sync.platform and bookings to bookings_api.source (fb_landing + fb_lead = meta).
-// LP views split on GA4 sessionSourceMedium (paid|cpc|ppc token, then platform), so a
-// channel view shows that channel's PAID sessions — meta + google will NOT sum to the All
-// view, whose gap is organic/direct/referral/email. cvrBasis:"clicks" remains only as the
-// fallback for genuinely-null LP views (a campaign × channel combo with no lp matcher).
+// Exact campaign names always win over the regexes, so the order can never move a known
+// campaign into the wrong umbrella. Umbrellas are mutually exclusive by construction and
+// umbrellas + unattributed = master (see campaignMembership).
+//
+// Google leads are attributed by Streak SOURCE DETAIL (= the Google campaign name), Facebook
+// leads by SOURCE PLACEMENT resolved through utm_mapping first (Dejan's confirmed table) and
+// the placement matchers second.
+//
+// `channel` (optional, composable with `campaign`): omit for both channels. `meta` / `google`
+// scope ads to the Meta feeds / daily_api, leads+QL to streak_sync.platform and bookings to
+// bookings_api.source (fb_landing + fb_lead = meta). LP views are PAID ONLY on every view now,
+// so meta + google DOES sum to the All view; organic sits outside the funnel as lpViewsOrganic.
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -52,24 +75,39 @@ const ISO = /^\d{4}-\d{2}-\d{2}$/
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
-  const start = searchParams.get('start') || ''
-  const end = searchParams.get('end') || ''
+  const rangeParam = (searchParams.get('range') || '').trim().toLowerCase()
   const campaign = (searchParams.get('campaign') || 'master').trim().toLowerCase()
   const channelParam = (searchParams.get('channel') || '').trim().toLowerCase()
   const channel: Channel = (channelParam || 'all') as Channel
 
-  if (!ISO.test(start) || !ISO.test(end)) {
+  if (rangeParam && !RANGE_KEYS.includes(rangeParam as any)) {
     return NextResponse.json(
-      { error: 'start and end are required, format YYYY-MM-DD' },
+      { error: `Unknown range "${rangeParam}"`, ranges: RANGE_KEYS },
       { status: 400, headers }
     )
   }
-  if (start > end) {
-    return NextResponse.json({ error: 'start must be <= end' }, { status: 400, headers })
+
+  const rawStart = searchParams.get('start') || ''
+  const rawEnd = searchParams.get('end') || ''
+
+  // A named range wins over start/end; without one, start/end are required as before.
+  if (!rangeParam || rangeParam === 'custom') {
+    if (!ISO.test(rawStart) || !ISO.test(rawEnd)) {
+      return NextResponse.json(
+        { error: 'start and end are required (format YYYY-MM-DD) unless range= is given', ranges: RANGE_KEYS },
+        { status: 400, headers }
+      )
+    }
+    if (rawStart > rawEnd) {
+      return NextResponse.json({ error: 'start must be <= end' }, { status: 400, headers })
+    }
   }
+
+  const range = resolveRange(rangeParam, rawStart, rawEnd)
+
   if (campaign !== 'master' && !CAMPAIGNS.some((c) => c.slug === campaign)) {
     return NextResponse.json(
-      { error: `Unknown campaign "${campaign}"`, campaigns: CAMPAIGNS.map((c) => c.slug) },
+      { error: `Unknown campaign "${campaign}"`, campaigns: [...UMBRELLA_ORDER] },
       { status: 400, headers }
     )
   }
@@ -82,7 +120,13 @@ export async function GET(request: Request) {
   }
 
   try {
-    const data = await loadBusinessFunnel({ start, end, campaign, channel })
+    const data = await loadBusinessFunnel({
+      start: range.from,
+      end: range.to,
+      campaign,
+      channel,
+      range,
+    })
     return NextResponse.json(data, { headers })
   } catch (err) {
     console.error('[funnel] failed', err)
