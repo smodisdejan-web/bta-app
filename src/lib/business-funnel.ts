@@ -602,14 +602,30 @@ function intersectCoverage(a: Coverage, b: Coverage): Coverage {
  * fb_ads_api feed lagging the newest days). Against Meta's own account-level YTD insights the
  * whole tab is within 0,004 % on every metric.
  *
- * FALLBACK: fb_ads_raw, the dead Mixed Analytics feed and the only OLD FB tab carrying
- * impressions AND link_click; it starts 2026-06-11. Used only when fb_daily_api is empty or
- * unreachable, so a broken backfill degrades to the previous behaviour instead of to zero.
+ * UNION with fb_ads_raw, the Mixed Analytics feed that starts 2026-06-11 and is still the only
+ * OLD FB tab carrying impressions AND link_click. fb_daily_api wins on every day it covers;
+ * fb_ads_raw fills days OUTSIDE that coverage — i.e. anything newer than the last backfill.
+ * That union is what keeps this self-healing: fb_daily_api can only be refreshed from a Claude
+ * session (the Goolets Meta app has no `ads_read` scope, so there is no headless Graph path), so
+ * without the union a few days without a refresh would silently clip the window back again — the
+ * exact failure this whole change exists to remove.
  */
 async function loadFb(): Promise<{ rows: AdDay[]; coverage: Coverage }> {
   return cached('fb', async () => {
     const full = await loadFbFull()
-    if (full.rows.length) return full
+    const legacy = await loadFbLegacy()
+    if (!full.rows.length) return legacy
+    if (!legacy.rows.length) return full
+    const rows = full.rows.concat(
+      legacy.rows.filter((r) => r.day < full.coverage.min || r.day > full.coverage.max)
+    )
+    return { rows, coverage: coverageOf(rows.map((r) => r.day)) }
+  })
+}
+
+/** fb_ads_raw — the pre-backfill Meta feed. Impressions + clicks(all) + link_click + spend. */
+async function loadFbLegacy(): Promise<{ rows: AdDay[]; coverage: Coverage }> {
+  return cached('fbLegacy', async () => {
     const raw = await fetchRows(SHEETS_TABS.FB_RAW)
     if (!raw.length) return { rows: [], coverage: { min: '', max: '' } }
     const s = raw[0]
@@ -684,20 +700,20 @@ async function loadFbSpend(): Promise<{
 }> {
   return cached('fbSpend', async () => {
     const full = await loadFbFull()
-    if (full.rows.length) {
-      return {
-        rows: full.rows.map((r) => ({ day: r.day, campaign: r.campaign, spend: r.spend })),
-        coverage: full.coverage,
-      }
-    }
     const raw = await fetchRows(SHEETS_TABS.FB_SPEND_DAILY)
-    const rows: { day: string; campaign: string; spend: number }[] = []
+    const legacy: { day: string; campaign: string; spend: number }[] = []
     for (const r of raw) {
       const campaign = String(r.campaign ?? '')
       const day = toDay(r.date)
       if (!campaign || !day) continue
-      rows.push({ day, campaign, spend: num(r.spend) })
+      legacy.push({ day, campaign, spend: num(r.spend) })
     }
+    if (!full.rows.length) return { rows: legacy, coverage: coverageOf(legacy.map((r) => r.day)) }
+    // Same union rule as loadFb: the Meta-API tab wins inside its coverage, fb_ads_api fills
+    // anything newer, so a day without a backfill refresh never shrinks the window.
+    const rows = full.rows
+      .map((r) => ({ day: r.day, campaign: r.campaign, spend: r.spend }))
+      .concat(legacy.filter((r) => r.day < full.coverage.min || r.day > full.coverage.max))
     return { rows, coverage: coverageOf(rows.map((r) => r.day)) }
   })
 }
@@ -769,17 +785,15 @@ async function loadGa4(): Promise<{ rows: LpDay[]; coverage: Coverage }> {
  * selection as the Zapier-fed streak_sync (LATEST SOURCE CATEGORY ∈ PAID_SOCIAL|PAID_SEARCH,
  * platform facebook/google), but back to 2026-01-01 instead of 2026-06-11 — the single reason
  * `range=ytd` used to clip to June.
- * FALLBACK: streak_sync, used whenever streak_full is empty or unreachable.
+ * UNION with streak_sync rather than a plain fallback: streak_full is written by a full Streak
+ * pipeline scan (~19 min, so it is refreshed on a schedule, not continuously) while streak_sync
+ * is Zapier-fed and always current. streak_full therefore supplies every day it covers and
+ * streak_sync fills anything newer — a stale scan can never clip the window to its own last day.
+ * On the days they overlap the two agree to +0,32 % on leads and +0,43 % on QL (measured
+ * 11.6.–9.9.2026), the difference being boxes Streak had not yet pushed to the sheet.
  */
 async function loadStreak(): Promise<{ rows: LeadRow[]; coverage: Coverage }> {
-  return cached('streak', async () => {
-    let raw: any[] = []
-    try {
-      raw = await fetchRows(SHEETS_TABS.STREAK_FULL)
-    } catch (e) {
-      console.warn('[funnel] streak_full unavailable, falling back to streak_sync', (e as Error).message)
-    }
-    if (!raw.length) raw = await fetchRows(SHEETS_TABS.STREAK_SYNC)
+  const parse = (raw: any[]): { rows: LeadRow[]; coverage: Coverage } => {
     const rows: LeadRow[] = []
     for (const r of raw) {
       const day = toDay(r['Inquiry Recieved'] ?? r.inquiry_recieved)
@@ -795,6 +809,22 @@ async function loadStreak(): Promise<{ rows: LeadRow[]; coverage: Coverage }> {
         ai: num(r.AI ?? r.ai),
       })
     }
+    return { rows, coverage: coverageOf(rows.map((r) => r.day)) }
+  }
+
+  return cached('streak', async () => {
+    let full = { rows: [] as LeadRow[], coverage: { min: '', max: '' } as Coverage }
+    try {
+      full = parse(await fetchRows(SHEETS_TABS.STREAK_FULL))
+    } catch (e) {
+      console.warn('[funnel] streak_full unavailable, using streak_sync only', (e as Error).message)
+    }
+    const sync = parse(await fetchRows(SHEETS_TABS.STREAK_SYNC))
+    if (!full.rows.length) return sync
+    if (!sync.rows.length) return full
+    const rows = full.rows.concat(
+      sync.rows.filter((r) => r.day < full.coverage.min || r.day > full.coverage.max)
+    )
     return { rows, coverage: coverageOf(rows.map((r) => r.day)) }
   })
 }
