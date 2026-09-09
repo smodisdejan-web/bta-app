@@ -19,8 +19,14 @@
 //
 // 2026-09-09 rework (all approved by Dejan):
 //  1. Freshness guard now clips instead of lying: every step is computed on
-//     meta.effectiveWindow = requested window ∩ coverage of every source in scope, so the
-//     spend denominator and the lead/LP numerators always span the SAME days.
+//     meta.effectiveWindow = requested window ∩ coverage of EVERY paid source
+//     (fb ∩ google ∩ ga4 ∩ streak), so the spend denominator and the lead/LP numerators
+//     always span the SAME days. Since 2026-09-09b the intersection ignores the campaign
+//     and channel filter, so every view of a range is measured over identical days and a
+//     master umbrella row can never disagree with its own drill-down.
+//  1b. A window with NO overlap is a gap, not a zero: every day-granular step goes null.
+//     Bookings keep their own month window (history runs far behind the ad feeds) and only
+//     go null when bookings_api itself does not reach the requested months.
 //  2. Bookings stay month-granular but are reported with their own meta.bookingsWindow,
 //     plus a date-exact `bookingsCohort` (bookings whose inquiry_date is inside the window).
 //  3. Clicks = Meta link_click + Google clicks. Meta "clicks (all)" survives as `clicksAll`.
@@ -1337,7 +1343,8 @@ export interface FunnelStep {
   benchmarkCvr: number | null
   status: 'g' | 'a' | 'r' | null
   source: string
-  revenue?: number
+  /** Bookings step only. null = the bookings source does not cover the window at all. */
+  revenue?: number | null
   /** Only present when the natural previous step is null and a different denominator was
    *  used (today: leads measured off clicks because a channel view cannot split LP views). */
   cvrBasis?: string
@@ -1526,10 +1533,16 @@ export async function loadBusinessFunnel(opts: {
     bookings: bookings.coverage,
   }
 
-  // ── Effective window: requested ∩ every in-scope source ──
+  // ── Effective window: requested ∩ EVERY paid source ──
+  // FIXED 2026-09-09: the intersection deliberately ignores the campaign and channel filter.
+  // Scoping it to the sources a view happens to use made the window drift per view — a
+  // Google-only umbrella (brand/pmax/youtube) or ?channel=google clipped to Google coverage
+  // (…09-09) while the mixed master clipped to Meta (…09-08), so the master row "Brand €9,094"
+  // opened a drill-down showing €9,133 for the very same campaign and range. Every view of a
+  // given range must be measured over the SAME days, so all four day-granular sources clip it.
   // Bookings are deliberately NOT part of the intersection: they have full history and are
   // month-granular, so they get their own window (meta.bookingsWindow).
-  const stepSources = sourcesUsed(def, ['fb', 'google', 'ga4', 'streak'], channel)
+  const stepSources: SourceKey[] = ['fb', 'google', 'ga4', 'streak']
   let effFrom = reqStart
   let effTo = reqEnd
   const clippedBy: string[] = []
@@ -1558,6 +1571,20 @@ export async function loadBusinessFunnel(opts: {
   const bookingsToM = reqEnd.slice(0, 7)
   const bookingOpts: AggOpts = { fromM: bookingsFromM, toM: bookingsToM }
   const bookingsAligned = `${bookingsFromM}-01` !== reqStart || monthEnd(bookingsToM) !== reqEnd
+
+  // ── Coverage gap → null, never 0 ──
+  // A window with no overlap at all is a GAP. Printing 0 there reads as "we ran ads and
+  // nothing converted", which is the exact lie the freshness contract exists to prevent, so
+  // every day-granular step goes null (the UI prints "—"). Bookings are the exception: they
+  // have their own month window and history far behind the ad feeds, so a 2025 month can carry
+  // real bookings even when no ad source reaches it. They only go null when bookings_api
+  // ITSELF does not reach the requested months.
+  const bookingsGap =
+    !bookings.coverage.min ||
+    !bookings.coverage.max ||
+    monthEnd(bookingsToM) < bookings.coverage.min ||
+    `${bookingsFromM}-01` > bookings.coverage.max
+  const gapAll = windowEmpty
 
   const cur = aggregate(ds, def, effFrom, effTo, channel, bookingOpts)
 
@@ -1595,12 +1622,12 @@ export async function loadBusinessFunnel(opts: {
   }
 
   const values: Record<string, number | null> = {
-    impressions: cur.impressions,
-    clicks: cur.clicks,
-    lpViews: cur.lpViews,
-    leads: cur.leads,
-    ql: cur.ql,
-    bookings: cur.bookings,
+    impressions: gapAll ? null : cur.impressions,
+    clicks: gapAll ? null : cur.clicks,
+    lpViews: gapAll ? null : cur.lpViews,
+    leads: gapAll ? null : cur.leads,
+    ql: gapAll ? null : cur.ql,
+    bookings: bookingsGap ? null : cur.bookings,
   }
   const pick = (v: RawStepValues, key: string): number | null =>
     (v as unknown as Record<string, number | null>)[key]
@@ -1673,13 +1700,19 @@ export async function loadBusinessFunnel(opts: {
       status: statusFor(cvrFromPrev, benchmarkCvr),
       source: s.source,
     }
-    if (s.key === 'clicks') step.clicksAll = cur.clicksAll
-    if (s.key === 'lpViews') step.lpViewsOrganic = cur.lpViewsOrganic
-    if (s.key === 'ql') step.qualityLeadsIncludingAsset = cur.qlAll
+    if (s.key === 'clicks') step.clicksAll = gapAll ? null : cur.clicksAll
+    if (s.key === 'lpViews') step.lpViewsOrganic = gapAll ? null : cur.lpViewsOrganic
+    if (s.key === 'ql') step.qualityLeadsIncludingAsset = gapAll ? null : cur.qlAll
     if (s.key === 'bookings') {
-      step.revenue = cur.revenue
-      step.bookingsCohort = { count: cur.bookingsCohort, revenue: cur.revenueCohort }
-      step.leadsToBookingCohortRate = div(cur.bookingsCohort, cur.leads)
+      step.revenue = bookingsGap ? null : cur.revenue
+      // The cohort is counted by inquiry_date inside the DAY window, so it is a gap whenever
+      // either side of it is — omitted rather than printed as a 0 that means "none happened".
+      if (!gapAll && !bookingsGap) {
+        step.bookingsCohort = { count: cur.bookingsCohort, revenue: cur.revenueCohort }
+        step.leadsToBookingCohortRate = div(cur.bookingsCohort, cur.leads)
+      } else {
+        step.leadsToBookingCohortRate = null
+      }
     }
     if (fellBack) step.cvrBasis = 'clicks'
 
@@ -1760,7 +1793,10 @@ export async function loadBusinessFunnel(opts: {
   // (fb_ads_raw froze, ROAS printed 69.75x on Google-only spend) cannot recur by clipping.
   // The metrics only go null when the Meta feed cannot answer the window AT ALL.
   const metaInScope = channel !== 'google' && (def === null || !!def.metaNames?.length || !!def.fb)
-  const metaFeedUsable = !metaInScope || (!!fbCombined.min && !!fbCombined.max && !windowEmpty)
+  // On a window with no coverage at all NOTHING is measurable, not even on a Google-only view:
+  // spend would otherwise print 0 next to null steps.
+  const metaFeedUsable =
+    !windowEmpty && (!metaInScope || (!!fbCombined.min && !!fbCombined.max))
   // Bookings are month-granular and never clipped, so cost/booking and ROAS are only honest
   // while the bookings months ARE the effective window's months. On YTD, where clipping drops
   // the window to 2026-06-11…, revenue would still carry January–May and ROAS would print
@@ -1948,7 +1984,10 @@ export async function loadBusinessFunnel(opts: {
           ? `Window clipped from ${reqStart}…${reqEnd} to ${effFrom}…${effTo} so every step is measured over the same days (${[...new Set(clippedBy)].join('; ')}). Without this the spend denominator misses days the lead numerator still counts.`
           : null,
         windowEmpty
-          ? `The requested window ${reqStart}…${reqEnd} lies entirely outside the coverage of at least one source in scope — every step reads 0/null, which is a coverage gap, not a performance collapse.`
+          ? `The requested window ${reqStart}…${reqEnd} lies entirely outside the coverage of at least one paid source — every day-granular step, and every efficiency metric, is null rather than 0. This is a coverage gap, not a performance collapse.`
+          : null,
+        bookingsGap
+          ? `bookings_api covers ${bookings.coverage.min || 'n/a'}…${bookings.coverage.max || 'n/a'} and does not reach ${bookingsFromM}…${bookingsToM}, so bookings and revenue are null (unknown), not 0.`
           : null,
         metaInScope && fbCombined.max && fbCombined.max < reqEnd
           ? `FB spend covered to ${fbCombined.max} (requested window ends ${reqEnd}). Rather than null every cost metric, the whole funnel is measured on the covered sub-window — so spend, CPM, CPC, CPL, CPQL and ROAS are real numbers over ${effFrom}…${effTo}, not a full-window numerator over a part-window denominator.`
@@ -1969,7 +2008,7 @@ export async function loadBusinessFunnel(opts: {
         'bookingsCohort counts the same bookings by inquiry_date instead, so it lines up date-exactly with spend and leads. inquiry_date is empty on part of the feed, so the cohort is a floor, not a total.',
         'Revenue = RVC, which is already the Goolets commission — it is never multiplied by a margin.',
         'Leads and QL come from Streak (SSOT), never from FB pixel counts.',
-        `bookings_api currently ends ${bookings.coverage.max || 'n/a'} — bookings for months after that read 0 because they are not synced yet, not because none happened.`,
+        `bookings_api currently ends ${bookings.coverage.max || 'n/a'} — months after that are null (not synced yet), never 0.`,
         `streak_sync starts ${streak.coverage.min || 'n/a'}: there are no lead or QL numbers before that date, at all.`,
         'attribution.unattributed is the GLOBAL remainder: Streak leads in range that match none of the umbrellas (empty utm_content, bare "Facebook", "ig / instagram_stories", raw ids). It is the same figure on every view (channel-filtered when a channel is set).',
         'campaignMembership.umbrellas: 14 mutually-exclusive umbrellas resolved by EXACT platform campaign name first, then the fallback regexes in an explicit order. umbrellas + unattributed = master for spend, leads, bookings and revenue (for QL use qualityLeadsIncludingAsset — the master QL step excludes ASSET by design). nonKpi umbrellas (boost, youtube, matchmaker) are inside master totals but flagged so the frontend can drop them from CPL/CPQL comparisons.',
