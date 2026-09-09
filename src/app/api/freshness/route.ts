@@ -53,7 +53,12 @@ export const maxDuration = 60
 // types
 // ---------------------------------------------------------------------------
 
-type Status = 'green' | 'amber' | 'red'
+/**
+ * 'unknown' = we could not read this feed inside its deadline. It is NOT 'red' data —
+ * it is no data at all — but it rolls up to red, because an unread feed is exactly the
+ * blind spot this watchdog exists to kill.
+ */
+type Status = 'green' | 'amber' | 'red' | 'unknown'
 
 interface FeedReport {
   name: string
@@ -72,8 +77,31 @@ interface Violation {
   detail: string
 }
 
-const RANK: Record<Status, number> = { green: 0, amber: 1, red: 2 }
+const RANK: Record<Status, number> = { green: 0, amber: 1, unknown: 2, red: 3 }
 const worse = (a: Status, b: Status): Status => (RANK[a] >= RANK[b] ? a : b)
+
+/**
+ * Per-tab deadline. WHY (2026-09-09): at 05:54 the route answered HTTP 504. Five tabs
+ * are read strictly sequentially (~13-19 s on a good day); while the fb_ads_enriched
+ * Apps Script sync was running, its concurrency limit stretched one tab past the
+ * function budget and the WHOLE route died — the watchdog then wrote "monitor down"
+ * even though four feeds had been read fine. A slow tab must cost that tab, not the
+ * report. 12 s x 5 = 60 s worst case, which is the maxDuration below.
+ */
+const TAB_TIMEOUT_MS = 12_000
+
+function deadline(ms = TAB_TIMEOUT_MS) {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), ms)
+  return { signal: ctrl.signal, clear: () => clearTimeout(timer) }
+}
+
+/** A caught error is 'unknown' when its deadline fired, otherwise a genuine 'red'. */
+function failStatus(d: { signal: AbortSignal }): Status {
+  return d.signal.aborted ? 'unknown' : 'red'
+}
+
+const TIMEOUT_NOTE = `Tab se ni prebral v ${TAB_TIMEOUT_MS / 1000} s (Apps Script je bil verjetno zaseden s sync-om). Ni podatka — ne "vse je v redu".`
 
 // ---------------------------------------------------------------------------
 // dates — everything in Europe/Ljubljana, the timezone the client lives in
@@ -148,8 +176,9 @@ export async function GET(request: Request) {
   let bookingCount: number | null = null
 
   // -- 1/5  fb_ads_api — authoritative daily FB spend, straight from Meta -----
+  const d1 = deadline()
   try {
-    const rows = await fetchSheet({ sheetUrl: url, tab: SHEETS_TABS.FB_SPEND_DAILY })
+    const rows = await fetchSheet({ sheetUrl: url, tab: SHEETS_TABS.FB_SPEND_DAILY, signal: d1.signal })
     const [header = [], ...data] = rows || []
     const H = normalizeHeaders(header as any[])
     const iDate = pickIdx(H, ['date', 'date_start', 'day'])
@@ -182,14 +211,18 @@ export async function GET(request: Request) {
       maxDate: null,
       rowCount: 0,
       staleDays: null,
-      status: 'red',
+      status: failStatus(d1),
       error: e instanceof Error ? e.message : String(e),
+      note: d1.signal.aborted ? TIMEOUT_NOTE : undefined,
     })
+  } finally {
+    d1.clear()
   }
 
   // -- 2/5  daily_api — Google Ads daily -------------------------------------
+  const d2 = deadline()
   try {
-    const rows = await fetchSheet({ sheetUrl: url, tab: SHEETS_TABS.DAILY })
+    const rows = await fetchSheet({ sheetUrl: url, tab: SHEETS_TABS.DAILY, signal: d2.signal })
     const [header = [], ...data] = rows || []
     const H = normalizeHeaders(header as any[])
     const iDate = pickIdx(H, ['date', 'day'])
@@ -226,14 +259,18 @@ export async function GET(request: Request) {
       maxDate: null,
       rowCount: 0,
       staleDays: null,
-      status: 'red',
+      status: failStatus(d2),
       error: e instanceof Error ? e.message : String(e),
+      note: d2.signal.aborted ? TIMEOUT_NOTE : undefined,
     })
+  } finally {
+    d2.clear()
   }
 
   // -- 3/5  streak_sync — the CRM side of every lead -------------------------
+  const d3 = deadline()
   try {
-    const rows = await fetchSheet({ sheetUrl: url, tab: SHEETS_TABS.STREAK_SYNC })
+    const rows = await fetchSheet({ sheetUrl: url, tab: SHEETS_TABS.STREAK_SYNC, signal: d3.signal })
     const leads = mapStreakLeads(rows || [])
 
     let maxDate: string | null = null
@@ -267,17 +304,21 @@ export async function GET(request: Request) {
       maxDate: null,
       rowCount: 0,
       staleDays: null,
-      status: 'red',
+      status: failStatus(d3),
       error: e instanceof Error ? e.message : String(e),
+      note: d3.signal.aborted ? TIMEOUT_NOTE : undefined,
     })
+  } finally {
+    d3.clear()
   }
 
   // -- 4/5  fb_ads_enriched — KNOWN DEAD since 2026-08-09 --------------------
   // Capped at amber on purpose: it is a stale feed we have already replaced for
   // spend, but leads and LP views still come from it, so it must not vanish from
   // the report either. The day it starts producing rows again, this goes green.
+  const d4 = deadline()
   try {
-    const rows = await fetchSheet({ sheetUrl: url, tab: SHEETS_TABS.FB_ENRICHED })
+    const rows = await fetchSheet({ sheetUrl: url, tab: SHEETS_TABS.FB_ENRICHED, signal: d4.signal })
     const enriched = mapFbEnriched(rows || [])
     let maxDate: string | null = null
     for (const r of enriched) {
@@ -305,17 +346,23 @@ export async function GET(request: Request) {
       maxDate: null,
       rowCount: 0,
       staleDays: null,
-      status: 'amber',
+      status: d4.signal.aborted ? 'unknown' : 'amber',
       error: e instanceof Error ? e.message : String(e),
-      note: 'Znano mrtev feed — napaka pri branju ne dvigne resnosti.',
+      note: d4.signal.aborted ? TIMEOUT_NOTE : 'Znan problematičen feed — napaka pri branju ne dvigne resnosti.',
     })
+  } finally {
+    d4.clear()
   }
 
   // -- 5/5  bookings_api — MONTHLY grain, not daily --------------------------
   // booking_date is "YYYY-MM". Never compare it to a day string; that is exactly
   // the bug that zeroed revenue for eight days.
+  const d5 = deadline()
   try {
-    const bookings = await fetchBookings(fetchSheet)
+    const bookings = await fetchBookings((a) => fetchSheet({ ...a, signal: d5.signal }))
+    // fetchBookings swallows its own errors and returns [], so an aborted read looks
+    // like "no bookings". Say so out loud instead of reporting a quiet, wrong zero.
+    if (d5.signal.aborted) throw new Error('bookings read aborted')
     let maxMonth: string | null = null
     let revenue = 0
     let count = 0
@@ -349,15 +396,20 @@ export async function GET(request: Request) {
           : 'Mesečna zrnatost (YYYY-MM) — staleDays se ne meri.',
     })
   } catch (e) {
+    mtdRevenue = null
+    bookingCount = null
     feeds.push({
       name: 'Bookings (monthly)',
       tab: SHEETS_TABS.BOOKINGS,
       maxDate: null,
       rowCount: 0,
       staleDays: null,
-      status: 'red',
+      status: failStatus(d5),
       error: e instanceof Error ? e.message : String(e),
+      note: d5.signal.aborted ? TIMEOUT_NOTE : undefined,
     })
+  } finally {
+    d5.clear()
   }
 
   // ---------------------------------------------------------------------------
@@ -431,8 +483,10 @@ export async function GET(request: Request) {
   // verdict
   // ---------------------------------------------------------------------------
 
+  // A tab we could not read rolls up to red: an unread feed hides exactly the kind of
+  // breakage this route exists to surface, so it must never look calmer than a bad one.
   let overall: Status = 'green'
-  for (const f of feeds) overall = worse(overall, f.status)
+  for (const f of feeds) overall = worse(overall, f.status === 'unknown' ? 'red' : f.status)
   for (const v of violations) overall = worse(overall, v.severity)
 
   return NextResponse.json(

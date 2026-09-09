@@ -1602,8 +1602,19 @@ export async function fetchEmailGrowth(
 }
 
 // Generic fetchSheet helper
-export async function fetchSheet(args: { sheetUrl: string; tab: string }): Promise<any[][]> {
-  const { sheetUrl, tab } = args
+export async function fetchSheet(args: {
+  sheetUrl: string
+  tab: string
+  /**
+   * Optional per-call deadline. Added 2026-09-09: /api/freshness reads five tabs in a
+   * straight line, and when the Apps Script sync is running its concurrency limit turns
+   * one tab into a 60 s hang — the whole route then died with a Vercel 504 and the
+   * watchdog reported "monitor down" instead of the four feeds it had already read.
+   * With a signal the caller can cap one tab and carry on. Omitted = old behaviour.
+   */
+  signal?: AbortSignal
+}): Promise<any[][]> {
+  const { sheetUrl, tab, signal } = args
   const url = `${sheetUrl}?tab=${encodeURIComponent(tab)}`
   // Apps Script web-app fetches (esp. the large streak_sync tab) intermittently fail/timeout in
   // the serverless function. Retry up to 3x before giving up so a transient hiccup doesn't wipe
@@ -1611,15 +1622,21 @@ export async function fetchSheet(args: { sheetUrl: string; tab: string }): Promi
   let response: Response | null = null
   let lastErr: unknown = null
   for (let attempt = 0; attempt < 3; attempt++) {
+    if (signal?.aborted) break
     try {
-      response = await fetch(url, { cache: 'no-store', next: { revalidate: 0 } })
+      response = await fetch(url, { cache: 'no-store', next: { revalidate: 0 }, signal })
       if (response.ok) break
       lastErr = new Error(`Failed to fetch ${tab}: ${response.status} ${response.statusText}`)
     } catch (e) {
       lastErr = e
     }
     response = null
+    // Do not burn the caller's deadline on backoff sleeps once the signal is gone.
+    if (signal?.aborted) break
     await new Promise((r) => setTimeout(r, 400 * (attempt + 1)))
+  }
+  if (signal?.aborted && !response) {
+    throw (lastErr instanceof Error ? lastErr : new Error(`Aborted fetching ${tab}`))
   }
   if (!response) {
     throw (lastErr instanceof Error ? lastErr : new Error(`Failed to fetch ${tab}`))
