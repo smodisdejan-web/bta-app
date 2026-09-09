@@ -500,6 +500,16 @@ async function fetchRows(tab: string): Promise<any[]> {
         lastErr = new Error(`${tab}: ${res.status} ${res.statusText}`)
       } else {
         const data = await res.json()
+        // The Apps Script answers a bad/renamed tab with {"error": "..."} — a 200 with an
+        // object body. Returning [] for that is the silent-zero the freshness contract exists
+        // to prevent: an empty `google` coverage is skipped by the clipping loop, so the funnel
+        // would quietly report Meta-only impressions and spend as if they were the whole
+        // account (seen live 2026-09-09: 36,3M impressions and EUR 343k instead of 46,5M and
+        // EUR 490k, ROAS 5,58x instead of 3,92x). Fail loudly instead.
+        if (data && !Array.isArray(data) && typeof data === 'object') {
+          lastErr = new Error(`${tab}: ${String((data as any).error ?? JSON.stringify(data)).slice(0, 200)}`)
+          continue
+        }
         if (!Array.isArray(data) || data.length === 0) return []
         if (Array.isArray(data[0])) {
           const header = (data[0] as any[]).map((h) => String(h))
@@ -612,15 +622,14 @@ function intersectCoverage(a: Coverage, b: Coverage): Coverage {
  */
 async function loadFb(): Promise<{ rows: AdDay[]; coverage: Coverage }> {
   return cached('fb', async () => {
-    // Both feeds in parallel: the union costs a second Apps Script round trip and the cold
-    // lambda already has 300s of GA4 to get through.
-    const [full, legacy] = await Promise.all([loadFbFull(), loadFbLegacy()])
-    if (!full.rows.length) return legacy
-    if (!legacy.rows.length) return full
-    const rows = full.rows.concat(
-      legacy.rows.filter((r) => r.day < full.coverage.min || r.day > full.coverage.max)
-    )
-    return { rows, coverage: coverageOf(rows.map((r) => r.day)) }
+    // NOT unioned with fb_ads_raw, unlike spend and leads: fb_ads_raw is ~5 MB of 70-column
+    // Mixed Analytics rows and fetching it alongside everything else pushed the cold lambda
+    // past its 300s budget (a timed-out daily_api then dropped Google out of the funnel
+    // entirely). fb_daily_api supersedes it on every metric and is the verified-accurate feed,
+    // so fb_ads_raw is now a pure fallback, read only when the full-year tab is unusable.
+    const full = await loadFbFull()
+    if (full.rows.length) return full
+    return loadFbLegacy()
   })
 }
 
