@@ -612,8 +612,9 @@ function intersectCoverage(a: Coverage, b: Coverage): Coverage {
  */
 async function loadFb(): Promise<{ rows: AdDay[]; coverage: Coverage }> {
   return cached('fb', async () => {
-    const full = await loadFbFull()
-    const legacy = await loadFbLegacy()
+    // Both feeds in parallel: the union costs a second Apps Script round trip and the cold
+    // lambda already has 300s of GA4 to get through.
+    const [full, legacy] = await Promise.all([loadFbFull(), loadFbLegacy()])
     if (!full.rows.length) return legacy
     if (!legacy.rows.length) return full
     const rows = full.rows.concat(
@@ -699,8 +700,7 @@ async function loadFbSpend(): Promise<{
   coverage: Coverage
 }> {
   return cached('fbSpend', async () => {
-    const full = await loadFbFull()
-    const raw = await fetchRows(SHEETS_TABS.FB_SPEND_DAILY)
+    const [full, raw] = await Promise.all([loadFbFull(), fetchRows(SHEETS_TABS.FB_SPEND_DAILY)])
     const legacy: { day: string; campaign: string; spend: number }[] = []
     for (const r of raw) {
       const campaign = String(r.campaign ?? '')
@@ -813,13 +813,15 @@ async function loadStreak(): Promise<{ rows: LeadRow[]; coverage: Coverage }> {
   }
 
   return cached('streak', async () => {
-    let full = { rows: [] as LeadRow[], coverage: { min: '', max: '' } as Coverage }
-    try {
-      full = parse(await fetchRows(SHEETS_TABS.STREAK_FULL))
-    } catch (e) {
-      console.warn('[funnel] streak_full unavailable, using streak_sync only', (e as Error).message)
-    }
-    const sync = parse(await fetchRows(SHEETS_TABS.STREAK_SYNC))
+    const [fullRaw, syncRaw] = await Promise.all([
+      fetchRows(SHEETS_TABS.STREAK_FULL).catch((e) => {
+        console.warn('[funnel] streak_full unavailable, using streak_sync only', (e as Error).message)
+        return [] as any[]
+      }),
+      fetchRows(SHEETS_TABS.STREAK_SYNC),
+    ])
+    const full = parse(fullRaw)
+    const sync = parse(syncRaw)
     if (!full.rows.length) return sync
     if (!sync.rows.length) return full
     const rows = full.rows.concat(
