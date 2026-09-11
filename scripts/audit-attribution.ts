@@ -133,6 +133,8 @@ async function main() {
   const unmatched = allAccs.filter((s) => s.diagnosis.kind === 'unmatched')
   const stale = allAccs.filter((s) => s.diagnosis.kind === 'stale')
   const explicitUnknown = allAccs.filter((s) => s.diagnosis.kind === 'explicit-unknown')
+  // Paid, but another channel entirely (ChatGPT Ads & co) — never an FB campaign, never a bug.
+  const otherChannel = allAccs.filter((s) => s.diagnosis.kind === 'other-channel')
 
   // Check 1: truly unmatched FB-looking sources (real bug — needs new rule)
   const fbLooking = unmatched.filter((s) => {
@@ -193,10 +195,19 @@ async function main() {
     })
   }
 
+  // Info: another paid channel (not Facebook)
+  if (otherChannel.length > 0) {
+    const cnt = otherChannel.reduce((a, s) => a + s.count, 0)
+    info.push(`${otherChannel.length} source(s) (${cnt} leads) belong to another paid channel, not Facebook — by design:`)
+    otherChannel.sort((a, b) => b.count - a.count).forEach((s) => {
+      info.push(`  ${s.count}x  "${s.src}" → ${(s.diagnosis as any).channel}`)
+    })
+  }
+
   // Print summary
   const matched = allAccs.filter((s) => s.diagnosis.kind === 'matched').length
   console.log(`\n=== Active FB campaigns (90d): ${campaigns.length} ===`)
-  console.log(`=== Sources: ${matched} matched / ${stale.length} stale-target / ${explicitUnknown.length} explicit-unknown / ${unmatched.length} unmatched (total ${sourceMap.size}) ===`)
+  console.log(`=== Sources: ${matched} matched / ${stale.length} stale-target / ${explicitUnknown.length} explicit-unknown / ${otherChannel.length} other-channel / ${unmatched.length} unmatched (total ${sourceMap.size}) ===`)
 
   if (red.length === 0 && yellow.length === 0) {
     console.log('\n✅ Attribution clean — all FB-looking sources routed to active campaigns.')

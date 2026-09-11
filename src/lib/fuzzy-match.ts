@@ -56,6 +56,33 @@ function debugMatch(sourcePlacement: string, ruleName: string, matched: boolean)
 const isRareOps = (s: string) => s.startsWith('rare_ops');
 const isFormClone = (s: string) => /_form\d/.test(s);
 
+/**
+ * NON-FACEBOOK PAID CHANNELS — placements that land in Streak's SOURCE PLACEMENT but can
+ * never resolve to a Facebook campaign, and are NOT noise either. They get a named channel
+ * of their own instead of swelling the Unknown bucket (which means "dead / legacy / junk")
+ * or being silently read as Google.
+ *
+ * Checked BEFORE RULES, so no ad-name rule can ever steal one.
+ *
+ *  - ChatGPT Ads (live 2026-09-11): SOURCE PLACEMENT = utm_campaign lowercased —
+ *    `chatgpt-us-croatia-sep26`, `chatgpt-intl-croatia-sep26`, test `chatgpt-test-sep26`;
+ *    utm_source=chatgpt_ads, utm_medium=cpc. Flattened, every one is `chatgpt` or starts `chatgpt_`.
+ *
+ * Microsoft/Bing (`ms_`, live 2026-09-02) deliberately stays in the Unknown rule at the
+ * bottom: those are imported Google Search campaigns and their leads already arrive on
+ * platform=google, so they are counted inside Paid Google rather than as a channel here.
+ */
+export const NON_FB_PAID_CHANNELS: { prefix: string; channel: string }[] = [
+  { prefix: 'chatgpt', channel: 'ChatGPT Ads' },
+];
+
+/** The paid channel a non-Facebook placement belongs to ('ChatGPT Ads'), or null. */
+export function paidChannelOf(sourcePlacement: string): string | null {
+  const flat = flatten(sourcePlacement);
+  const hit = NON_FB_PAID_CHANNELS.find((c) => flat === c.prefix || flat.startsWith(`${c.prefix}_`));
+  return hit ? hit.channel : null;
+}
+
 const RULES: Rule[] = [
   // ── 1. CRO LUX GULET — `-cro-lux` suffix. MUST precede every ad-name startsWith rule.
   // Cannot separate "Avgust 2026" (PAUSED) from the "– Nova konverzija" clone: same ads.
@@ -449,6 +476,7 @@ export type RuleDiagnosis =
   | { kind: 'matched'; ruleTarget: string; resolvedCampaign: string }
   | { kind: 'stale'; ruleTarget: string } // rule matched but target campaign not in active list
   | { kind: 'explicit-unknown'; ruleTarget: 'Unknown' }
+  | { kind: 'other-channel'; channel: string } // paid, but not Facebook (e.g. ChatGPT Ads)
   | { kind: 'unmatched' };
 
 /**
@@ -458,6 +486,8 @@ export type RuleDiagnosis =
  */
 export function diagnoseSource(sourcePlacement: string, campaigns: string[]): RuleDiagnosis {
   const src = sourcePlacement || '';
+  const otherChannel = paidChannelOf(src);
+  if (otherChannel) return { kind: 'other-channel', channel: otherChannel };
   const flatSrc = flatten(src);
   const normalizedCampaigns = campaigns.map((c) => ({ raw: c, flat: flatten(c) }));
   const byName = resolveByCampaignName(flatSrc, normalizedCampaigns);
@@ -483,6 +513,8 @@ export function matchSourceToCampaign(
   _threshold: number = 70
 ): string | null {
   const src = sourcePlacement == null ? '' : sourcePlacement;
+  // Not Facebook at all (ChatGPT Ads & co) — null, never the Unknown-Facebook bucket.
+  if (paidChannelOf(src)) return null;
   const flatSrc = flatten(src);
   const normalizedCampaigns = campaigns.map((c) => ({ raw: c, flat: flatten(c) }));
 
