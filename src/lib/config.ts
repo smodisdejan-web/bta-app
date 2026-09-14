@@ -56,6 +56,14 @@ export const SHEETS_TABS = {
   TURKEY_GOOGLE_CAMPAIGNS: 'turkey_google_campaigns',
   TURKEY_GOOGLE_TERMS: 'turkey_google_terms',
   UTM_MAPPING: 'utm_mapping', // Authoritative utm → campaign/adset/ad table (synced from Dejan's confirmed sheet). Join key for lead attribution.
+  // PHASE 1 2026-09-14: the two "flat" paid channels next to Paid Meta / Paid Google.
+  // Same header-keyed shape as daily_api: date | campaign | campaignId | impr | clicks | value | conv | cost.
+  // `cost` is EUR on BOTH tabs (chatgpt_ads_api also carries cost_usd | fx | note, deliberately ignored here —
+  // the dashboard is a EUR dashboard and the conversion happens upstream in the sync script).
+  // Neither tab belongs to an umbrella: their campaigns are flat channels, never members of the 14 umbrellas,
+  // so their spend must never reach adSlug()/orphanSpend or it would break umbrellas + unattributed = master.
+  BING_DAILY: 'bing_ads_api', // Microsoft Advertising, live 2026-09-04 (12-week test)
+  CHATGPT_DAILY: 'chatgpt_ads_api', // OpenAI Ads Manager, oCPC campaign live 2026-09-14
 } as const
 
 // Sheets URL configuration with fallback support

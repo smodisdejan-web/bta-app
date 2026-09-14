@@ -90,6 +90,82 @@ const emerald = '#047857'
 
 type Range = '7d' | '30d' | '60d' | '90d' | 'mtd' | 'lastMonth'
 
+/** The four paid channels the Overview reports. */
+type PaidChannel = 'meta' | 'google' | 'bing' | 'chatgpt'
+
+/**
+ * Which paid channel a Streak lead belongs to.
+ *
+ * SOURCE DETAIL IS READ FIRST, AND THAT ORDER IS THE WHOLE POINT. Streak tags Bing AND ChatGPT
+ * leads with LATEST SOURCE CATEGORY = PAID_SEARCH, which the sync writes out as
+ * platform = "google" — so the old `platform.includes('google')` test counted every Bing and
+ * ChatGPT lead as a Google lead, and Google's CPQL was measured against leads it never bought.
+ * Verified 2026-09-14: Bing leads carry `ms - search - croatia - en`, the live ChatGPT lead
+ * carries `chatgpt-intl-croatia-sep26`. The channel tag lives in SOURCE DETAIL and nowhere else.
+ * Mirrors leadChannel() in lib/business-funnel.ts — keep the two in step.
+ */
+function leadChannelOf(l: StreakLeadRow): PaidChannel | null {
+  const d = (l.source_detail || '').toLowerCase()
+  if (d.startsWith('ms - ') || d.startsWith('ms_')) return 'bing'
+  if (d.startsWith('chatgpt')) return 'chatgpt'
+  const p = (l.platform || '').toLowerCase()
+  if (p.includes('facebook') || p.includes('meta') || p.includes('instagram')) return 'meta'
+  if (p.includes('google') || p.includes('adwords')) return 'google'
+  return null
+}
+
+/**
+ * A flat paid channel (Bing / ChatGPT): spend + clicks from its own daily tab, leads + QL from
+ * Streak. No umbrella, no campaign membership, and NO BOOKINGS — bookings_api.source only knows
+ * fb_landing / fb_lead / google, so their bookings and revenue are UNKNOWN in phase 1.
+ *
+ * `spend` is null, never 0, when the tab has no rows for the window: a tab that does not exist
+ * yet (or a sync that stopped) must read as "no measurement". €0,00 next to real leads would say
+ * "these leads were free", which is the freshness-contract lie in its purest form.
+ */
+function flatChannelTotals(rows: DailyRow[], leads: StreakLeadRow[]) {
+  const quality = leads.filter((l) => l.ai_score >= 50).length
+  const spend = rows.length ? rows.reduce((sum, r) => sum + (r.cost || 0), 0) : null
+  const platformLeads = rows.length ? Math.round(rows.reduce((sum, r) => sum + (r.conv || 0), 0)) : null
+  return {
+    spend,
+    clicks: rows.length ? rows.reduce((sum, r) => sum + (r.clicks || 0), 0) : null,
+    platformLeads,
+    leads: leads.length,
+    quality,
+    qRate: leads.length > 0 ? Math.round((quality / leads.length) * 100) : 0,
+    // CPQL needs BOTH a spend measurement and a quality lead. Either missing = n/a.
+    cpql: spend != null && quality > 0 ? spend / quality : null,
+  }
+}
+
+/**
+ * The metric rows of a flat-channel card. Everything the feeds cannot answer says n/a, and the
+ * two that CANNOT be answered in phase 1 say why: bookings_api.source has no Bing/ChatGPT value,
+ * so bookings, revenue and ROAS are unknown for these channels until phase 2 adds it. A "0" or a
+ * "0.00x" there would be a claim that the channel sells nothing, which no feed supports.
+ */
+function flatChannelMetrics(
+  c: ReturnType<typeof flatChannelTotals>,
+  note: string
+): ChannelMetric[] {
+  return [
+    { label: 'Spend', value: c.spend != null ? formatCurrency(c.spend, 'EUR') : 'n/a', zone: c.spend != null ? undefined : null },
+    { label: 'Leads', value: c.leads.toLocaleString() },
+    {
+      label: 'Platform leads',
+      value: c.platformLeads != null ? c.platformLeads.toLocaleString() : 'n/a',
+      zone: c.platformLeads != null ? undefined : null
+    },
+    { label: 'Quality Leads', value: `${c.quality.toLocaleString()} (${c.qRate}%)` },
+    { label: 'CPQL', value: c.cpql != null ? formatCurrency(c.cpql, 'EUR') : 'n/a', zone: c.cpql != null ? undefined : null },
+    { label: 'Bookings', value: 'n/a (faza 2)', zone: null },
+    { label: 'Revenue', value: 'n/a (faza 2)', zone: null },
+    { label: 'ROAS', value: 'n/a (faza 2)', zone: null },
+    { label: 'Vir', value: note }
+  ]
+}
+
 export default function HomePage() {
   const [range, setRange] = useState<Range>('mtd')
   const [cacMode, setCacMode] = useState<'leads' | 'deals'>('leads')
@@ -100,6 +176,12 @@ export default function HomePage() {
   const [fbEnriched, setFbEnriched] = useState<any[]>([])
   const [googleDaily, setGoogleDaily] = useState<DailyRow[]>([])
   const [fbSpendApi, setFbSpendApi] = useState<FbSpendApiRow[]>([])
+  // The two flat paid channels, read on the CLIENT exactly like `daily_api` (commit a00fac0):
+  // /api/dashboard-totals re-fetches the same Apps Script web app and wedges on its concurrency
+  // limit, and a route that answers with a zero beats a feed that has rows — which is how the
+  // Overview printed Google spend EUR 0,00 on 14.9. These two never go through that route at all.
+  const [bingDaily, setBingDaily] = useState<DailyRow[]>([])
+  const [chatgptDaily, setChatgptDaily] = useState<DailyRow[]>([])
   const [streakFb, setStreakFb] = useState<StreakLeadRow[]>([])
   const [streakGoogle, setStreakGoogle] = useState<StreakLeadRow[]>([])
   const [aiBullets, setAiBullets] = useState<string[]>([])
@@ -128,7 +210,11 @@ export default function HomePage() {
       setError(null)
       try {
         const sheetUrl = getSheetsUrl()
-        const [{ headers: dailyHeaders, rows: dailyRows }, fbRows, streakAll, bookingRows, fbApi] =
+        // A flat-channel tab that does not exist yet answers with the Apps Script error body and
+        // would reject the whole Promise.all, blanking the entire Overview. Catch per tab: the
+        // channel renders n/a (no rows = no measurement), every other channel is unaffected.
+        const emptyTab = () => ({ headers: [] as string[], rows: [] as any[][] })
+        const [{ headers: dailyHeaders, rows: dailyRows }, fbRows, streakAll, bookingRows, fbApi, bingTab, chatgptTab] =
           await Promise.all([
             fetchTab('daily_api', sheetUrl), // CUTOVER 2026-06-15: Google Ads API (was Mixed Analytics 'daily')
             fetchFbEnriched(fetchFbEnrichedSheet, sheetUrl),
@@ -139,7 +225,9 @@ export default function HomePage() {
             // while these four calls are in flight, hits the Apps Script concurrency limit and
             // hangs for minutes, so `apiTotals` stays null and FB spend silently fell back to the
             // dead `fb_ads_enriched` column -> EUR 0 for September. See 2026-09-08 diagnosis.
-            fetchTab(SHEETS_TABS.FB_SPEND_DAILY, sheetUrl)
+            fetchTab(SHEETS_TABS.FB_SPEND_DAILY, sheetUrl),
+            fetchTab(SHEETS_TABS.BING_DAILY, sheetUrl).catch(emptyTab),
+            fetchTab(SHEETS_TABS.CHATGPT_DAILY, sheetUrl).catch(emptyTab)
           ])
 
         const fbLeads = (streakAll || []).filter((l) => (l as any).platform === 'facebook')
@@ -151,6 +239,8 @@ export default function HomePage() {
         setBookings(bookingRows || [])
         setGoogleDaily(mapDailyRows(dailyHeaders, dailyRows))
         setFbSpendApi(mapFbSpendApiRows(fbApi?.headers || [], fbApi?.rows || []))
+        setBingDaily(mapDailyRows(bingTab?.headers || [], bingTab?.rows || []))
+        setChatgptDaily(mapDailyRows(chatgptTab?.headers || [], chatgptTab?.rows || []))
       } catch (e) {
         console.error('Failed to load overview data', e)
         setError('Failed to load data')
@@ -247,8 +337,10 @@ export default function HomePage() {
     })
   }, [streakAll, dateBounds])
 
-  const leadsFbFiltered = useMemo(() => leadsFiltered.filter((l) => l.platform?.toLowerCase().includes('facebook')), [leadsFiltered])
-  const leadsGoogleFiltered = useMemo(() => leadsFiltered.filter((l) => l.platform?.toLowerCase().includes('google')), [leadsFiltered])
+  const leadsFbFiltered = useMemo(() => leadsFiltered.filter((l) => leadChannelOf(l) === 'meta'), [leadsFiltered])
+  const leadsGoogleFiltered = useMemo(() => leadsFiltered.filter((l) => leadChannelOf(l) === 'google'), [leadsFiltered])
+  const leadsBingFiltered = useMemo(() => leadsFiltered.filter((l) => leadChannelOf(l) === 'bing'), [leadsFiltered])
+  const leadsChatgptFiltered = useMemo(() => leadsFiltered.filter((l) => leadChannelOf(l) === 'chatgpt'), [leadsFiltered])
 
   const qualityCount = (list: StreakLeadRow[]) => list.filter((l) => l.ai_score >= 50).length
   const avgAiScore = (list: StreakLeadRow[]) => {
@@ -272,6 +364,33 @@ export default function HomePage() {
       return d >= start && d <= end
     })
   }, [googleDaily, dateBounds])
+
+  const bingDailyFiltered = useMemo(() => {
+    const { start, end } = dateBounds
+    return bingDaily.filter((r) => {
+      const d = new Date(r.date)
+      return d >= start && d <= end
+    })
+  }, [bingDaily, dateBounds])
+
+  const chatgptDailyFiltered = useMemo(() => {
+    const { start, end } = dateBounds
+    return chatgptDaily.filter((r) => {
+      const d = new Date(r.date)
+      return d >= start && d <= end
+    })
+  }, [chatgptDaily, dateBounds])
+
+  /** Flat-channel spend for the window. null = the tab carries no rows for it, i.e. NO
+   *  measurement — the "All channels" total then says so instead of quietly adding a 0. */
+  const bingSpendTotal = useMemo(
+    () => (bingDailyFiltered.length ? bingDailyFiltered.reduce((sum, r) => sum + (r.cost || 0), 0) : null),
+    [bingDailyFiltered]
+  )
+  const chatgptSpendTotal = useMemo(
+    () => (chatgptDailyFiltered.length ? chatgptDailyFiltered.reduce((sum, r) => sum + (r.cost || 0), 0) : null),
+    [chatgptDailyFiltered]
+  )
 
   const fbSpend = useMemo(
     () => fbEnrichedFiltered.reduce((sum, r: any) => sum + (r.spend || 0), 0),
@@ -372,7 +491,9 @@ export default function HomePage() {
     const fbSpendFinal = fbSpendFromApi.covered
       ? fbSpendFromApi.total
       : apiTotals?.fb?.spend ?? fbSpend
-    const totalSpend = fbSpendFinal + googleSpendFinal
+    // All FOUR paid channels. A flat channel with no rows contributes nothing rather than a
+    // false 0; spendHealth below names which half of the total is missing.
+    const totalSpend = fbSpendFinal + googleSpendFinal + (bingSpendTotal ?? 0) + (chatgptSpendTotal ?? 0)
     // LEADS = Streak CRM, the same set QL / QL% / CPQL are counted from. The platform-reported
     // count is a different measuring system and is kept separate, never as a QL denominator.
     const totalLeads = leadsFiltered.length
@@ -385,7 +506,7 @@ export default function HomePage() {
     // "CPC" arrow both read this, and a half-measured denominator is worse than an absent one.
     const lpViews = fbEnrichedCoversWindow ? fbLpViews + googleClicksFinal : null
     return { spend: totalSpend, leads: totalLeads, platformLeads, qualityLeads: totalQuality, avgAi, bookings: bookingsCount, revenue, lpViews }
-  }, [apiTotals, fbSpend, fbSpendFromApi, googleSpendFinal, leadsFiltered, filteredBookings.length, revenueTotals.totalRevenue, fbLpViews, googleClicksFinal])
+  }, [apiTotals, fbSpend, fbSpendFromApi, googleSpendFinal, bingSpendTotal, chatgptSpendTotal, leadsFiltered, filteredBookings.length, revenueTotals.totalRevenue, fbLpViews, googleClicksFinal])
 
   const cacValue = useMemo(() => {
     if (cacMode === 'deals') {
@@ -407,10 +528,19 @@ export default function HomePage() {
   const spendHealth = useMemo(() => {
     const fbOk = fbSpendFromApi.covered || (apiTotals?.fb?.spend ?? 0) > 0
     const googleOk = googleFeedCoversWindow || (apiTotals?.google?.spend ?? 0) > 0
+    // The flat channels are tracked separately ON PURPOSE. They are small (Bing ~EUR 300 MTD,
+    // ChatGPT ~EUR 150) and brand new, so a tab that has not been created yet must NOT paint the
+    // headline Total Spend tile amber the way a dead Meta or Google feed has to — that would be
+    // crying wolf on the one tile that has to stay trustworthy. It is still named in the
+    // subtitle, so the total never silently claims to be complete when it is not.
+    const flatMissing = [bingSpendTotal == null ? 'Bing' : null, chatgptSpendTotal == null ? 'ChatGPT' : null].filter(
+      Boolean
+    ) as string[]
     const warning: string | null = fbOk && googleOk ? null : fbOk ? 'Google n/a' : googleOk ? 'FB n/a' : 'n/a'
-    const subtitle = fbOk && googleOk ? 'All channels' : fbOk ? 'Facebook only' : googleOk ? 'Google only' : 'no live spend feed'
-    return { fbOk, googleOk, warning, subtitle }
-  }, [fbSpendFromApi.covered, googleFeedCoversWindow, apiTotals])
+    const base = fbOk && googleOk ? 'All channels' : fbOk ? 'Facebook only' : googleOk ? 'Google only' : 'no live spend feed'
+    const subtitle = flatMissing.length ? `${base} · ${flatMissing.join(' + ')} n/a` : base
+    return { fbOk, googleOk, flatMissing, warning, subtitle }
+  }, [fbSpendFromApi.covered, googleFeedCoversWindow, apiTotals, bingSpendTotal, chatgptSpendTotal])
 
   const bothSpendFeedsDead = !spendHealth.fbOk && !spendHealth.googleOk
 
@@ -506,6 +636,19 @@ export default function HomePage() {
       roas
     }
   }, [apiTotals, leadsGoogleFiltered, filteredBookings, googleSpendFinal, googleConversions, googleFeedHasRows, googleFeedCoversWindow])
+
+  // ── The two flat channels (phase 1, 2026-09-14) ──────────────────────────────────────────
+  // Bing Ads: live 2026-09-04, a 12-week test. ChatGPT Ads: oCPC campaign live 2026-09-14.
+  // Spend and platform leads from their own daily tabs, leads and QL from Streak by SOURCE
+  // DETAIL. Bookings and revenue are UNKNOWN, not zero — see flatChannelTotals().
+  const channelBing = useMemo(
+    () => flatChannelTotals(bingDailyFiltered, leadsBingFiltered),
+    [bingDailyFiltered, leadsBingFiltered]
+  )
+  const channelChatgpt = useMemo(
+    () => flatChannelTotals(chatgptDailyFiltered, leadsChatgptFiltered),
+    [chatgptDailyFiltered, leadsChatgptFiltered]
+  )
 
   // A channel ROAS is measurable on exactly the same terms as the headline one: a whole
   // calendar month, a live bookings feed and spend > 0. Anything else is n/a, never 0.00x.
@@ -704,11 +847,30 @@ export default function HomePage() {
       revenue: channelGoogle.revenue,
       roas: channelGoogle.roas
     },
+    // PHASE 1 (2026-09-14). bookings/revenue/roas are deliberately ABSENT from these two blocks
+    // rather than 0: bookings_api cannot attribute a booking to Bing or ChatGPT yet, so the model
+    // must judge them on spend, leads, QL and CPQL only. The summary prompt says so explicitly.
+    bing: {
+      spend: channelBing.spend,
+      leads: channelBing.leads,
+      qualityLeads: channelBing.quality,
+      qlRate: channelBing.qRate,
+      cpql: channelBing.cpql,
+      note: 'Bing Ads — 12-week test, live 2026-09-04. No booking attribution in phase 1.'
+    },
+    chatgpt: {
+      spend: channelChatgpt.spend,
+      leads: channelChatgpt.leads,
+      qualityLeads: channelChatgpt.quality,
+      qlRate: channelChatgpt.qRate,
+      cpql: channelChatgpt.cpql,
+      note: 'ChatGPT Ads — oCPC campaign live 2026-09-14. No booking attribution in phase 1.'
+    },
     revenueBySource,
     topMarkets,
     leadTrend,
     funnel
-  }), [range, totals, roasDisplay, cacValue, cacMode, channelFb, channelGoogle, revenueBySource, topMarkets, leadTrend, funnel])
+  }), [range, totals, roasDisplay, cacValue, cacMode, channelFb, channelGoogle, channelBing, channelChatgpt, revenueBySource, topMarkets, leadTrend, funnel])
 
   // The summary used to fire on every change of `aiMetricsPayload`, starting with the FIRST
   // render — before any sheet had loaded. That first POST carried an all-zero payload, and the
@@ -1018,6 +1180,16 @@ export default function HomePage() {
                 zone: googleRoasDisplay !== null ? zoneForRoas(googleRoasDisplay) : null
               }
             ]}
+          />
+          <ChannelCard
+            title="Bing Ads"
+            icon={<span className="text-[#0F7B6C]">ⓑ</span>}
+            metrics={flatChannelMetrics(channelBing, 'Microsoft Advertising · 12-week test')}
+          />
+          <ChannelCard
+            title="ChatGPT Ads"
+            icon={<span className="text-[#202123]">✦</span>}
+            metrics={flatChannelMetrics(channelChatgpt, 'OpenAI Ads · oCPC live 14.9.')}
           />
                     </div>
 

@@ -254,17 +254,30 @@ Analyze the marketing performance data and provide 3-5 bullet point insights.
 
 Focus on:
 1. Revenue and booking performance - what's working, what's not
-2. Channel efficiency - Facebook vs Google, where to invest more
+2. Channel efficiency - Facebook vs Google vs Bing Ads vs ChatGPT Ads, where to invest more
 3. Lead quality trends - is quality improving or declining
 4. Market opportunities - which countries show best potential
 5. Cost efficiency - CAC/CPQL changes, budget optimization
 
+THE FOUR PAID CHANNELS (the payload carries a block for each):
+- facebook / google — the established channels. Full funnel: spend, leads, QL, CPQL, bookings, revenue, ROAS.
+- bing — Bing Ads / Microsoft Advertising. A 12-WEEK TEST, live since 2026-09-04. Small budget by design.
+- chatgpt — ChatGPT Ads (OpenAI Ads Manager). An oCPC campaign, LIVE SINCE 2026-09-14, i.e. brand new.
+Bing and ChatGPT are judged on SPEND, LEADS, QUALITY LEADS and CPQL ONLY. They carry no bookings,
+revenue or ROAS fields at all, because bookings_api cannot yet attribute a booking to either of
+them (phase 2 will). NEVER say a test channel "produced no revenue", "has 0 bookings" or "is not
+converting" — that is a gap in attribution, not a result. If you want to flag it, say the booking
+attribution for that channel is not live yet.
+A brand-new channel with a handful of days of data deserves a "too early to call", not a verdict.
+
 CRITICAL — data integrity rules (violating these destroys user trust):
 - Use ONLY the metrics present in the USER payload. Do NOT invent, round, or extrapolate numbers.
 - Every number you cite MUST appear in the payload. If a figure (spend, leads, revenue, close rate, ROAS) is not in the payload, do not mention it.
-- Do NOT reference a country, campaign, or channel unless it is present in the payload (topMarkets[].country, revenueBySource[].name, or the facebook/google blocks).
+- Do NOT reference a country, campaign, or channel unless it is present in the payload (topMarkets[].country, revenueBySource[].name, or the facebook/google/bing/chatgpt blocks).
+- A field that is null means UNKNOWN — the feed could not answer. It is NOT zero. Never write "€0", "0 leads" or "0.00x" for a null, and never conclude a channel underperformed because a number is missing. Say the data is not available for that channel yet.
 - The knowledge base describes strategic priorities (e.g. Australia target market) but does NOT constitute current performance data. Never claim a country is "winning" or "losing" unless the payload's topMarkets entry for that country proves it.
 - If the payload shows facebook.spend = 0 and facebook.bookings > 0, that is a DATA GAP, not a campaign insight — flag it as "verify tracking" not as performance.
+- Same rule for bing.spend / chatgpt.spend being null while that channel has leads: the spend tab is not answering, so say "spend feed missing" — do NOT report those leads as free or as an outstanding CPQL.
 - When referencing a country, use the exact spelling and capitalization from topMarkets[].country.
 
 Style rules:

@@ -47,7 +47,7 @@ import mtdData from '@/data/mtd-data.json'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 export const runtime = 'nodejs'
-export const maxDuration = 60
+export const maxDuration = 90
 
 // ---------------------------------------------------------------------------
 // types
@@ -86,7 +86,8 @@ const worse = (a: Status, b: Status): Status => (RANK[a] >= RANK[b] ? a : b)
  * Apps Script sync was running, its concurrency limit stretched one tab past the
  * function budget and the WHOLE route died — the watchdog then wrote "monitor down"
  * even though four feeds had been read fine. A slow tab must cost that tab, not the
- * report. 12 s x 5 = 60 s worst case, which is the maxDuration below.
+ * report. 12 s x 7 tabs = 84 s worst case, which is what the maxDuration below allows for
+ * (the two flat-channel tabs, bing_ads_api and chatgpt_ads_api, joined on 2026-09-14).
  */
 const TAB_TIMEOUT_MS = 12_000
 
@@ -169,6 +170,8 @@ export async function GET(request: Request) {
   // different thing from zero — see the null guards on the sanity rules below.
   let fbSpend: number | null = null
   let googleSpend: number | null = null
+  let bingSpend: number | null = null
+  let chatgptSpend: number | null = null
   let googlePlatformLeads: number | null = null
   let googleCrmLeads: number | null = null
   let fbCrmLeads: number | null = null
@@ -265,6 +268,71 @@ export async function GET(request: Request) {
     })
   } finally {
     d2.clear()
+  }
+
+  // -- 2b + 2c  bing_ads_api / chatgpt_ads_api — the two flat paid channels ---
+  //
+  // Added 2026-09-14 with the Bing (12-week test, live 4.9.) and ChatGPT Ads (oCPC, live 14.9.)
+  // channels. Same header-keyed shape as daily_api: date | campaign | … | cost (EUR).
+  //
+  // A tab that is ABSENT is amber with an explicit note, not red: while these channels are being
+  // stood up the tab genuinely may not exist yet, and "ni podatka" is a different statement from
+  // "the feed broke". What must never happen is the third option — reporting €0 spend, which
+  // would read as "we ran no ads" and is the exact lie the freshness contract exists to kill.
+  // Once the tab carries rows it obeys the normal daily staleness rule like every other feed.
+  const flatChannels: { name: string; tab: string; set: (v: number) => void }[] = [
+    { name: 'Bing Ads daily (Microsoft)', tab: SHEETS_TABS.BING_DAILY, set: (v) => (bingSpend = v) },
+    { name: 'ChatGPT Ads daily (OpenAI)', tab: SHEETS_TABS.CHATGPT_DAILY, set: (v) => (chatgptSpend = v) },
+  ]
+  for (const fc of flatChannels) {
+    const dFlat = deadline()
+    try {
+      const rows = await fetchSheet({ sheetUrl: url, tab: fc.tab, signal: dFlat.signal })
+      const [header = [], ...data] = rows || []
+      const H = normalizeHeaders(header as any[])
+      const iDate = pickIdx(H, ['date', 'day'])
+      const iCost = pickIdx(H, ['cost', 'spend'])
+
+      let maxDate: string | null = null
+      let cost = 0
+      for (const r of data) {
+        const iso = toIsoDay(iDate === -1 ? r[0] : r[iDate])
+        if (!iso) continue
+        if (!maxDate || iso > maxDate) maxDate = iso
+        if (iso >= monthStart && iso <= today) cost += toNumberEUorUS(iCost === -1 ? r[7] : r[iCost])
+      }
+      // Only claim a spend number when the tab actually answered with rows. No rows = unknown.
+      if (maxDate) fc.set(cost)
+      const staleDays = maxDate ? daysBetween(maxDate, today) : null
+      feeds.push({
+        name: fc.name,
+        tab: fc.tab,
+        maxDate,
+        rowCount: data.length,
+        staleDays,
+        status: maxDate ? dailyStatus(staleDays) : 'amber',
+        note: maxDate
+          ? undefined
+          : `Tab ${fc.tab} je prazen ali ga (še) ni. Poraba tega kanala je n/a — NE 0.`,
+      })
+    } catch (e) {
+      feeds.push({
+        name: fc.name,
+        tab: fc.tab,
+        maxDate: null,
+        rowCount: 0,
+        staleDays: null,
+        // A missing tab answers with the Apps Script error body, which is not the same failure as
+        // a timeout. Either way it is amber-with-a-reason while the channel is being stood up.
+        status: dFlat.signal.aborted ? 'unknown' : 'amber',
+        error: e instanceof Error ? e.message : String(e),
+        note: dFlat.signal.aborted
+          ? TIMEOUT_NOTE
+          : `Tab ${fc.tab} se ni prebral (verjetno še ne obstaja). Poraba tega kanala je n/a — NE 0.`,
+      })
+    } finally {
+      dFlat.clear()
+    }
   }
 
   // -- 3/5  streak_sync — the CRM side of every lead -------------------------
@@ -416,7 +484,9 @@ export async function GET(request: Request) {
   // sanity rules — the cross-feed checks no single feed can make
   // ---------------------------------------------------------------------------
 
-  const mtdSpend = (fbSpend ?? 0) + (googleSpend ?? 0)
+  // All four paid channels, exactly like the Overview's "Total Spend" tile. Bing and ChatGPT
+  // contribute only once their tab answers; an unread tab adds nothing rather than a false 0.
+  const mtdSpend = (fbSpend ?? 0) + (googleSpend ?? 0) + (bingSpend ?? 0) + (chatgptSpend ?? 0)
   const roas = mtdSpend > 0 && mtdRevenue != null ? mtdRevenue / mtdSpend : 0
   const eur = (n: number) => `€${Math.round(n).toLocaleString('sl-SI')}`
 
@@ -502,6 +572,8 @@ export async function GET(request: Request) {
         spend: round2(mtdSpend),
         fbSpend: fbSpend == null ? null : round2(fbSpend),
         googleSpend: googleSpend == null ? null : round2(googleSpend),
+        bingSpend: bingSpend == null ? null : round2(bingSpend),
+        chatgptSpend: chatgptSpend == null ? null : round2(chatgptSpend),
         revenue: mtdRevenue,
         roas: round2(roas),
         bookings: bookingCount,

@@ -60,10 +60,24 @@ export const fetchCache = 'default-no-store'
 // leads by SOURCE PLACEMENT resolved through utm_mapping first (Dejan's confirmed table) and
 // the placement matchers second.
 //
-// `channel` (optional, composable with `campaign`): omit for both channels. `meta` / `google`
-// scope ads to the Meta feeds / daily_api, leads+QL to streak_sync.platform and bookings to
-// bookings_api.source (fb_landing + fb_lead = meta). LP views are PAID ONLY on every view now,
-// so meta + google DOES sum to the All view; organic sits outside the funnel as lpViewsOrganic.
+// `channel` (optional, composable with `campaign`): omit for all four channels.
+//   meta     the Meta feeds (fb_daily_api + fb_ads_api)
+//   google   daily_api
+//   bing     bing_ads_api      — FLAT, added 2026-09-14 (Microsoft Advertising, 12-week test)
+//   chatgpt  chatgpt_ads_api   — FLAT, added 2026-09-14 (OpenAI Ads Manager, oCPC live 14.9.)
+// Leads + QL split on Streak: SOURCE DETAIL FIRST (`ms - `/`ms_` = bing, `chatgpt…` = chatgpt),
+// platform second — Streak tags Bing and ChatGPT as PAID_SEARCH, i.e. platform "google", so
+// reading platform alone counted both inside Paid Google. Bookings split on bookings_api.source
+// (fb_landing + fb_lead = meta), which knows nothing about the two new channels: their bookings
+// and revenue are UNKNOWN in phase 1, reported as null/notApplicable and never as 0.
+//
+// FLAT means: no umbrella, no campaign membership, no orphan spend. Bing/ChatGPT spend is inside
+// the master total (and inside campaignMembership.unattributed.spend) but never passes through
+// adSlug(), so "umbrellas + unattributed = master" is unchanged.
+//
+// BACKWARD COMPATIBILITY: every existing key keeps its meaning and position. The two channels are
+// ADDITIVE — two extra entries in steps[].channels (after google, before other) and two extra
+// meta.coverage keys. `all` totals now include their spend, leads and QL, which is the point.
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -112,9 +126,9 @@ export async function GET(request: Request) {
     )
   }
 
-  if (!['all', 'meta', 'google'].includes(channel)) {
+  if (!['all', 'meta', 'google', 'bing', 'chatgpt'].includes(channel)) {
     return NextResponse.json(
-      { error: `Unknown channel "${channelParam}"`, channels: ['meta', 'google'] },
+      { error: `Unknown channel "${channelParam}"`, channels: ['meta', 'google', 'bing', 'chatgpt'] },
       { status: 400, headers }
     )
   }

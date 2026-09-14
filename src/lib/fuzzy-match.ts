@@ -68,12 +68,16 @@ const isFormClone = (s: string) => /_form\d/.test(s);
  *    `chatgpt-us-croatia-sep26`, `chatgpt-intl-croatia-sep26`, test `chatgpt-test-sep26`;
  *    utm_source=chatgpt_ads, utm_medium=cpc. Flattened, every one is `chatgpt` or starts `chatgpt_`.
  *
- * Microsoft/Bing (`ms_`, live 2026-09-02) deliberately stays in the Unknown rule at the
- * bottom: those are imported Google Search campaigns and their leads already arrive on
- * platform=google, so they are counted inside Paid Google rather than as a channel here.
+ *  - Bing Ads / Microsoft Advertising (live 2026-09-04, 12-week test): SOURCE PLACEMENT and
+ *    SOURCE DETAIL carry the `MS - ` campaign prefix (`ms - search - croatia - en`), which
+ *    flattens to `ms_search_croatia_en`. PROMOTED OUT OF Unknown 2026-09-14: these are their own
+ *    paid channel now (Bing is a separate auction, a separate budget and a separate CPQL), and
+ *    they only ever LOOKED like Google because Streak tags them PAID_SEARCH → platform=google.
+ *    Calling them Unknown meant "dead / legacy / junk", which is what this bucket is for.
  */
 export const NON_FB_PAID_CHANNELS: { prefix: string; channel: string }[] = [
   { prefix: 'chatgpt', channel: 'ChatGPT Ads' },
+  { prefix: 'ms', channel: 'Bing Ads' },
 ];
 
 /** The paid channel a non-Facebook placement belongs to ('ChatGPT Ads'), or null. */
@@ -437,9 +441,9 @@ const RULES: Rule[] = [
       src === 'dalmatincki_warm_social_proof_maxita_video_carousel' ||
       // non-FB / referrer / bare-id noise (confirmed 2026-06-16)
       src === 'google' ||
-      // Microsoft/Bing Ads — imported Google campaigns carry the `MS - ` prefix in
-      // utm_campaign (set 2026-09-02). Not Facebook, so explicitly Unknown here.
-      src.startsWith('ms_') ||
+      // Microsoft/Bing Ads (`ms_`) used to be Unknown here. Since 2026-09-14 they are their own
+      // paid channel, resolved in NON_FB_PAID_CHANNELS above — which runs BEFORE these rules, so
+      // a Bing placement can never reach this line.
       src === 'instagram' ||
       src === 'instagram_referrer' ||
       src.startsWith('landing_cnn') ||
