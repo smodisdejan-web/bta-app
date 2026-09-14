@@ -761,22 +761,35 @@ async function loadFlatChannel(
   key: 'bing' | 'chatgpt',
   tab: string
 ): Promise<{ rows: AdDay[]; coverage: Coverage }> {
-  return cached(key, async () => {
-    const raw = await fetchRows(tab).catch((e) => {
-      console.warn(`[funnel] ${tab} unavailable — ${key} renders n/a, not 0`, (e as Error).message)
-      return [] as any[]
+  // The catch sits OUTSIDE cached() on purpose. Swallowing the error inside the cached function
+  // turns a failure into a SUCCESSFUL empty result, which cached() then memoises for 15 minutes —
+  // one flaky Apps Script call (its concurrency limit trips often while a sync is running) would
+  // blank the channel for the next quarter of an hour. Seen live 2026-09-14: the Bing tab read
+  // fine, then a later request found it "missing" and every following request served the cached
+  // emptiness. Failing out here leaves nothing memoised, so the very next request retries.
+  // A tab that genuinely answers with [] IS cached — that is a real answer, not a failure.
+  try {
+    return await cached(key, async () => {
+      const raw = await fetchRows(tab)
+      return parseFlatChannelRows(raw)
     })
-    const rows: AdDay[] = []
-    for (const r of raw) {
-      const campaign = String(r.campaign ?? '')
-      const day = toDay(r.date)
-      if (!campaign || !day) continue
-      // One clicks figure per row, exactly like Google — it IS the link click.
-      const clicks = num(r.clicks)
-      rows.push({ day, campaign, impressions: num(r.impr), clicks, clicksAll: clicks, spend: num(r.cost) })
-    }
-    return { rows, coverage: coverageOf(rows.map((r) => r.day)) }
-  })
+  } catch (e) {
+    console.warn(`[funnel] ${tab} unavailable — ${key} renders n/a, not 0`, (e as Error).message)
+    return { rows: [], coverage: { min: '', max: '' } }
+  }
+}
+
+function parseFlatChannelRows(raw: any[]): { rows: AdDay[]; coverage: Coverage } {
+  const rows: AdDay[] = []
+  for (const r of raw) {
+    const campaign = String(r.campaign ?? '')
+    const day = toDay(r.date)
+    if (!campaign || !day) continue
+    // One clicks figure per row, exactly like Google — it IS the link click.
+    const clicks = num(r.clicks)
+    rows.push({ day, campaign, impressions: num(r.impr), clicks, clicksAll: clicks, spend: num(r.cost) })
+  }
+  return { rows, coverage: coverageOf(rows.map((r) => r.day)) }
 }
 
 /** Bing / Microsoft Advertising: bing_ads_api. Campaign × day, EUR. */
