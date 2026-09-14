@@ -1773,6 +1773,14 @@ export async function loadBusinessFunnel(opts: {
     chatgpt: !!chatgpt.coverage.min,
   }
   const flatFeedDead = (channel === 'bing' || channel === 'chatgpt') && !flatUsable[channel]
+  /**
+   * A single-channel view of a flat channel. bookings_api.source knows fb_landing / fb_lead /
+   * google and nothing else, so a Bing or ChatGPT booking is INVISIBLE to the feed — not absent.
+   * Every bookings-derived figure is therefore null on these views. Without this the first live
+   * response read `bookings: 0, roas: 0` next to EUR 316 of Bing spend, i.e. "we spent the money
+   * and sold nothing" — a verdict no source can support. Phase 2 adds the source values.
+   */
+  const flatChannelView = channel === 'bing' || channel === 'chatgpt'
 
   // Meta coverage = the days BOTH Meta feeds can answer (spend from fb_ads_api, counts from
   // fb_ads_raw). Anything outside it would mix a covered numerator with a missing denominator.
@@ -1879,7 +1887,7 @@ export async function loadBusinessFunnel(opts: {
     lpViews: gapAll ? null : cur.lpViews,
     leads: gapAll ? null : cur.leads,
     ql: gapAll ? null : cur.ql,
-    bookings: bookingsGap ? null : cur.bookings,
+    bookings: bookingsGap || flatChannelView ? null : cur.bookings,
   }
   const pick = (v: RawStepValues, key: string): number | null =>
     (v as unknown as Record<string, number | null>)[key]
@@ -1958,10 +1966,10 @@ export async function loadBusinessFunnel(opts: {
     if (s.key === 'lpViews') step.lpViewsOrganic = gapAll ? null : cur.lpViewsOrganic
     if (s.key === 'ql') step.qualityLeadsIncludingAsset = gapAll ? null : cur.qlAll
     if (s.key === 'bookings') {
-      step.revenue = bookingsGap ? null : cur.revenue
+      step.revenue = bookingsGap || flatChannelView ? null : cur.revenue
       // The cohort is counted by inquiry_date inside the DAY window, so it is a gap whenever
       // either side of it is — omitted rather than printed as a 0 that means "none happened".
-      if (!gapAll && !bookingsGap) {
+      if (!gapAll && !bookingsGap && !flatChannelView) {
         step.bookingsCohort = { count: cur.bookingsCohort, revenue: cur.revenueCohort }
         step.leadsToBookingCohortRate = div(cur.bookingsCohort, cur.leads)
       } else {
@@ -2082,9 +2090,15 @@ export async function loadBusinessFunnel(opts: {
     cpl: metaFeedUsable && cur.leads ? cur.spend / cur.leads : null,
     cpql: metaFeedUsable && cur.ql ? cur.spend / cur.ql : null,
     costPerBooking:
-      metaFeedUsable && bookingsMonthsMatchWindow && cur.bookings ? cur.spend / cur.bookings : null,
+      metaFeedUsable && bookingsMonthsMatchWindow && !flatChannelView && cur.bookings
+        ? cur.spend / cur.bookings
+        : null,
+    // `!flatChannelView`: a flat channel's revenue is UNKNOWN, so revenue/spend would divide an
+    // unknown by a real number and print 0.00x — a measurement of failure where there was none.
     roas:
-      metaFeedUsable && bookingsMonthsMatchWindow && cur.spend > 0 ? cur.revenue / cur.spend : null,
+      metaFeedUsable && bookingsMonthsMatchWindow && !flatChannelView && cur.spend > 0
+        ? cur.revenue / cur.spend
+        : null,
   }
 
   // ── Attribution remainder (Streak leads in range that match no umbrella) ──
@@ -2264,6 +2278,9 @@ export async function loadBusinessFunnel(opts: {
           : null,
         windowEmpty
           ? `The requested window ${reqStart}…${reqEnd} lies entirely outside the coverage of at least one paid source — every day-granular step, and every efficiency metric, is null rather than 0. This is a coverage gap, not a performance collapse.`
+          : null,
+        flatChannelView
+          ? `bookings, revenue, costPerBooking and ROAS are null on a ?channel=${channel} view, not 0: bookings_api.source only carries fb_landing / fb_lead / google, so a booking from this channel cannot be recognised at all. Unknown, not zero — phase 2 adds the source values. Judge this channel on spend, leads, QL and CPQL.`
           : null,
         bookingsGap
           ? `bookings_api covers ${bookings.coverage.min || 'n/a'}…${bookings.coverage.max || 'n/a'} and does not reach ${bookingsFromM}…${bookingsToM}, so bookings and revenue are null (unknown), not 0.`
