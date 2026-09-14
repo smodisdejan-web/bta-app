@@ -346,6 +346,23 @@ export default function HomePage() {
     return maxDate >= toLocalISODate(lagDay)
   }, [googleDaily, dateBounds])
 
+  const googleConversions = useMemo(
+    () => googleDailyFiltered.reduce((sum, r) => sum + (r.conv || 0), 0),
+    [googleDailyFiltered]
+  )
+  // Google spend/clicks precedence, mirroring the FB one above: `daily_api` (Google Ads API ->
+  // sheet, daily) read on the CLIENT first, /api/dashboard-totals only when the client feed has
+  // no rows for the window. The old order was the other way round and it failed exactly the way
+  // FB did on 8.9.: that route calls fetchGoogleAds(), which Promise.all's the huge `streak_sync`
+  // tab, hits the Apps Script concurrency limit and throws -- the catch returns [], and
+  // calculateGoogleTotals([]) hands back spend 0. That zero is a NUMBER, so `??` never fell
+  // through to the client sum, and on 14.9. the Overview printed Google Spend EUR 0,00, CPQL 0
+  // and ROAS n/a while daily_api held 140 September rows worth EUR 12,037.90. A feed that has
+  // rows always beats a route that answers with a zero.
+  const googleFeedHasRows = googleDailyFiltered.length > 0
+  const googleSpendFinal = googleFeedHasRows ? googleSpend : apiTotals?.google?.spend ?? googleSpend
+  const googleClicksFinal = googleFeedHasRows ? googleClicks : apiTotals?.google?.clicks ?? googleClicks
+
   const totals: SummaryData = useMemo(() => {
     // Spend precedence: fb_ads_api (Meta, daily) > /api/dashboard-totals > fb_ads_enriched.
     // The old line trusted `apiTotals` first and fell all the way back to `fbSpend` (enriched)
@@ -355,7 +372,7 @@ export default function HomePage() {
     const fbSpendFinal = fbSpendFromApi.covered
       ? fbSpendFromApi.total
       : apiTotals?.fb?.spend ?? fbSpend
-    const totalSpend = fbSpendFinal + (apiTotals?.google?.spend ?? googleSpend)
+    const totalSpend = fbSpendFinal + googleSpendFinal
     // LEADS = Streak CRM, the same set QL / QL% / CPQL are counted from. The platform-reported
     // count is a different measuring system and is kept separate, never as a QL denominator.
     const totalLeads = leadsFiltered.length
@@ -366,9 +383,9 @@ export default function HomePage() {
     const revenue = revenueTotals.totalRevenue
     // null, not 0, when the Facebook half cannot be measured for this window — the funnel and the
     // "CPC" arrow both read this, and a half-measured denominator is worse than an absent one.
-    const lpViews = fbEnrichedCoversWindow ? fbLpViews + googleClicks : null
+    const lpViews = fbEnrichedCoversWindow ? fbLpViews + googleClicksFinal : null
     return { spend: totalSpend, leads: totalLeads, platformLeads, qualityLeads: totalQuality, avgAi, bookings: bookingsCount, revenue, lpViews }
-  }, [apiTotals, fbSpend, fbSpendFromApi, googleSpend, leadsFiltered, filteredBookings.length, revenueTotals.totalRevenue, fbLpViews, googleClicks])
+  }, [apiTotals, fbSpend, fbSpendFromApi, googleSpendFinal, leadsFiltered, filteredBookings.length, revenueTotals.totalRevenue, fbLpViews, googleClicksFinal])
 
   const cacValue = useMemo(() => {
     if (cacMode === 'deals') {
@@ -459,17 +476,28 @@ export default function HomePage() {
   const channelGoogle = useMemo(() => {
     const quality = qualityCount(leadsGoogleFiltered)
     const leadsCount = leadsGoogleFiltered.length
-    const platformLeads = apiTotals?.google?.conversions ?? 0
+    // Platform leads = the `conv` column of daily_api, summed on the client from the same rows
+    // spend comes from. It used to read apiTotals?.google?.conversions ?? 0, so a dashboard-totals
+    // call that died on the Apps Script concurrency limit printed "Platform leads 0" next to real
+    // spend -- a dead route rendered as a measurement of zero, the same trap the FB card fell into
+    // on 9.9. Rounded because conversions arrive fractional (146.34) and a lead count is whole.
+    const platformLeads = googleFeedHasRows
+      ? Math.round(googleConversions)
+      : Math.round(apiTotals?.google?.conversions ?? 0)
+    // Freshness contract: when daily_api does not reach the window there is no measurement, so
+    // the tile says n/a rather than 0.
+    const platformLeadsMeasured = googleFeedCoversWindow
     const qRate = leadsCount > 0 ? Math.round((quality / leadsCount) * 100) : 0
     const bookingsGoogle = filteredBookings.filter((b) => b.source === 'google')
     const revenueGoogle = bookingsGoogle.reduce((s, b) => s + (b.rvc || 0), 0)
-    const spend = apiTotals?.google?.spend ?? googleSpend
+    const spend = googleSpendFinal
     const roas = spend > 0 ? revenueGoogle / spend : 0
     const cpql = quality > 0 ? spend / quality : 0
     return {
       spend,
       leads: leadsCount,
       platformLeads,
+      platformLeadsMeasured,
       quality,
       qRate,
       cpql,
@@ -477,7 +505,7 @@ export default function HomePage() {
       revenue: revenueGoogle,
       roas
     }
-  }, [apiTotals, leadsGoogleFiltered, filteredBookings, googleSpend])
+  }, [apiTotals, leadsGoogleFiltered, filteredBookings, googleSpendFinal, googleConversions, googleFeedHasRows, googleFeedCoversWindow])
 
   // A channel ROAS is measurable on exactly the same terms as the headline one: a whole
   // calendar month, a live bookings feed and spend > 0. Anything else is n/a, never 0.00x.
@@ -975,7 +1003,11 @@ export default function HomePage() {
             metrics={[
               { label: 'Spend', value: formatCurrency(channelGoogle.spend, 'EUR') },
               { label: 'Leads', value: channelGoogle.leads.toLocaleString() },
-              { label: 'Platform leads', value: channelGoogle.platformLeads.toLocaleString() },
+              {
+                label: 'Platform leads',
+                value: channelGoogle.platformLeadsMeasured ? channelGoogle.platformLeads.toLocaleString() : 'n/a',
+                zone: channelGoogle.platformLeadsMeasured ? undefined : null
+              },
               { label: 'Quality Leads', value: `${channelGoogle.quality.toLocaleString()} (${channelGoogle.qRate}%)` },
               { label: 'CPQL', value: formatCurrency(channelGoogle.cpql, 'EUR') },
               { label: 'Bookings', value: bookingsFeedState === 'live' ? channelGoogle.bookings.toString() : 'n/a' },
