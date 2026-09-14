@@ -17,6 +17,7 @@ import {
 import { Pie, PieChart, ResponsiveContainer, Cell, Tooltip, Legend, ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { fetchFbEnriched, fetchStreakSync, fetchTab, fetchBookings, BookingRecord, StreakLeadRow } from '@/lib/sheetsData'
 import { getSheetsUrl, SHEETS_TABS } from '@/lib/config'
+import { bookingChannelOf } from '@/lib/booking-channel'
 import { formatCurrency } from '@/lib/utils'
 import { AiAsk } from '@/components/overview/AiAsk'
 import {
@@ -116,17 +117,24 @@ function leadChannelOf(l: StreakLeadRow): PaidChannel | null {
 
 /**
  * A flat paid channel (Bing / ChatGPT): spend + clicks from its own daily tab, leads + QL from
- * Streak. No umbrella, no campaign membership, and NO BOOKINGS — bookings_api.source only knows
- * fb_landing / fb_lead / google, so their bookings and revenue are UNKNOWN in phase 1.
+ * Streak, bookings + revenue from bookings_api resolved through bookingChannelOf(). No umbrella
+ * and no campaign membership — that part of "flat" is unchanged.
+ *
+ * PHASE 2 (2026-09-14): bookings and revenue are MEASURED. In phase 1 bookings_api.source knew
+ * only fb_landing / fb_lead / google, so a booking from these channels could not be recognised at
+ * all and the card said "n/a (faza 2)". Now the sync scripts write `bing` / `chatgpt` and the
+ * campaign name is read as a fallback, so 0 means "none closed in this window" — the number a
+ * 12-week test has to be judged on.
  *
  * `spend` is null, never 0, when the tab has no rows for the window: a tab that does not exist
  * yet (or a sync that stopped) must read as "no measurement". €0,00 next to real leads would say
  * "these leads were free", which is the freshness-contract lie in its purest form.
  */
-function flatChannelTotals(rows: DailyRow[], leads: StreakLeadRow[]) {
+function flatChannelTotals(rows: DailyRow[], leads: StreakLeadRow[], bookings: BookingRecord[]) {
   const quality = leads.filter((l) => l.ai_score >= 50).length
   const spend = rows.length ? rows.reduce((sum, r) => sum + (r.cost || 0), 0) : null
   const platformLeads = rows.length ? Math.round(rows.reduce((sum, r) => sum + (r.conv || 0), 0)) : null
+  const revenue = bookings.reduce((sum, b) => sum + (b.rvc || 0), 0)
   return {
     spend,
     clicks: rows.length ? rows.reduce((sum, r) => sum + (r.clicks || 0), 0) : null,
@@ -136,18 +144,24 @@ function flatChannelTotals(rows: DailyRow[], leads: StreakLeadRow[]) {
     qRate: leads.length > 0 ? Math.round((quality / leads.length) * 100) : 0,
     // CPQL needs BOTH a spend measurement and a quality lead. Either missing = n/a.
     cpql: spend != null && quality > 0 ? spend / quality : null,
+    bookings: bookings.length,
+    revenue,
+    // ROAS needs both sides: an unknown spend makes the ratio unknown, never 0.00x.
+    roas: spend != null && spend > 0 ? revenue / spend : null,
   }
 }
 
 /**
- * The metric rows of a flat-channel card. Everything the feeds cannot answer says n/a, and the
- * two that CANNOT be answered in phase 1 say why: bookings_api.source has no Bing/ChatGPT value,
- * so bookings, revenue and ROAS are unknown for these channels until phase 2 adds it. A "0" or a
- * "0.00x" there would be a claim that the channel sells nothing, which no feed supports.
+ * The metric rows of a flat-channel card. Everything the feeds cannot answer says n/a; everything
+ * they can answer is a real number, including — since phase 2 (2026-09-14) — bookings, revenue and
+ * ROAS. `bookingsLive` carries the SAME gate the Meta and Google cards use (bookingsFeedState):
+ * when the bookings feed itself does not reach the window, all three say n/a rather than 0.
  */
 function flatChannelMetrics(
   c: ReturnType<typeof flatChannelTotals>,
-  note: string
+  note: string,
+  bookingsLive: boolean,
+  roasMeasurable: boolean
 ): ChannelMetric[] {
   return [
     { label: 'Spend', value: c.spend != null ? formatCurrency(c.spend, 'EUR') : 'n/a', zone: c.spend != null ? undefined : null },
@@ -159,9 +173,17 @@ function flatChannelMetrics(
     },
     { label: 'Quality Leads', value: `${c.quality.toLocaleString()} (${c.qRate}%)` },
     { label: 'CPQL', value: c.cpql != null ? formatCurrency(c.cpql, 'EUR') : 'n/a', zone: c.cpql != null ? undefined : null },
-    { label: 'Bookings', value: 'n/a (faza 2)', zone: null },
-    { label: 'Revenue', value: 'n/a (faza 2)', zone: null },
-    { label: 'ROAS', value: 'n/a (faza 2)', zone: null },
+    { label: 'Bookings', value: bookingsLive ? c.bookings.toString() : 'n/a', zone: bookingsLive ? undefined : null },
+    {
+      label: 'Revenue',
+      value: bookingsLive ? formatCurrency(c.revenue, 'EUR') : 'n/a',
+      zone: bookingsLive ? undefined : null
+    },
+    {
+      label: 'ROAS',
+      value: bookingsLive && roasMeasurable && c.roas != null ? `${c.roas.toFixed(2)}x` : 'n/a',
+      zone: bookingsLive && roasMeasurable && c.roas != null ? zoneForRoas(c.roas) : null
+    },
     { label: 'Vir', value: note }
   ]
 }
@@ -584,7 +606,7 @@ export default function HomePage() {
     const platformLeadsMeasured =
       ((apiTotals?.fb?.clicks || 0) + (apiTotals?.fb?.lpViews || 0) + platformLeads) > 0
     const qRate = leadsCount > 0 ? Math.round((quality / leadsCount) * 100) : 0
-    const bookingsFb = filteredBookings.filter((b) => b.source.startsWith('fb_'))
+    const bookingsFb = filteredBookings.filter((b) => bookingChannelOf(b) === 'meta')
     const revenueFb = bookingsFb.reduce((s, b) => s + (b.rvc || 0), 0)
     const spend = fbSpendFromApi.covered ? fbSpendFromApi.total : apiTotals?.fb?.spend ?? fbSpend
     const roas = spend > 0 ? revenueFb / spend : 0
@@ -618,7 +640,9 @@ export default function HomePage() {
     // the tile says n/a rather than 0.
     const platformLeadsMeasured = googleFeedCoversWindow
     const qRate = leadsCount > 0 ? Math.round((quality / leadsCount) * 100) : 0
-    const bookingsGoogle = filteredBookings.filter((b) => b.source === 'google')
+    // bookingChannelOf(), not `source === 'google'`: a Bing or ChatGPT booking is paid search at
+    // source and would otherwise be counted as Google revenue (phase 2, 2026-09-14).
+    const bookingsGoogle = filteredBookings.filter((b) => bookingChannelOf(b) === 'google')
     const revenueGoogle = bookingsGoogle.reduce((s, b) => s + (b.rvc || 0), 0)
     const spend = googleSpendFinal
     const roas = spend > 0 ? revenueGoogle / spend : 0
@@ -637,17 +661,25 @@ export default function HomePage() {
     }
   }, [apiTotals, leadsGoogleFiltered, filteredBookings, googleSpendFinal, googleConversions, googleFeedHasRows, googleFeedCoversWindow])
 
-  // ── The two flat channels (phase 1, 2026-09-14) ──────────────────────────────────────────
+  // ── The two flat channels (phase 1, 2026-09-14 · bookings added in phase 2, same day) ────
   // Bing Ads: live 2026-09-04, a 12-week test. ChatGPT Ads: oCPC campaign live 2026-09-14.
   // Spend and platform leads from their own daily tabs, leads and QL from Streak by SOURCE
-  // DETAIL. Bookings and revenue are UNKNOWN, not zero — see flatChannelTotals().
+  // DETAIL, bookings and revenue from bookings_api via bookingChannelOf().
+  const bookingsBing = useMemo(
+    () => filteredBookings.filter((b) => bookingChannelOf(b) === 'bing'),
+    [filteredBookings]
+  )
+  const bookingsChatgpt = useMemo(
+    () => filteredBookings.filter((b) => bookingChannelOf(b) === 'chatgpt'),
+    [filteredBookings]
+  )
   const channelBing = useMemo(
-    () => flatChannelTotals(bingDailyFiltered, leadsBingFiltered),
-    [bingDailyFiltered, leadsBingFiltered]
+    () => flatChannelTotals(bingDailyFiltered, leadsBingFiltered, bookingsBing),
+    [bingDailyFiltered, leadsBingFiltered, bookingsBing]
   )
   const channelChatgpt = useMemo(
-    () => flatChannelTotals(chatgptDailyFiltered, leadsChatgptFiltered),
-    [chatgptDailyFiltered, leadsChatgptFiltered]
+    () => flatChannelTotals(chatgptDailyFiltered, leadsChatgptFiltered, bookingsChatgpt),
+    [chatgptDailyFiltered, leadsChatgptFiltered, bookingsChatgpt]
   )
 
   // A channel ROAS is measurable on exactly the same terms as the headline one: a whole
@@ -657,23 +689,42 @@ export default function HomePage() {
   const fbRoasDisplay = channelRoasDisplay(channelFb.spend, channelFb.roas)
   const googleRoasDisplay = channelRoasDisplay(channelGoogle.spend, channelGoogle.roas)
 
-  const revenueBySource = useMemo(() => {
-    const map: Record<string, number> = { 'FB Landing': 0, 'FB Lead': 0, Google: 0 }
+  /**
+   * Revenue by Source. Phase 2 (2026-09-14) adds the Bing and ChatGPT slices — before this their
+   * revenue was silently inside "Google", because both are PAID_SEARCH at source.
+   *
+   * Slices are still filtered to value > 0 so the donut is not littered with zero-width wedges,
+   * but the LEGEND lists all five sources with their fixed colour, so a channel that closed
+   * nothing this month is visibly present at €0 instead of just missing.
+   */
+  const REVENUE_SOURCE_COLORS: Record<string, string> = {
+    'FB Landing': gold,
+    'FB Lead': '#D4B896',
+    Google: emerald,
+    // Same colours as the Bing / ChatGPT channel cards above.
+    Bing: '#0F7B6C',
+    ChatGPT: '#202123',
+  }
+  const revenueBySourceAll = useMemo(() => {
+    const map: Record<string, number> = { 'FB Landing': 0, 'FB Lead': 0, Google: 0, Bing: 0, ChatGPT: 0 }
     filteredBookings.forEach((b) => {
-      if (b.source === 'fb_landing') map['FB Landing'] += b.rvc || 0
-      else if (b.source === 'fb_lead') map['FB Lead'] += b.rvc || 0
-      else if (b.source === 'google') map['Google'] += b.rvc || 0
+      const ch = bookingChannelOf(b)
+      if (ch === 'meta') map[b.source === 'fb_lead' ? 'FB Lead' : 'FB Landing'] += b.rvc || 0
+      else if (ch === 'google') map['Google'] += b.rvc || 0
+      else if (ch === 'bing') map['Bing'] += b.rvc || 0
+      else if (ch === 'chatgpt') map['ChatGPT'] += b.rvc || 0
     })
     const totalAll = Object.values(map).reduce((a, b) => a + b, 0)
-    const entries = Object.entries(map)
-      .map(([name, value]) => ({
-        name,
-        value,
-        pct: totalAll > 0 ? Math.round((value / totalAll) * 100) : 0
-      }))
-      .filter((item) => item.value > 0)
-    return entries
+    return Object.entries(map).map(([name, value]) => ({
+      name,
+      value,
+      pct: totalAll > 0 ? Math.round((value / totalAll) * 100) : 0
+    }))
   }, [filteredBookings])
+  const revenueBySource = useMemo(
+    () => revenueBySourceAll.filter((item) => item.value > 0),
+    [revenueBySourceAll]
+  )
 
   const qualityByCountry = useMemo(() => {
     const map = new Map<string, number>()
@@ -1184,12 +1235,22 @@ export default function HomePage() {
           <ChannelCard
             title="Bing Ads"
             icon={<span className="text-[#0F7B6C]">ⓑ</span>}
-            metrics={flatChannelMetrics(channelBing, 'Microsoft Advertising · 12-week test')}
+            metrics={flatChannelMetrics(
+              channelBing,
+              'Microsoft Advertising · 12-week test',
+              bookingsFeedState === 'live',
+              revenueWindowIsWholeMonth
+            )}
           />
           <ChannelCard
             title="ChatGPT Ads"
             icon={<span className="text-[#202123]">✦</span>}
-            metrics={flatChannelMetrics(channelChatgpt, 'OpenAI Ads · oCPC live 14.9.')}
+            metrics={flatChannelMetrics(
+              channelChatgpt,
+              'OpenAI Ads · oCPC live 14.9.',
+              bookingsFeedState === 'live',
+              revenueWindowIsWholeMonth
+            )}
           />
                     </div>
 
@@ -1199,7 +1260,7 @@ export default function HomePage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-semibold">Revenue by Source</p>
-                  <p className="text-xs text-muted-foreground">FB Landing, FB Lead, Google</p>
+                  <p className="text-xs text-muted-foreground">FB Landing, FB Lead, Google, Bing, ChatGPT</p>
                 </div>
                 <PieIcon className="h-4 w-4 text-[#B39262]" />
               </div>
@@ -1207,11 +1268,14 @@ export default function HomePage() {
                 <ResponsiveContainer>
                   <PieChart>
                     <Pie data={revenueBySource} dataKey="value" nameKey="name" outerRadius={80} innerRadius={40} paddingAngle={3}>
-                      {revenueBySource.map((_, idx) => (
-                        <Cell key={idx} fill={[gold, '#D4B896', emerald][idx % 3]} />
+                      {revenueBySource.map((item) => (
+                        <Cell key={item.name} fill={REVENUE_SOURCE_COLORS[item.name]} />
                       ))}
                     </Pie>
-                    <Legend />
+                    {/* No <Legend/>: the list below IS the legend and it carries all five
+                        sources with their € and %, including the ones at zero. Recharts' own
+                        legend can only show the slices, and a channel that closed nothing this
+                        month has to stay visible rather than silently disappear. */}
                     <Tooltip formatter={(val: any) => formatCurrency(Number(val), 'EUR')} />
                   </PieChart>
                 </ResponsiveContainer>
@@ -1223,14 +1287,24 @@ export default function HomePage() {
                     <p className="text-sm text-muted-foreground">The chart fills as deals close within this period.</p>
                   </div>
                 )}
-                {revenueBySource.map((item) => (
-                  <div key={item.name} className="flex items-center justify-between">
-                    <span>{item.name}</span>
-                    <span>
-                      {formatCurrency(item.value, 'EUR')} ({item.pct}%)
-                    </span>
-                  </div>
-                ))}
+                {revenueBySource.length > 0 &&
+                  revenueBySourceAll.map((item) => (
+                    <div
+                      key={item.name}
+                      className={`flex items-center justify-between ${item.value > 0 ? '' : 'text-gray-400'}`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span
+                          className="inline-block h-2.5 w-2.5 rounded-sm"
+                          style={{ backgroundColor: item.value > 0 ? REVENUE_SOURCE_COLORS[item.name] : '#cbc3b4' }}
+                        />
+                        {item.name}
+                      </span>
+                      <span>
+                        {formatCurrency(item.value, 'EUR')} ({item.pct}%)
+                      </span>
+                    </div>
+                  ))}
               </div>
             </CardContent>
           </Card>

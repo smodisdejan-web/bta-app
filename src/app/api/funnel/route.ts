@@ -68,8 +68,10 @@ export const fetchCache = 'default-no-store'
 // Leads + QL split on Streak: SOURCE DETAIL FIRST (`ms - `/`ms_` = bing, `chatgpt…` = chatgpt),
 // platform second — Streak tags Bing and ChatGPT as PAID_SEARCH, i.e. platform "google", so
 // reading platform alone counted both inside Paid Google. Bookings split on bookings_api.source
-// (fb_landing + fb_lead = meta), which knows nothing about the two new channels: their bookings
-// and revenue are UNKNOWN in phase 1, reported as null/notApplicable and never as 0.
+// (fb_landing + fb_lead = meta, plus `bing` / `chatgpt` written by the brain sync scripts), with
+// the campaign name as the fallback signal (`MS - …` = Bing, `CGA …`/`chatgpt-…` = ChatGPT) for
+// rows hand-typed into the flat bookings tab. PHASE 2 (2026-09-14): Bing and ChatGPT bookings,
+// revenue and ROAS are MEASURED — a 0 means none closed, where phase 1 could only say "unknown".
 //
 // FLAT means: no umbrella, no campaign membership, no orphan spend. Bing/ChatGPT spend is inside
 // the master total (and inside campaignMembership.unattributed.spend) but never passes through

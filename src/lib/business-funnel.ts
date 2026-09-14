@@ -44,6 +44,7 @@
 import { DEFAULT_WEB_APP_URL, getSheetsUrl, SHEETS_TABS } from './config'
 import { isRelevantPage } from './ga4-landing-pages'
 import { matchSourceToCampaign } from './fuzzy-match'
+import { bookingChannelOf } from './booking-channel'
 import targetsConfig from '../../config/funnel-targets.json'
 
 // ─── Campaign registry ──────────────────────────────────────────────────────
@@ -575,7 +576,10 @@ interface BookingRow {
   inquiryDay: string
   campaign: string
   rvc: number
-  /** bookings_api.source — 'fb_landing' | 'fb_lead' | 'google'. The channel-split key. */
+  /**
+   * bookings_api.source — 'fb_landing' | 'fb_lead' | 'google' | 'bing' | 'chatgpt'. The
+   * channel-split key; `campaign` is the fallback signal for it (see lib/booking-channel.ts).
+   */
   source: string
 }
 
@@ -998,9 +1002,19 @@ export function adSlug(platform: 'meta' | 'google' | null, name: string): string
   return out
 }
 
-/** bookings_api.campaign → umbrella. The campaign column mixes Meta and Google names. */
+/**
+ * bookings_api.campaign → umbrella. The campaign column mixes Meta and Google names.
+ *
+ * Bing and ChatGPT bookings return null ON PURPOSE (phase 2, 2026-09-14): they are FLAT channels
+ * with no umbrella, exactly like their leads and their spend (see isFlatChannelLead). Without
+ * this a Bing booking on "MS - Search - Croatia - EN" would resolve through adSlug('google', …)
+ * into the `croatia` umbrella and add revenue to an umbrella that holds none of its spend —
+ * breaking "Σ umbrellas + unattributed = master". They land in the unattributed remainder.
+ */
 export function bookingSlug(b: { campaign: string; source: string }): string | null {
-  const platform = b.source.startsWith('fb') ? 'meta' : b.source === 'google' ? 'google' : null
+  const ch = bookingChannelOf(b)
+  if (ch === 'bing' || ch === 'chatgpt') return null
+  const platform = ch === 'meta' ? 'meta' : ch === 'google' ? 'google' : null
   return adSlug(platform, b.campaign) ?? adSlug(null, b.campaign)
 }
 
@@ -1123,8 +1137,13 @@ const isFlatChannelLead = (l: LeadRow): boolean => {
   return c === 'bing' || c === 'chatgpt'
 }
 
-const bookingChannel = (b: { source: string }): 'meta' | 'google' | null =>
-  b.source.startsWith('fb') ? 'meta' : b.source === 'google' ? 'google' : null
+/**
+ * Which channel a booking belongs to. PHASE 2 (2026-09-14): this now resolves Bing and ChatGPT
+ * too — see lib/booking-channel.ts for the two signals and why nothing is guessed. Before this
+ * it returned 'google' for both, i.e. their revenue was reported as Paid Google revenue.
+ */
+const bookingChannel = (b: { source: string; campaign?: string }): PaidChannel | null =>
+  bookingChannelOf(b)
 
 interface AggOpts {
   /** Month window for the bookings step (bookings are month-granular at source). */
@@ -1487,7 +1506,11 @@ function campaignBreakdown(
     } else if (b.campaign.trim()) {
       // A real campaign name the ads feeds no longer carry (historic campaign, or spend
       // outside this range). Keep the real name; spend stays 0.
-      e = row(b.campaign.trim(), bookingChannel(b))
+      // `ch` is narrowed to the two platforms the sub-row table knows. A flat channel can never
+      // arrive here anyway (bookingSlug returns null for bing/chatgpt, so the slug filter above
+      // already dropped it), but the narrowing keeps that guarantee explicit instead of implicit.
+      const ch = bookingChannel(b)
+      e = row(b.campaign.trim(), ch === 'meta' || ch === 'google' ? ch : null)
     } else {
       e = row(UNASSIGNED, null)
     }
@@ -1787,13 +1810,18 @@ export async function loadBusinessFunnel(opts: {
   }
   const flatFeedDead = (channel === 'bing' || channel === 'chatgpt') && !flatUsable[channel]
   /**
-   * A single-channel view of a flat channel. bookings_api.source knows fb_landing / fb_lead /
-   * google and nothing else, so a Bing or ChatGPT booking is INVISIBLE to the feed — not absent.
-   * Every bookings-derived figure is therefore null on these views. Without this the first live
-   * response read `bookings: 0, roas: 0` next to EUR 316 of Bing spend, i.e. "we spent the money
-   * and sold nothing" — a verdict no source can support. Phase 2 adds the source values.
+   * PHASE 2 (2026-09-14): a flat channel's bookings and revenue are now MEASURED, not unknown.
+   * Phase 1 nulled every bookings-derived figure on a ?channel=bing|chatgpt view because
+   * bookings_api.source carried only fb_landing / fb_lead / google, so such a booking was
+   * invisible to the feed. It is not any more: the upstream writers emit `bing` / `chatgpt`, and
+   * bookingChannelOf() additionally reads the campaign name (see lib/booking-channel.ts), so a
+   * Bing or ChatGPT booking is recognised the moment it exists. A 0 here is therefore a real
+   * measured zero ("none closed in this window"), not a missing measurement — which is exactly
+   * what a 12-week test needs in order to be judged.
+   *
+   * `flatChannelView` is deliberately gone rather than set to false: keeping the flag would leave
+   * a second, silent switch that could re-null real numbers.
    */
-  const flatChannelView = channel === 'bing' || channel === 'chatgpt'
 
   // Meta coverage = the days BOTH Meta feeds can answer (spend from fb_ads_api, counts from
   // fb_ads_raw). Anything outside it would mix a covered numerator with a missing denominator.
@@ -1900,7 +1928,7 @@ export async function loadBusinessFunnel(opts: {
     lpViews: gapAll ? null : cur.lpViews,
     leads: gapAll ? null : cur.leads,
     ql: gapAll ? null : cur.ql,
-    bookings: bookingsGap || flatChannelView ? null : cur.bookings,
+    bookings: bookingsGap ? null : cur.bookings,
   }
   const pick = (v: RawStepValues, key: string): number | null =>
     (v as unknown as Record<string, number | null>)[key]
@@ -1979,10 +2007,10 @@ export async function loadBusinessFunnel(opts: {
     if (s.key === 'lpViews') step.lpViewsOrganic = gapAll ? null : cur.lpViewsOrganic
     if (s.key === 'ql') step.qualityLeadsIncludingAsset = gapAll ? null : cur.qlAll
     if (s.key === 'bookings') {
-      step.revenue = bookingsGap || flatChannelView ? null : cur.revenue
+      step.revenue = bookingsGap ? null : cur.revenue
       // The cohort is counted by inquiry_date inside the DAY window, so it is a gap whenever
       // either side of it is — omitted rather than printed as a 0 that means "none happened".
-      if (!gapAll && !bookingsGap && !flatChannelView) {
+      if (!gapAll && !bookingsGap) {
         step.bookingsCohort = { count: cur.bookingsCohort, revenue: cur.revenueCohort }
         step.leadsToBookingCohortRate = div(cur.bookingsCohort, cur.leads)
       } else {
@@ -2024,18 +2052,13 @@ export async function loadBusinessFunnel(opts: {
         }
         const ch = cm.key
         const isFlat = ch === 'bing' || ch === 'chatgpt'
-        // PHASE 1 (2026-09-14): bookings_api.source only knows fb_landing / fb_lead / google, so
-        // a Bing or ChatGPT booking cannot be recognised AT ALL. That makes their bookings and
-        // revenue UNKNOWN, not zero — a 0 here would read as "these channels sell nothing", which
-        // is a claim the feed cannot support. Phase 2 adds the source values.
-        const bookingsUnknown = isFlat && s.key === 'bookings'
+        // PHASE 2 (2026-09-14): bookings and revenue are measured for the flat channels too —
+        // bookingChannelOf() resolves them from bookings_api.source (`bing` / `chatgpt`, written
+        // by the brain sync scripts) and from the campaign name as a fallback. A 0 on these rows
+        // is a real zero, so QL→Bookings is a real rate and no longer notApplicable.
         const flatDead = isFlat && !flatUsable[ch]
-        const value = bookingsUnknown ? null : pick(chCur[ch], s.key)
-        const nextValue = nextKey
-          ? isFlat && nextKey === 'bookings'
-            ? null
-            : pick(chCur[ch], nextKey)
-          : null
+        const value = pick(chCur[ch], s.key)
+        const nextValue = nextKey ? pick(chCur[ch], nextKey) : null
         const cvrToNext = nextKey ? div(nextValue, value) : null
 
         let bm: number | null = null
@@ -2061,14 +2084,14 @@ export async function loadBusinessFunnel(opts: {
           status: statusFor(cvrToNext, bm),
           available: value != null,
         }
-        if (bookingsUnknown) out.notApplicable = true
         if (s.key === 'bookings') {
           // A flat channel whose tab is missing has no spend measurement either — null, not 0.
+          // Revenue is still real (it comes from bookings_api, not from the ad tab), but ROAS
+          // needs both sides, so it stays null when spend is unknown or zero.
           const chSpend = flatDead ? null : chCur[ch].spend
-          out.revenue = isFlat ? null : chCur[ch].revenue
+          out.revenue = chCur[ch].revenue
           out.spend = chSpend
-          out.roas =
-            isFlat || chSpend == null || chSpend <= 0 ? null : chCur[ch].revenue / chSpend
+          out.roas = chSpend == null || chSpend <= 0 ? null : chCur[ch].revenue / chSpend
         }
         return out
       })
@@ -2103,13 +2126,14 @@ export async function loadBusinessFunnel(opts: {
     cpl: metaFeedUsable && cur.leads ? cur.spend / cur.leads : null,
     cpql: metaFeedUsable && cur.ql ? cur.spend / cur.ql : null,
     costPerBooking:
-      metaFeedUsable && bookingsMonthsMatchWindow && !flatChannelView && cur.bookings
+      metaFeedUsable && bookingsMonthsMatchWindow && cur.bookings
         ? cur.spend / cur.bookings
         : null,
-    // `!flatChannelView`: a flat channel's revenue is UNKNOWN, so revenue/spend would divide an
-    // unknown by a real number and print 0.00x — a measurement of failure where there was none.
+    // Phase 2: the flat channels are no longer excluded here — their revenue is measured, so
+    // revenue/spend is a real ratio. It stays null only on the same terms as every other view
+    // (no usable feed, or bookings months wider than the spend window).
     roas:
-      metaFeedUsable && bookingsMonthsMatchWindow && !flatChannelView && cur.spend > 0
+      metaFeedUsable && bookingsMonthsMatchWindow && cur.spend > 0
         ? cur.revenue / cur.spend
         : null,
   }
@@ -2292,8 +2316,8 @@ export async function loadBusinessFunnel(opts: {
         windowEmpty
           ? `The requested window ${reqStart}…${reqEnd} lies entirely outside the coverage of at least one paid source — every day-granular step, and every efficiency metric, is null rather than 0. This is a coverage gap, not a performance collapse.`
           : null,
-        flatChannelView
-          ? `bookings, revenue, costPerBooking and ROAS are null on a ?channel=${channel} view, not 0: bookings_api.source only carries fb_landing / fb_lead / google, so a booking from this channel cannot be recognised at all. Unknown, not zero — phase 2 adds the source values. Judge this channel on spend, leads, QL and CPQL.`
+        channel === 'bing' || channel === 'chatgpt'
+          ? `bookings and revenue on a ?channel=${channel} view are MEASURED (phase 2, 2026-09-14): bookings_api.source now carries \`bing\` / \`chatgpt\` from the brain sync scripts, and a row still written as \`google\` is resolved by its campaign name (\`MS - …\` = Bing, \`CGA …\`/\`chatgpt-…\` = ChatGPT). A 0 here means none closed in this window, not "we cannot see them" — which is what phase 1 reported.`
           : null,
         bookingsGap
           ? `bookings_api covers ${bookings.coverage.min || 'n/a'}…${bookings.coverage.max || 'n/a'} and does not reach ${bookingsFromM}…${bookingsToM}, so bookings and revenue are null (unknown), not 0.`
@@ -2328,7 +2352,7 @@ export async function loadBusinessFunnel(opts: {
           ? `campaignSummary[].campaigns lists the EXACT platform campaign names under each umbrella (same strings as fb_ads_api / daily_api / the Acq Channel sheet). Sub-rows always sum back to the umbrella totals; whatever cannot be pinned to one real campaign sits in "${UNASSIGNED}" rather than being guessed onto one.`
           : null,
         splitOn
-          ? 'steps[].channels: meta + google + bing + chatgpt = the step total on every step EXCEPT lpViews and bookings. lpViews is meta + google only — GA4 sessionSourceMedium cannot see Bing (it reads as paid-google) or ChatGPT (it reads as organic), so those two rows are null there. bookings is meta + google only as well: bookings_api.source knows fb_landing / fb_lead / google and nothing else, so Bing and ChatGPT bookings and revenue are notApplicable (UNKNOWN), never 0 — phase 2 adds the source values. The "other" entry carries organic LP views for reference with share:null, and is notApplicable:true on every other step.'
+          ? 'steps[].channels: meta + google + bing + chatgpt = the step total on every step EXCEPT lpViews. lpViews is meta + google only — GA4 sessionSourceMedium cannot see Bing (it reads as paid-google) or ChatGPT (it reads as organic), so those two rows are null there. bookings and revenue now split across all four (phase 2, 2026-09-14): bookings_api.source carries bing / chatgpt, with the campaign name as the fallback signal, so a 0 on a flat channel is a measured zero rather than an unknown. The "other" entry carries organic LP views for reference with share:null, and is notApplicable:true on every other step.'
           : 'steps[].channels is omitted on a ?channel= view: the whole view is already that one channel.',
         `Bing Ads (${SHEETS_TABS.BING_DAILY}, live 2026-09-04, a 12-week test) and ChatGPT Ads (${SHEETS_TABS.CHATGPT_DAILY}, oCPC campaign live 2026-09-14) are FLAT channels: impressions, clicks and spend only, no umbrella and no campaign membership. Their spend is inside the master total and inside campaignMembership.unattributed.spend, but it is deliberately NOT itemised in unattributed.members — those are Meta/Google campaigns that failed to match an umbrella, which is a different thing from a channel that has no umbrellas by design.`,
         `Bing and ChatGPT leads are identified by Streak SOURCE DETAIL (\`ms - \` / \`ms_\` and \`chatgpt…\`), NOT by platform: Streak tags both as LATEST SOURCE CATEGORY = PAID_SEARCH, which arrives as platform "google". Reading platform alone counted every one of them as a Paid Google lead.`,
