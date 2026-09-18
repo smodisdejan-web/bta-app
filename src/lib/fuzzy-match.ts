@@ -544,6 +544,45 @@ export function matchSourceToCampaign(
   return unknown ? unknown.raw : 'Unknown Facebook';
 }
 
+/**
+ * EVERY campaign a source placement could resolve to, in `campaigns` order.
+ *
+ * matchSourceToCampaign() returns the FIRST of these and calls it the answer. That is a lie
+ * whenever a rule target is a prefix/substring of more than one live campaign name — the
+ * CRO LUX GULET pair ("Avgust 2026" and its "- Nova konverzija" clone) reuse identical ad
+ * names, so utm_content carries no campaign signal at all and the rule matches both. Callers
+ * that get more than one entry back MUST disambiguate on some other axis (business-funnel
+ * pins the lead by the day it arrived); an empty array means "no Facebook campaign at all".
+ */
+export function matchSourceToCampaignCandidates(
+  sourcePlacement: string,
+  campaigns: string[]
+): string[] {
+  const src = sourcePlacement == null ? '' : sourcePlacement;
+  // Not Facebook at all (ChatGPT Ads & co) — no candidates, never the Unknown-Facebook bucket.
+  if (paidChannelOf(src)) return [];
+  const flatSrc = flatten(src);
+  const normalizedCampaigns = campaigns.map((c) => ({ raw: c, flat: flatten(c) }));
+
+  // LF campaigns: utm_content IS the campaign name — always unambiguous.
+  const byName = resolveByCampaignName(flatSrc, normalizedCampaigns);
+  if (byName) return [byName];
+
+  for (const rule of RULES) {
+    if (!rule.matches(flatSrc, src)) continue;
+    const targetFlat = flatten(rule.campaignTarget);
+    const exact = normalizedCampaigns.find((c) => c.flat === targetFlat);
+    if (exact) return [exact.raw];
+    const loose = normalizedCampaigns.filter(
+      (c) => c.flat.includes(targetFlat) || c.flat.startsWith(targetFlat)
+    );
+    // Rule matched but no live campaign carries the target — fall through to the next rule,
+    // exactly as matchSourceToCampaign() does.
+    if (loose.length) return loose.map((c) => c.raw);
+  }
+  return [];
+}
+
 export function matchLeadsToCampaigns(
   leads: { source_placement: string }[],
   campaigns: string[]

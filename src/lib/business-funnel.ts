@@ -43,7 +43,7 @@
 
 import { DEFAULT_WEB_APP_URL, getSheetsUrl, SHEETS_TABS } from './config'
 import { isRelevantPage } from './ga4-landing-pages'
-import { matchSourceToCampaign } from './fuzzy-match'
+import { matchSourceToCampaignCandidates } from './fuzzy-match'
 import { bookingChannelOf } from './booking-channel'
 import targetsConfig from '../../config/funnel-targets.json'
 
@@ -84,6 +84,15 @@ export interface CampaignDef {
   lp: RegExp | null
   /** bookings_api.campaign (legacy — the resolver uses metaNames/googleNames/fb/google) */
   booking: RegExp | null
+  /**
+   * Channels whose landing path this umbrella CANNOT isolate in ga4_landing_pages, so their
+   * lpViews is a gap (null) rather than a 0. Set it only where it is provable — the umbrella
+   * spends on that channel, the channel sends clicks, and the `lp` regex matches zero sessions
+   * because the real landing path is shared with another site/umbrella and GA4 has no host
+   * column to separate them. A 0 there reads as "2.950 clicks reached the page 0 times",
+   * which is the gaps-not-zeros lie this model exists to prevent.
+   */
+  lpGapChannels?: ('meta' | 'google')[]
   /** Why lpViews is null, when it is */
   lpNote?: string
 }
@@ -208,6 +217,11 @@ export const CAMPAIGNS: CampaignDef[] = [
     // CLG-unique path resolves. LP-B (/luxury-yacht-charters-at-unmatched-value) shares its
     // path with the goolets.net original and cannot be separated in this feed → understated.
     lp: /^\/luxury-yacht-charter-in-croatia\b/i,
+    // The Google CLG ads land on /luxury-yacht-charters-at-unmatched-value/, a path the
+    // goolets.net original also uses, so the LP-A-only regex above matches ZERO Google
+    // sessions by construction (verified 2026-09-18: 2.950 Google clicks, 0 matching GA4
+    // sessions). Meta-only by design → Google LP views are a gap, not a zero.
+    lpGapChannels: ['google'],
     booking: /cro\s*lux\s*gulet|^\s*clg\b/i,
     lpNote:
       'LP-B shares its path with the goolets.net page of the same name — CLG LP views are the LP-A path only',
@@ -1235,7 +1249,14 @@ function aggregate(
   // "google" (the paid-search regex) and a ChatGPT session as "other". So on those two views
   // GA4 genuinely CANNOT answer, and the step stays null rather than a 0 that would read as
   // "nobody landed". The Leads step then measures off clicks (see `fellBack`).
-  const lpMeasurable = channel === 'all' || channel === 'meta' || channel === 'google'
+  // An umbrella can also declare a channel its landing path cannot isolate at all
+  // (def.lpGapChannels — CLG's Google ads land on a path shared with goolets.net). There the
+  // feed genuinely cannot answer, so the channel view is null and the all-channel TOTAL is
+  // summed over the visible channels only: a Meta-only numerator is honest, a Meta-only
+  // numerator silently labelled "meta + google" is not.
+  const lpGap = new Set<string>(def?.lpGapChannels ?? [])
+  const lpMeasurable =
+    (channel === 'all' || channel === 'meta' || channel === 'google') && !lpGap.has(channel)
   if (lpMeasurable && (isMaster || def!.lp)) {
     lpViews = 0
     lpViewsOrganic = 0
@@ -1246,6 +1267,7 @@ function aggregate(
         lpViewsOrganic += r.sessions
         continue
       }
+      if (lpGap.has(r.channel)) continue
       if (channel !== 'all' && r.channel !== channel) continue
       lpViews += r.sessions
     }
@@ -1425,22 +1447,41 @@ function campaignBreakdown(
   // A flat-channel view has no umbrella members at all: bing/chatgpt campaigns are not in any
   // umbrella, and the Meta/Google members must NOT be listed under a Bing or ChatGPT view.
   if (channel === 'bing' || channel === 'chatgpt') return []
+  // `fbDaySpend` is filled in the SAME loops that fill fbNames: campaign → day → spend. It is
+  // the only signal that can separate two campaigns which reuse identical ad names, so a lead
+  // whose placement matches both is pinned by the day it actually arrived (see pinByDay).
   const fbNames: string[] = []
+  const fbDaySpend = new Map<string, Map<string, number>>()
+  const noteDaySpend = (name: string, day: string, spend: number) => {
+    if (!(spend > 0) || !day) return
+    let m = fbDaySpend.get(name)
+    if (!m) fbDaySpend.set(name, (m = new Map()))
+    // Both Meta feeds carry the same campaign-day; max() records the day once, never doubled.
+    m.set(day, Math.max(m.get(day) || 0, spend))
+  }
   if (chanIn(channel, 'meta')) {
     const useApiSpend = ds.fbSpend.rows.length > 0
     for (const r of ds.fb.rows) {
       if (!inRange(r.day) || adSlug('meta', r.campaign) !== def.slug) continue
       const e = row(r.campaign, 'meta')
       if (!useApiSpend) e.spend += r.spend
+      noteDaySpend(r.campaign, r.day, r.spend)
       if (!fbNames.includes(r.campaign)) fbNames.push(r.campaign)
     }
     if (useApiSpend) {
       for (const r of ds.fbSpend.rows) {
         if (!inRange(r.day) || adSlug('meta', r.campaign) !== def.slug) continue
         row(r.campaign, 'meta').spend += r.spend
+        noteDaySpend(r.campaign, r.day, r.spend)
         if (!fbNames.includes(r.campaign)) fbNames.push(r.campaign)
       }
     }
+  }
+  /** campaign → first/last day it actually spent inside this window. */
+  const fbWindow = new Map<string, { firstDay: string; lastDay: string }>()
+  for (const [name, days] of fbDaySpend) {
+    const sorted = [...days.keys()].sort()
+    fbWindow.set(name, { firstDay: sorted[0], lastDay: sorted[sorted.length - 1] })
   }
   const googleByNorm = new Map<string, string>()
   if (chanIn(channel, 'google')) {
@@ -1452,34 +1493,82 @@ function campaignBreakdown(
   }
 
   // ── 2. Leads + QL ──
-  const spCache = new Map<string, string | null>()
-  const pinFb = (sp: string): string | null => {
-    if (fbNames.length === 0) return null
-    if (fbNames.length === 1) return fbNames[0] // only one campaign it could be
-    if (spCache.has(sp)) return spCache.get(sp)!
+  // The CANDIDATE list for a placement is date-independent, so it is safe to cache on `sp`
+  // alone. The ANSWER is not — it depends on the lead's day — so it is never cached here.
+  const spCandidates = new Map<string, string[]>()
+  const fbCandidates = (sp: string): string[] => {
     // 0. utm_mapping — Dejan's confirmed table, the authoritative join.
-    let resolved: string | null = null
     const fromUtm = ds.utmIndex.get(nk(sp))
-    if (fromUtm) resolved = fbNames.find((n) => sqKey(n) === sqKey(fromUtm)) || null
+    if (fromUtm) {
+      const hit = fbNames.find((n) => sqKey(n) === sqKey(fromUtm))
+      if (hit) return [hit]
+    }
     // 1. Some placements ARE the campaign name verbatim ("dalmatinčki - abo - lf").
-    if (!resolved) resolved = fbNames.find((n) => sqKey(n) === sqKey(sp)) || null
+    const verbatim = fbNames.find((n) => sqKey(n) === sqKey(sp))
+    if (verbatim) return [verbatim]
     // 2. Meta entity-graph resolution (ad / ad-set name unique to one campaign).
-    if (!resolved) {
-      const mapped = PLACEMENT_CAMPAIGN[sqKey(sp)]
-      if (mapped) {
-        const k = sqKey(mapped)
-        resolved = fbNames.find((n) => sqKey(n) === k) || null
-      }
+    const mapped = PLACEMENT_CAMPAIGN[sqKey(sp)]
+    if (mapped) {
+      const k = sqKey(mapped)
+      const hit = fbNames.find((n) => sqKey(n) === k)
+      if (hit) return [hit]
     }
     // 3. RareOps vessel-token convention (Dejan-confirmed 2026-08-07).
-    if (!resolved) resolved = pinRareOps(sp, fbNames)
-    // 4. Fall back to the prefix rules in lib/fuzzy-match.ts.
-    if (!resolved) {
-      const hit = matchSourceToCampaign(sp, fbNames)
-      resolved = hit && fbNames.includes(hit) ? hit : null
+    const rare = pinRareOps(sp, fbNames)
+    if (rare) return [rare]
+    // 4. Fall back to the prefix rules in lib/fuzzy-match.ts — ALL of their hits, not just the
+    //    first one the array happens to hold.
+    return matchSourceToCampaignCandidates(sp, fbNames).filter((n) => fbNames.includes(n))
+  }
+
+  /**
+   * Ambiguity resolved by DATE (2026-09-18).
+   *
+   * Two campaigns can reuse identical ad names — the CRO LUX GULET pair does, so utm_content
+   * (SOURCE PLACEMENT) carries no campaign signal at all and the fuzzy rule matches both. Before
+   * this, `.includes()` returned whichever name the fbNames array held first, which is simply
+   * ds.fb.rows date order: every one of the 102 Meta leads landed on the €506 campaign that
+   * stopped on 2026-08-06 and none on the €5.226 campaign that ran until 2026-09-17.
+   *
+   * The lead's own day DOES carry the signal: only one of the candidates was spending when it
+   * arrived. Pick the candidate whose spend-day window (first…last day with spend > 0 in this
+   * window) contains the lead's day.
+   *   0 candidates contain the day → keep the old behaviour, the first candidate.
+   *   >1 contain it — a switchover day both campaigns spent on (2026-08-06 for CRO LUX GULET:
+   *      €13,06 on the old one, €48,20 on the clone) → the INCUMBENT wins, i.e. the candidate
+   *      that started spending first. It was already serving when the day began, while its
+   *      replacement only ramped up during it. Deterministic, and it never credits a campaign
+   *      that had barely launched.
+   */
+  const pinByDay = (cands: string[], day: string): string => {
+    const live = cands.filter((n) => {
+      const w = fbWindow.get(n)
+      return !!w && day >= w.firstDay && day <= w.lastDay
+    })
+    if (live.length === 1) return live[0]
+    if (live.length === 0) return cands[0]
+    return live.slice().sort((a, b) => {
+      const wa = fbWindow.get(a)!
+      const wb = fbWindow.get(b)!
+      return (
+        wa.firstDay.localeCompare(wb.firstDay) ||
+        wa.lastDay.localeCompare(wb.lastDay) ||
+        a.localeCompare(b)
+      )
+    })[0]
+  }
+
+  const pinFb = (sp: string, day: string): string | null => {
+    if (fbNames.length === 0) return null
+    if (fbNames.length === 1) return fbNames[0] // only one campaign it could be
+    let cands = spCandidates.get(sp)
+    if (!cands) {
+      cands = fbCandidates(sp)
+      spCandidates.set(sp, cands)
     }
-    spCache.set(sp, resolved)
-    return resolved
+    if (cands.length === 0) return null
+    if (cands.length === 1) return cands[0]
+    return pinByDay(cands, day)
   }
 
   for (let i = 0; i < ds.streak.rows.length; i++) {
@@ -1487,7 +1576,7 @@ function campaignBreakdown(
     if (!inRange(l.day)) continue
     if (channel !== 'all' && leadChannel(l) !== channel) continue
     if (ds.leadSlugs[i] !== def.slug) continue
-    const name = l.isGoogle ? googleByNorm.get(normName(l.detail)) || null : pinFb(l.sp)
+    const name = l.isGoogle ? googleByNorm.get(normName(l.detail)) || null : pinFb(l.sp, l.day)
     const e = name ? row(name, l.isGoogle ? 'google' : 'meta') : row(UNASSIGNED, null)
     e.leads = (e.leads || 0) + 1
     if (l.ai >= QL_THRESHOLD) e.ql = (e.ql || 0) + 1
@@ -1641,6 +1730,8 @@ export interface FunnelStepChannel {
   available: boolean
   /** true = the concept does not exist for this channel/step (organic has no impressions). */
   notApplicable?: boolean
+  /** Why this channel is unavailable, when the umbrella def explains it (CampaignDef.lpNote). */
+  note?: string
   /** Bookings step only: that channel's RVC in €. */
   revenue?: number | null
   /** Bookings step only: that channel's ad spend in €. null for "other". */
@@ -1769,6 +1860,12 @@ export async function loadBusinessFunnel(opts: {
   const slug = opts.campaign && opts.campaign !== 'master' ? opts.campaign : 'master'
   const def = slug === 'master' ? null : CAMPAIGNS.find((c) => c.slug === slug) || null
   if (slug !== 'master' && !def) throw new Error(`Unknown campaign "${slug}"`)
+
+  // Channels whose landing path this umbrella cannot isolate in GA4 (CampaignDef.lpGapChannels).
+  // Their lpViews is a gap, and the clicks denominator of the LP-views rate drops them too.
+  const lpGapChannels = (def?.lpGapChannels ?? []) as PaidChannel[]
+  const lpGapSet = new Set<string>(lpGapChannels)
+  const lpVisibleChannels = (['meta', 'google'] as PaidChannel[]).filter((c) => !lpGapSet.has(c))
 
   const [fb, fbSpend, google, bing, chatgpt, ga4, streak, bookings, utmIndex] = await Promise.all([
     loadFb(),
@@ -1961,7 +2058,14 @@ export async function loadBusinessFunnel(opts: {
     // Fall back to clicks→leads and say so.
     const fellBack = s.key === 'leads' && naturalPrev === 'lpViews' && values.lpViews === null
     const prevKey = fellBack ? 'clicks' : naturalPrev
-    const cvrFromPrev = prevKey ? div(values[s.key], values[prevKey]) : null
+    let cvrFromPrev = prevKey ? div(values[s.key], values[prevKey]) : null
+    // lpViews on an umbrella whose lp path cannot see every channel: the numerator only counts
+    // the channels it CAN see, so the clicks denominator has to drop the others too. Otherwise
+    // "Meta LP views ÷ Meta+Google clicks" prints a rate that is wrong by construction.
+    if (s.key === 'lpViews' && lpGapChannels.length && channel === 'all' && chCur) {
+      const denom = lpVisibleChannels.reduce((n, c) => n + (pick(chCur[c], 'clicks') ?? 0), 0)
+      cvrFromPrev = gapAll ? null : div(values.lpViews, denom || null)
+    }
 
     let benchmarkCvr: number | null = null
     let reason = 'first step — no previous step'
@@ -1979,6 +2083,15 @@ export async function loadBusinessFunnel(opts: {
       } else {
         const h = histFor(win.from, win.to)
         benchmarkCvr = div(pick(h, s.key), pick(h, prevKey))
+        // Same restriction as cvrFromPrev above, or the benchmark would be wrong in exactly
+        // the same way the rate it is compared against no longer is.
+        if (s.key === 'lpViews' && lpGapChannels.length && channel === 'all') {
+          const denom = lpVisibleChannels.reduce(
+            (n, c) => n + (pick(chHistFor(c, win!.from, win!.to), 'clicks') ?? 0),
+            0
+          )
+          benchmarkCvr = div(pick(h, 'lpViews'), denom || null)
+        }
         reason =
           benchmarkCvr == null
             ? 'zero denominator in the previous period'
@@ -2057,8 +2170,13 @@ export async function loadBusinessFunnel(opts: {
         // by the brain sync scripts) and from the campaign name as a fallback. A 0 on these rows
         // is a real zero, so QL→Bookings is a real rate and no longer notApplicable.
         const flatDead = isFlat && !flatUsable[ch]
-        const value = pick(chCur[ch], s.key)
-        const nextValue = nextKey ? pick(chCur[ch], nextKey) : null
+        // Bing and ChatGPT belong to NO umbrella by construction (see aggregate()), so on an
+        // umbrella drill-down their rows are structurally absent, not measured zeros. Printing
+        // 0 leads / 0 QL / 0 bookings there reads as "Bing ran on this umbrella and produced
+        // nothing" about a channel that cannot run on it at all.
+        const flatOnUmbrella = isFlat && def !== null
+        const value = flatOnUmbrella ? null : pick(chCur[ch], s.key)
+        const nextValue = nextKey && !flatOnUmbrella ? pick(chCur[ch], nextKey) : null
         const cvrToNext = nextKey ? div(nextValue, value) : null
 
         let bm: number | null = null
@@ -2084,12 +2202,18 @@ export async function loadBusinessFunnel(opts: {
           status: statusFor(cvrToNext, bm),
           available: value != null,
         }
+        if (flatOnUmbrella) out.notApplicable = true
+        if (s.key === 'lpViews' && lpGapSet.has(ch)) {
+          out.note =
+            def?.lpNote ||
+            `This umbrella's GA4 landing path cannot isolate ${cm.label} traffic — LP views are a gap here, not a zero.`
+        }
         if (s.key === 'bookings') {
           // A flat channel whose tab is missing has no spend measurement either — null, not 0.
           // Revenue is still real (it comes from bookings_api, not from the ad tab), but ROAS
           // needs both sides, so it stays null when spend is unknown or zero.
-          const chSpend = flatDead ? null : chCur[ch].spend
-          out.revenue = chCur[ch].revenue
+          const chSpend = flatDead || flatOnUmbrella ? null : chCur[ch].spend
+          out.revenue = flatOnUmbrella ? null : chCur[ch].revenue
           out.spend = chSpend
           out.roas = chSpend == null || chSpend <= 0 ? null : chCur[ch].revenue / chSpend
         }
@@ -2362,6 +2486,13 @@ export async function loadBusinessFunnel(opts: {
         flatUsable.chatgpt
           ? null
           : `${SHEETS_TABS.CHATGPT_DAILY} is missing or empty, so ChatGPT Ads spend, CPQL and ROAS are n/a (unknown), never 0. ChatGPT LEADS still come from Streak and are real.`,
+        'Meta leads are pinned to a real campaign by SOURCE PLACEMENT. When two campaigns reuse identical ad names the placement matches BOTH of them (CRO LUX GULET "Avgust 2026" and its "- Nova konverzija" clone), so since 2026-09-18 the lead is pinned by ITS OWN DAY to the single candidate whose spend-day window contains it. On a switchover day both campaigns spent on, the incumbent (the earlier first spend day) wins; when no candidate was spending that day the first candidate is kept, exactly as before. This only ever moves leads BETWEEN members of one umbrella — umbrella and master totals are untouched. Google leads are unaffected: they join on the exact campaign name in SOURCE DETAIL.',
+        lpGapChannels.length
+          ? `steps[lpViews] is a GAP (null), not 0, for ${lpGapChannels.join(' + ')} on this umbrella: its GA4 landing path cannot isolate that channel, so the feed genuinely cannot answer. The lpViews total is therefore ${lpVisibleChannels.join(' + ')} only, and both its cvrFromPrev and its benchmark divide by ${lpVisibleChannels.join(' + ')} clicks alone rather than by every paid click. The Clicks step's cvrToNext for ${lpGapChannels.join(' + ')} is null for the same reason — it was previously 0, which read as "those clicks never reached a landing page".`
+          : null,
+        slug !== 'master'
+          ? 'steps[].channels: the Bing and ChatGPT rows are n/a on an umbrella drill-down. Both are FLAT channels with no umbrella membership at all, so a 0 there would be a structural absence dressed up as a measurement.'
+          : null,
         `Targets are read from ${TARGETS_SOURCE}; targets is null until values are filled in there.`,
         def?.lpNote,
       ].filter(Boolean),
