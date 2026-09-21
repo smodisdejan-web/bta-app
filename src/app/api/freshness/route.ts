@@ -41,13 +41,16 @@ import {
   pickIdx,
   toIsoDay,
   toNumberEUorUS,
+  type StreakLeadRow,
 } from '@/lib/sheetsData'
+// ONE lead loader + ONE day rule + ONE channel rule, shared with / and /api/funnel.
+import { filterStreakByDay, leadChannelOf, streakLeadDay, unionStreakRows } from '@/lib/streak-leads'
 import mtdData from '@/data/mtd-data.json'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 export const runtime = 'nodejs'
-export const maxDuration = 90
+export const maxDuration = 300
 
 // ---------------------------------------------------------------------------
 // types
@@ -86,10 +89,16 @@ const worse = (a: Status, b: Status): Status => (RANK[a] >= RANK[b] ? a : b)
  * Apps Script sync was running, its concurrency limit stretched one tab past the
  * function budget and the WHOLE route died — the watchdog then wrote "monitor down"
  * even though four feeds had been read fine. A slow tab must cost that tab, not the
- * report. 12 s x 7 tabs = 84 s worst case, which is what the maxDuration below allows for
- * (the two flat-channel tabs, bing_ads_api and chatgpt_ads_api, joined on 2026-09-14).
+ * report.
+ *
+ * RAISED 12 s -> 25 s (2026-09-21, with streak_full joining as the 8th tab). 12 s was tight
+ * enough that a merely busy Apps Script — not a broken one — pushed the two 2,4 MB Streak tabs,
+ * bookings_api and fb_ads_api into 'unknown' on most runs, which rolls up to red. A watchdog
+ * that cries red because it was impatient trains you to ignore it, which is the opposite of the
+ * job. 25 s x 8 tabs = 200 s worst case, inside the maxDuration below (the two flat-channel
+ * tabs, bing_ads_api and chatgpt_ads_api, joined on 2026-09-14).
  */
-const TAB_TIMEOUT_MS = 12_000
+const TAB_TIMEOUT_MS = 25_000
 
 function deadline(ms = TAB_TIMEOUT_MS) {
   const ctrl = new AbortController()
@@ -175,6 +184,9 @@ export async function GET(request: Request) {
   let googlePlatformLeads: number | null = null
   let googleCrmLeads: number | null = null
   let fbCrmLeads: number | null = null
+  let bingCrmLeads: number | null = null
+  let chatgptCrmLeads: number | null = null
+  let totalCrmLeads: number | null = null
   let mtdRevenue: number | null = null
   let bookingCount: number | null = null
 
@@ -335,49 +347,106 @@ export async function GET(request: Request) {
     }
   }
 
-  // -- 3/5  streak_sync — the CRM side of every lead -------------------------
-  const d3 = deadline()
-  try {
-    const rows = await fetchSheet({ sheetUrl: url, tab: SHEETS_TABS.STREAK_SYNC, signal: d3.signal })
-    const leads = mapStreakLeads(rows || [])
+  // -- 3/5  streak_full + streak_sync — the CRM side of every lead -----------
+  //
+  // BOTH tabs, and both watched (2026-09-21). This block used to read streak_sync ALONE and
+  // bucket it with toIsoDay(), while /api/funnel read streak_full ∪ streak_sync bucketed with
+  // toDay(). Same month, two lead counts (Meta 997 here vs 999 there on 21.9.), and a dead
+  // sync-streak-full cron was invisible because nothing monitored the tab it writes.
+  // Counting is now the shared rule from lib/streak-leads.ts, and each tab gets its own feed
+  // row so either cron dying shows up on its own line.
+  let streakFullLeads: StreakLeadRow[] = []
+  let streakSyncLeads: StreakLeadRow[] = []
+  let streakReadOk = false
 
-    let maxDate: string | null = null
+  const streakTabs: {
+    name: string
+    tab: string
+    set: (rows: StreakLeadRow[]) => void
+    note?: string
+  }[] = [
+    {
+      name: 'Streak CRM full scan',
+      tab: SHEETS_TABS.STREAK_FULL,
+      set: (rows) => (streakFullLeads = rows),
+      note: 'Polni Streak scan (code/goolets/sync-streak-full.js, ~19 min, nazaj do 1. 1.). Primarni vir leadov na VSEH straneh; streak_sync pokriva le dneve, ki jih ta scan še ne doseže.',
+    },
+    {
+      name: 'Streak CRM sync',
+      tab: SHEETS_TABS.STREAK_SYNC,
+      set: (rows) => (streakSyncLeads = rows),
+      note: 'Zapier feed — vedno svež, a ne nujno popoln (manjkajo boxi, ki jih Streak še ni potisnil). Uporabljen samo za dneve izven pokritja streak_full.',
+    },
+  ]
+
+  for (const st of streakTabs) {
+    const dS = deadline()
+    try {
+      const rows = await fetchSheet({ sheetUrl: url, tab: st.tab, signal: dS.signal })
+      const leads = mapStreakLeads(rows || [])
+      st.set(leads)
+      streakReadOk = streakReadOk || leads.length > 0
+
+      let maxDate: string | null = null
+      for (const l of leads) {
+        const iso = streakLeadDay(l)
+        if (!iso) continue
+        if (!maxDate || iso > maxDate) maxDate = iso
+      }
+      const staleDays = maxDate ? daysBetween(maxDate, today) : null
+      feeds.push({
+        name: st.name,
+        tab: st.tab,
+        maxDate,
+        rowCount: leads.length,
+        staleDays,
+        status: dailyStatus(staleDays),
+        note: st.note,
+      })
+    } catch (e) {
+      feeds.push({
+        name: st.name,
+        tab: st.tab,
+        maxDate: null,
+        rowCount: 0,
+        staleDays: null,
+        status: failStatus(dS),
+        error: e instanceof Error ? e.message : String(e),
+        note: dS.signal.aborted ? TIMEOUT_NOTE : st.note,
+      })
+    } finally {
+      dS.clear()
+    }
+  }
+
+  // The union + day + channel rule, identical to /api/funnel and to the Overview tiles.
+  // Only claim lead numbers when at least one of the two tabs actually answered — a pair of
+  // failed reads must read as "no measurement", never as 0 leads.
+  if (streakReadOk) {
+    const windowLeads = filterStreakByDay(
+      unionStreakRows(streakFullLeads, streakSyncLeads),
+      monthStart,
+      today
+    )
     let fbLeads = 0
     let gLeads = 0
-    for (const l of leads) {
-      const iso = toIsoDay(l.inquiry_date)
-      if (!iso) continue
-      if (!maxDate || iso > maxDate) maxDate = iso
-      if (iso >= monthStart && iso <= today) {
-        const p = String(l.platform || '').toLowerCase()
-        if (p === 'facebook') fbLeads++
-        else if (p === 'google') gLeads++
-      }
+    let bLeads = 0
+    let cLeads = 0
+    for (const l of windowLeads) {
+      const ch = leadChannelOf(l)
+      if (ch === 'meta') fbLeads++
+      else if (ch === 'google') gLeads++
+      else if (ch === 'bing') bLeads++
+      else if (ch === 'chatgpt') cLeads++
     }
     fbCrmLeads = fbLeads
+    // Paid GOOGLE only. Bing and ChatGPT leads arrive on platform=google (Streak tags both
+    // PAID_SEARCH) and used to be counted here, so Google's lead count carried 10 leads it
+    // never bought — they now have their own two counters below.
     googleCrmLeads = gLeads
-    const staleDays = maxDate ? daysBetween(maxDate, today) : null
-    feeds.push({
-      name: 'Streak CRM sync',
-      tab: SHEETS_TABS.STREAK_SYNC,
-      maxDate,
-      rowCount: leads.length,
-      staleDays,
-      status: dailyStatus(staleDays),
-    })
-  } catch (e) {
-    feeds.push({
-      name: 'Streak CRM sync',
-      tab: SHEETS_TABS.STREAK_SYNC,
-      maxDate: null,
-      rowCount: 0,
-      staleDays: null,
-      status: failStatus(d3),
-      error: e instanceof Error ? e.message : String(e),
-      note: d3.signal.aborted ? TIMEOUT_NOTE : undefined,
-    })
-  } finally {
-    d3.clear()
+    bingCrmLeads = bLeads
+    chatgptCrmLeads = cLeads
+    totalCrmLeads = windowLeads.length
   }
 
   // -- 4/5  fb_ads_enriched — KNOWN DEAD since 2026-08-09 --------------------
@@ -579,6 +648,13 @@ export async function GET(request: Request) {
         bookings: bookingCount,
         fbCrmLeads,
         googleCrmLeads,
+        bingCrmLeads,
+        chatgptCrmLeads,
+        // Every paid Streak lead in the window — the same number the Overview's "Total Leads"
+        // tile and /api/funnel?range=this_month report, by construction (one loader, one day
+        // rule, one channel rule: lib/streak-leads.ts).
+        totalCrmLeads,
+        crmLeadSource: `${SHEETS_TABS.STREAK_FULL} ∪ ${SHEETS_TABS.STREAK_SYNC}`,
         googlePlatformLeads: googlePlatformLeads == null ? null : round2(googlePlatformLeads),
       },
       mtdDataJson: {

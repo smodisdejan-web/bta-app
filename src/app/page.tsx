@@ -15,7 +15,16 @@ import {
   ChevronRight
 } from 'lucide-react'
 import { Pie, PieChart, ResponsiveContainer, Cell, Tooltip, Legend, ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid } from 'recharts'
-import { fetchFbEnriched, fetchStreakSync, fetchTab, fetchBookings, BookingRecord, StreakLeadRow } from '@/lib/sheetsData'
+import { fetchFbEnriched, fetchTab, fetchBookings, BookingRecord, StreakLeadRow } from '@/lib/sheetsData'
+// ONE lead loader + ONE day rule + ONE channel rule, shared with /api/funnel and /api/freshness.
+// See lib/streak-leads.ts for why the Overview no longer reads `streak_sync` on its own.
+import {
+  fetchStreakLeadsUnion,
+  filterStreakByDay,
+  leadChannelOf,
+  streakLeadDay,
+  type PaidLeadChannel
+} from '@/lib/streak-leads'
 import { getSheetsUrl, SHEETS_TABS } from '@/lib/config'
 import { bookingChannelOf } from '@/lib/booking-channel'
 import { formatCurrency } from '@/lib/utils'
@@ -91,29 +100,16 @@ const emerald = '#047857'
 
 type Range = '7d' | '30d' | '60d' | '90d' | 'mtd' | 'lastMonth'
 
-/** The four paid channels the Overview reports. */
-type PaidChannel = 'meta' | 'google' | 'bing' | 'chatgpt'
-
 /**
- * Which paid channel a Streak lead belongs to.
+ * The four paid channels the Overview reports.
  *
- * SOURCE DETAIL IS READ FIRST, AND THAT ORDER IS THE WHOLE POINT. Streak tags Bing AND ChatGPT
- * leads with LATEST SOURCE CATEGORY = PAID_SEARCH, which the sync writes out as
- * platform = "google" — so the old `platform.includes('google')` test counted every Bing and
- * ChatGPT lead as a Google lead, and Google's CPQL was measured against leads it never bought.
- * Verified 2026-09-14: Bing leads carry `ms - search - croatia - en`, the live ChatGPT lead
- * carries `chatgpt-intl-croatia-sep26`. The channel tag lives in SOURCE DETAIL and nowhere else.
- * Mirrors leadChannel() in lib/business-funnel.ts — keep the two in step.
+ * The channel rule itself (SOURCE DETAIL first, then platform — Streak tags both Bing and
+ * ChatGPT leads as platform "google", so reading platform first hands Google leads it never
+ * bought) used to be a near-copy of leadChannel() in lib/business-funnel.ts sitting right here.
+ * Two copies drift, and they did. It now lives once in lib/streak-leads.ts and this page, the
+ * funnel and /api/freshness all import it.
  */
-function leadChannelOf(l: StreakLeadRow): PaidChannel | null {
-  const d = (l.source_detail || '').toLowerCase()
-  if (d.startsWith('ms - ') || d.startsWith('ms_')) return 'bing'
-  if (d.startsWith('chatgpt')) return 'chatgpt'
-  const p = (l.platform || '').toLowerCase()
-  if (p.includes('facebook') || p.includes('meta') || p.includes('instagram')) return 'meta'
-  if (p.includes('google') || p.includes('adwords')) return 'google'
-  return null
-}
+type PaidChannel = PaidLeadChannel
 
 /**
  * A flat paid channel (Bing / ChatGPT): spend + clicks from its own daily tab, leads + QL from
@@ -204,8 +200,11 @@ export default function HomePage() {
   // Overview printed Google spend EUR 0,00 on 14.9. These two never go through that route at all.
   const [bingDaily, setBingDaily] = useState<DailyRow[]>([])
   const [chatgptDaily, setChatgptDaily] = useState<DailyRow[]>([])
-  const [streakFb, setStreakFb] = useState<StreakLeadRow[]>([])
-  const [streakGoogle, setStreakGoogle] = useState<StreakLeadRow[]>([])
+  // ONE lead list, split by channel at read time (leadChannelOf), never by `platform` at load
+  // time. The old two-state split (`platform === 'facebook'` / `=== 'google'`) silently threw
+  // away every row carrying any other platform value, so this page could not even in principle
+  // agree with /api/funnel's master lead count, which counts every paid Streak row.
+  const [streakLeads, setStreakLeads] = useState<StreakLeadRow[]>([])
   const [aiBullets, setAiBullets] = useState<string[]>([])
   const [prefill, setPrefill] = useState('')
   const [apiTotals, setApiTotals] = useState<any>(null)
@@ -240,7 +239,11 @@ export default function HomePage() {
           await Promise.all([
             fetchTab('daily_api', sheetUrl), // CUTOVER 2026-06-15: Google Ads API (was Mixed Analytics 'daily')
             fetchFbEnriched(fetchFbEnrichedSheet, sheetUrl),
-            fetchStreakSync(fetchFbEnrichedSheet, sheetUrl),
+            // streak_full ∪ streak_sync, the SAME set /api/funnel counts. Reading streak_sync
+            // alone (what this call used to do) missed every box the Zapier feed had not
+            // pushed yet: on 21.9. that was 2 Meta leads, so this page printed 997 Meta leads
+            // while the funnel page printed 999 for the identical window.
+            fetchStreakLeadsUnion(fetchFbEnrichedSheet, sheetUrl),
             fetchBookings(fetchFbEnrichedSheet),
             // FB spend straight from Meta (code/facebook/sync-fb-ads-api.js). Read on the CLIENT,
             // not via /api/dashboard-totals: that route re-fetches the same Apps Script web app
@@ -252,12 +255,8 @@ export default function HomePage() {
             fetchTab(SHEETS_TABS.CHATGPT_DAILY, sheetUrl).catch(emptyTab)
           ])
 
-        const fbLeads = (streakAll || []).filter((l) => (l as any).platform === 'facebook')
-        const googleLeads = (streakAll || []).filter((l) => (l as any).platform === 'google')
-
         setFbEnriched(fbRows || [])
-        setStreakFb(fbLeads || [])
-        setStreakGoogle(googleLeads || [])
+        setStreakLeads(streakAll || [])
         setBookings(bookingRows || [])
         setGoogleDaily(mapDailyRows(dailyHeaders, dailyRows))
         setFbSpendApi(mapFbSpendApiRows(fbApi?.headers || [], fbApi?.rows || []))
@@ -348,15 +347,17 @@ export default function HomePage() {
     return { totalRevenue, deals, avgDeal }
   }, [filteredBookings])
 
-  const streakAll = useMemo(() => [...streakFb, ...streakGoogle], [streakFb, streakGoogle])
+  const streakAll = streakLeads
 
+  /**
+   * The window filter now uses the funnel's day rule (toDay → lib/day.ts, Europe/Ljubljana)
+   * instead of `new Date(inquiry_date)` compared against local midnight. Both rules agree on
+   * midnight-based stamps, but a lead stamped 22:00Z / 23:00Z belongs to the NEXT Ljubljana
+   * day, which is how /api/funnel buckets it — and how this page now does too.
+   */
   const leadsFiltered = useMemo(() => {
     const { start, end } = dateBounds
-    return streakAll.filter((l) => {
-      if (!l.inquiry_date) return false
-      const d = new Date(l.inquiry_date)
-      return d >= start && d <= end
-    })
+    return filterStreakByDay(streakAll, toLocalISODate(start), toLocalISODate(end))
   }, [streakAll, dateBounds])
 
   const leadsFbFiltered = useMemo(() => leadsFiltered.filter((l) => leadChannelOf(l) === 'meta'), [leadsFiltered])
@@ -800,8 +801,13 @@ export default function HomePage() {
     // last two buckets and so compared a 3-lead sliver against a full 54-lead day.
     const map = new Map<string, { totalLeads: number; qualityLeads: number; avgAi: number; count: number; label: string; bucketEnd: Date }>()
     leadsFiltered.forEach((l) => {
-      const d = new Date(l.inquiry_date)
-      const dayKey = toLocalISODate(d)
+      // Bucket on the SAME Ljubljana day the tiles and /api/funnel use. `new Date(inquiry_date)`
+      // rendered through toLocalISODate() agreed with that only while the browser itself sat in
+      // CET/CEST; the canonical day comes from streakLeadDay() and is timezone-independent.
+      const dayKey = streakLeadDay(l)
+      if (!dayKey) return
+      const [dy, dm, dd] = dayKey.split('-').map(Number)
+      const d = new Date(dy, dm - 1, dd)
       const key = groupByWeek ? weekKey(d) : dayKey
       const label = groupByWeek ? weekLabel(d) : dayKey
       // Build the bucket end from local calendar parts. `new Date("2026-08-31")` parses as UTC
@@ -1140,7 +1146,7 @@ export default function HomePage() {
           <MetricCard
             title="Total Leads"
             value={totals.leads.toLocaleString()}
-            subtitle={`Streak CRM${totals.platformLeads > 0 ? ` · platform-reported ${totals.platformLeads.toLocaleString()}` : ''}`}
+            subtitle={`Streak CRM (full scan)${totals.platformLeads > 0 ? ` · platform-reported ${totals.platformLeads.toLocaleString()}` : ''}`}
             icon={<Users className="h-4 w-4 text-[#B39262]" />}
           />
           <MetricCard
