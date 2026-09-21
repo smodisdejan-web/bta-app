@@ -19,7 +19,7 @@ export const fetchCache = 'default-no-store'
 // GET /api/funnel?start=YYYY-MM-DD&end=YYYY-MM-DD[&campaign=slug][&channel=meta|google]
 // GET /api/funnel?range=3m|90d|this_month|last_month|ytd[&campaign=…][&channel=…]
 //
-// Business Health Funnel for the Goolets Content Portal. One master funnel + 14 umbrella
+// Business Health Funnel for the Goolets Content Portal. One master funnel + 15 umbrella
 // drill-downs, 100% live. Every step uses the SAME date range; anything that cannot be
 // computed from a real source is null — never a placeholder number.
 //
@@ -33,7 +33,7 @@ export const fetchCache = 'default-no-store'
 // The response always says which key was asked for and which was used:
 // meta.range = { requested, effective, from, to }.
 //
-// The 14 umbrellas (see lib/business-funnel.ts for the exact platform campaign names that
+// The 15 umbrellas (see lib/business-funnel.ts for the exact platform campaign names that
 // must land in each), in the explicit first-match order the fallback regexes are applied in:
 //
 //   asset       ASSET / RareOps — every campaign containing "ASSET" or "RareOps".
@@ -47,6 +47,7 @@ export const fetchCache = 'default-no-store'
 //   clg         Croatia Luxury Gulet
 //   earlybook   Early Booking 2027 + CORE 7 Social Proof
 //   turkey      Turkey (Belgin / Tosca / Landing Turkey / Search - Turkey - EN / YT RMK)
+//   caribbean   Caribbean / Oguz Khan (Meta LP A / LP B / Warm + Caribbean Search & YT RMK)
 //   dalmatincki Last minute Dalmatinčki (Julij campaigns, Sail Smarter, Nocturno, Dalmatino)
 //   smarter     Alessandro / The Smarter Way
 //   bofu        BOFU / Landing (Attainable Luxury, Landing Gulets, Unmatched Value)

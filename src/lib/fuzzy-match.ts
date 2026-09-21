@@ -375,6 +375,28 @@ const RULES: Rule[] = [
     matches: (src) => src.startsWith('alessandro_add_august'),
   },
 
+  // ── 12b. OGUZ KHAN – Caribbean (live 2026-09-17). Three Meta campaigns share ONE utm
+  // family: SOURCE PLACEMENT = utm_campaign lowercased, `oguz-khan_caribbean_vert_<aud>-sep`,
+  // which flattens to `oguz_khan_caribbean_vert_<aud>_sep`. The audience token decides the
+  // campaign: `int`/`lla` = LP A, the same two with an extra `-b-` = LP B, `warm` = Warm.
+  // SOURCE DETAIL is the bare string `Facebook`, so nothing else can resolve these and all
+  // 23 September leads sat in Unknown / unattributed until this rule landed.
+  // ORDER: the `_b_` (LP B) rule MUST precede the LP A rule — `..._int_b_sep` also starts
+  // with `..._int`, so LP A would otherwise swallow the whole B split.
+  {
+    campaignTarget: 'OGUZ KHAN - Caribbean - Cold - LP B - ABO',
+    matches: (src) => src.startsWith('oguz_khan_caribbean_vert_') && src.includes('_b_'),
+  },
+  {
+    campaignTarget: 'OGUZ KHAN - Caribbean - Cold - LP A - ABO',
+    matches: (src) =>
+      src.startsWith('oguz_khan_caribbean_vert_int_') || src.startsWith('oguz_khan_caribbean_vert_lla_'),
+  },
+  {
+    campaignTarget: 'OGUZ KHAN - Caribbean - Warm - ABO',
+    matches: (src) => src.startsWith('oguz_khan_caribbean_vert_warm'),
+  },
+
   // ── 13. Evergreen / seasonal umbrella campaigns.
   {
     // CORE 7 Social Proof: the ad NAME is written backwards relative to the utm
