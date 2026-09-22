@@ -17,11 +17,16 @@
 //   lps     HubSpot first_url → Streak AI score → bookings by month  (lib/lp-attribution.ts)
 //   ads     fb-ads-monthly.json + the per-ad QL join                 (lib/fb-ads-monthly.ts)
 //
-// APPS SCRIPT LOAD. Every tab this file needs goes through ONE module-level tab cache with a
-// 10-minute TTL and in-flight de-duplication, so the LP pipeline and the ad step share the
-// single streak_sync read instead of racing each other for an Apps Script slot. On top of that
-// the whole assembled result is cached per (start, end, campaign, channel), which is what makes
-// a second question about the same scope cost zero sheet fetches.
+// APPS SCRIPT LOAD. The per-tab cache used to live here; it now lives in lib/sheetsData.ts
+// (fetchTabJson) so EVERY route shares one request per tab, not just this file. What stays here
+// is the whole-result cache, keyed by the scope of the question, which is what makes a second
+// question about the same window/umbrella/channel cost zero sheet fetches at all.
+//
+// TURKEY. Turkey rows are stripped from the facts before the model ever sees them, unless the
+// selected umbrella IS Turkey or the question asked about it. The system prompt used to carry
+// that as a rule and the model obeyed it by writing "Turkish LPs are excluded from the
+// comparison" — which names Turkey just as loudly as ranking it would. A rule the model has to
+// remember is not a rule; removing the rows is.
 
 import {
   loadBusinessFunnel,
@@ -35,7 +40,7 @@ import {
   type UmbrellaMember,
 } from '@/lib/business-funnel'
 import {
-  fetchTab,
+  fetchSheet,
   fetchHubspotContacts,
   fetchGA4LandingPages,
   fetchBookings,
@@ -55,6 +60,7 @@ import {
 import { fetchStreakLeadsUnion } from '@/lib/streak-leads'
 import {
   getAdTableWithQl,
+  getMonthEntry,
   BUILT_AT as ADS_BUILT_AT,
   AVAILABLE_MONTHS as AD_MONTHS,
   type AdWithQl,
@@ -69,13 +75,25 @@ const MAX_LPS = 20
 const MAX_ADS = 25
 /** An ad below this QL count cannot carry a CPQL ranking — too few leads to mean anything. */
 export const MIN_QL_FOR_CPQL = 5
+/** Trailing days of MTD lag that are a footnote rather than a data gap. */
+export const TRAILING_LAG_DAYS = 3
 
 export interface FunnelFactsInput {
   start: string
   end: string
   campaign?: string
   channel?: Channel
+  /**
+   * Keep Turkey rows in the facts. Only true when the selected umbrella IS Turkey or the
+   * question asked about it; otherwise every Turkey row is removed before the model sees it,
+   * so it cannot name one, rank one, or announce that it left one out.
+   */
+  includeTurkey?: boolean
 }
+
+const TURKEY_SLUG = 'turkey'
+/** Turkey by any of the names it actually appears under in LP paths, ads and placements. */
+const TURKEY_RE = /turkey|turkish|tur[cč]|tosca|belgin|esma|onur|la[-_\s]*bella[-_\s]*vita/i
 
 export interface LpFact {
   path: string
@@ -114,6 +132,12 @@ export interface AdFact {
   qualityRate: number | null
 }
 
+export interface LpsCoverage {
+  /** false = the GA4 landing-page feed could not be read, so every sessions/cvr is null. */
+  sessionsAvailable: boolean
+  note: string | null
+}
+
 export interface AdsCoverage {
   granularity: 'month'
   monthsUsed: string[]
@@ -121,6 +145,8 @@ export interface AdsCoverage {
   incompleteMonths: string[]
   missingMonths: string[]
   uncoveredDays: number
+  /** Last day of the requested range that the ad dumps actually reach. null when none do. */
+  lastCoveredDate: string | null
   note: string
 }
 
@@ -143,6 +169,7 @@ export interface FunnelFactsCoverage {
   }
   ads: AdsCoverage
   adQlJoin: AdQlJoinCoverage
+  lps: LpsCoverage
   unattributedLeadsShare: number | null
 }
 
@@ -224,18 +251,15 @@ function makeCache<T>() {
   }
 }
 
-const cachedTab = makeCache<any[][]>()
 const cachedFacts = makeCache<FunnelFacts>()
 
 /**
- * The ONE sheet reader everything below shares. The LP pipeline and fetchStreakLeadsUnion both
- * ask for streak_sync; with this in between, the Apps Script sees a single request for it.
+ * The sheet reader the LP pipeline and fetchStreakLeadsUnion share. The de-duplication now
+ * happens one level down, inside lib/sheetsData.ts, so this is a plain adapter — and every
+ * other route gets the same single-request-per-tab benefit rather than only this one.
  */
 const fetchSheetShared = (args: { sheetUrl: string; tab: string }): Promise<any[][]> =>
-  cachedTab(`tab:${args.tab}`, async () => {
-    const res = await fetchTab(args.tab, args.sheetUrl)
-    return [res.headers, ...res.rows]
-  })
+  fetchSheet({ sheetUrl: args.sheetUrl, tab: args.tab })
 
 export async function buildFunnelFacts(input: FunnelFactsInput): Promise<FunnelFacts> {
   const start = input.start
@@ -245,16 +269,22 @@ export async function buildFunnelFacts(input: FunnelFactsInput): Promise<FunnelF
   if (slug !== 'master' && !CAMPAIGNS.some((c) => c.slug === slug)) {
     throw new Error(`Unknown campaign "${slug}"`)
   }
-  return cachedFacts(`${start}|${end}|${slug}|${channel}`, () =>
-    assembleFunnelFacts(start, end, slug, channel)
+  // The umbrella's OWN view always keeps its rows — asking about Turkey is asking about Turkey.
+  const keepTurkey = Boolean(input.includeTurkey) || slug === TURKEY_SLUG
+  return cachedFacts(`${start}|${end}|${slug}|${channel}|${keepTurkey ? 'tk' : 'no-tk'}`, () =>
+    assembleFunnelFacts(start, end, slug, channel, keepTurkey)
   )
 }
+
+const isTurkeyText = (...parts: (string | null | undefined)[]): boolean =>
+  parts.some((v) => (v ? TURKEY_RE.test(v) : false))
 
 async function assembleFunnelFacts(
   start: string,
   end: string,
   slug: string,
-  channel: Channel
+  channel: Channel,
+  keepTurkey: boolean
 ): Promise<FunnelFacts> {
   const def = slug === 'master' ? null : CAMPAIGNS.find((c) => c.slug === slug) || null
 
@@ -262,21 +292,24 @@ async function assembleFunnelFacts(
   // array says that honestly rather than showing Meta ads under a Google heading.
   const wantAds = channel === 'all' || channel === 'meta'
 
-  const [funnel, lps, adResult] = await Promise.all([
+  const [funnel, lpResult, adResult] = await Promise.all([
     loadBusinessFunnel({ start, end, campaign: slug, channel }),
-    loadLpFacts(start, end, def?.lp ?? null).catch((err) => {
+    loadLpFacts(start, end, def?.lp ?? null, keepTurkey).catch((err) => {
       console.warn('[funnel-facts] LP table unavailable:', err)
-      return [] as LpFact[]
+      return { rows: [] as LpFact[], sessionsAvailable: false }
     }),
     wantAds
-      ? loadAdFacts(start, end, slug).catch((err) => {
+      ? loadAdFacts(start, end, slug, keepTurkey).catch((err) => {
           console.warn('[funnel-facts] ad table unavailable:', err)
           return null
         })
       : Promise.resolve(null),
   ])
 
-  const fullSummary = funnel.campaignSummary || null
+  const dropTurkey = !keepTurkey
+  const fullSummary = (funnel.campaignSummary || null)?.filter(
+    (u) => !dropTurkey || (u.slug !== TURKEY_SLUG && !isTurkeyText(u.name))
+  ) ?? null
   const campaignSummary = fullSummary
     ? fullSummary.slice(0, MAX_UMBRELLAS).map((u) => ({
         slug: u.slug,
@@ -286,8 +319,8 @@ async function assembleFunnelFacts(
         ql: u.ql,
         bookings: u.bookings,
         revenue: u.revenue,
-        campaigns: (u.campaigns || []).slice(0, MAX_SUBROWS),
-        campaignsTruncated: Math.max(0, (u.campaigns || []).length - MAX_SUBROWS),
+        campaigns: subRows(u.campaigns, dropTurkey).slice(0, MAX_SUBROWS),
+        campaignsTruncated: Math.max(0, subRows(u.campaigns, dropTurkey).length - MAX_SUBROWS),
       }))
     : null
 
@@ -300,7 +333,9 @@ async function assembleFunnelFacts(
       : funnel.campaignMembership.umbrellas.find((u) => u.key === slug) ||
         funnel.campaignMembership.umbrellas[0] ||
         null
-  const allMembers = selectedUmbrella?.members ?? []
+  const allMembers = (selectedUmbrella?.members ?? []).filter(
+    (m) => !dropTurkey || !isTurkeyText(m.name)
+  )
 
   return {
     funnel: {
@@ -320,7 +355,7 @@ async function assembleFunnelFacts(
         unattributed: funnel.campaignMembership.unattributed,
       },
     },
-    lps,
+    lps: lpResult.rows,
     ads: adResult?.ads ?? [],
     coverage: {
       window: {
@@ -330,16 +365,40 @@ async function assembleFunnelFacts(
         campaignName: def?.name ?? 'Master (all umbrellas)',
         channel,
       },
-      ads: adsCoverage(adResult?.coverage ?? null, channel),
-      adQlJoin: adQlCoverage(adResult?.coverage ?? null),
+      ads: adsCoverage(adResult?.coverage ?? null, channel, end),
+      adQlJoin: adQlCoverage(adResult?.coverage ?? null, dropTurkey),
+      lps: {
+        sessionsAvailable: lpResult.sessionsAvailable,
+        note: lpResult.sessionsAvailable
+          ? null
+          : 'The GA4 landing-page feed could not be read for this window, so session counts and page conversion rates are unavailable on every landing page row. Lead, quality-lead and booking figures are unaffected.',
+      },
       unattributedLeadsShare: nOrNull(funnel.attribution?.unattributedShare),
     },
   }
 }
 
+/** Platform campaign sub-rows, minus Turkey when Turkey is being kept out of the facts. */
+function subRows(rows: CampaignSubRow[] | undefined, dropTurkey: boolean): CampaignSubRow[] {
+  const list = rows || []
+  return dropTurkey ? list.filter((c) => !isTurkeyText(c.name)) : list
+}
+
 // ─── Coverage ───────────────────────────────────────────────────────────────
 
-function adsCoverage(cov: AdTableQlCoverage | null, channel: Channel): AdsCoverage {
+/** Last day of the range the ad dumps actually reach (their `until`, clipped to the range). */
+function lastCoveredDateOf(monthsUsed: string[], end: string): string | null {
+  let best: string | null = null
+  for (const m of monthsUsed) {
+    const until = getMonthEntry(m)?.window.until
+    if (!until) continue
+    const clipped = until < end ? until : end
+    if (!best || clipped > best) best = clipped
+  }
+  return best
+}
+
+function adsCoverage(cov: AdTableQlCoverage | null, channel: Channel, end: string): AdsCoverage {
   if (!cov) {
     return {
       granularity: 'month',
@@ -348,6 +407,7 @@ function adsCoverage(cov: AdTableQlCoverage | null, channel: Channel): AdsCovera
       incompleteMonths: [],
       missingMonths: [],
       uncoveredDays: 0,
+      lastCoveredDate: null,
       note:
         channel === 'all' || channel === 'meta'
           ? 'The ad table could not be loaded for this request.'
@@ -374,8 +434,18 @@ function adsCoverage(cov: AdTableQlCoverage | null, channel: Channel): AdsCovera
       `No ad-level data at all for ${cov.missingMonths.join(', ')} — that spend and those leads are absent from the ad table entirely.`
     )
   }
+  const lastCovered = lastCoveredDateOf(cov.monthsUsed, end)
   if (cov.uncoveredDays > 0) {
-    parts.push(`${cov.uncoveredDays} day(s) of the range are covered by no ad dump.`)
+    // 1-3 trailing days is the normal MTD lag: the dump is rebuilt overnight, so "this month"
+    // always runs a day or two ahead of it. That is a footnote, not a reason to refuse a
+    // ranking — only a real hole (a missing month, or a longer gap) is.
+    if (cov.uncoveredDays <= TRAILING_LAG_DAYS && !cov.missingMonths.length) {
+      parts.push(
+        `Ad metrics run through ${lastCovered ?? 'the last dumped day'}; the last ${cov.uncoveredDays} day(s) of the range are not in the dump yet. This is the normal daily lag, not a gap in the data.`
+      )
+    } else {
+      parts.push(`${cov.uncoveredDays} day(s) of the range are covered by no ad dump.`)
+    }
   }
   const gaps: string[] = []
   if (cov.metricGaps.linkClicks.length) gaps.push(`link clicks (${cov.metricGaps.linkClicks.join(', ')})`)
@@ -390,11 +460,12 @@ function adsCoverage(cov: AdTableQlCoverage | null, channel: Channel): AdsCovera
     incompleteMonths: cov.incompleteMonths,
     missingMonths: cov.missingMonths,
     uncoveredDays: cov.uncoveredDays,
+    lastCoveredDate: lastCovered,
     note: parts.join(' '),
   }
 }
 
-function adQlCoverage(cov: AdTableQlCoverage | null): AdQlJoinCoverage {
+function adQlCoverage(cov: AdTableQlCoverage | null, dropTurkey: boolean): AdQlJoinCoverage {
   if (!cov) {
     return {
       status: 'unavailable',
@@ -409,7 +480,11 @@ function adQlCoverage(cov: AdTableQlCoverage | null): AdQlJoinCoverage {
     matchedShare: nOrNull(cov.matchedShare),
     matchedLeads: nOrNull(cov.matchedLeads),
     fbLeadsInWindow: nOrNull(cov.fbLeadsInWindow),
-    unmatchedBySource: cov.unmatchedBySource.slice(0, 10),
+    // The worklist is placement STRINGS, and Turkey's placements say so in plain text
+    // (tosca_…, belgin-sultan_…) — filtering the ad rows but not this list still leaks it.
+    unmatchedBySource: cov.unmatchedBySource
+      .filter((u) => !dropTurkey || !isTurkeyText(u.source))
+      .slice(0, 10),
   }
 }
 
@@ -417,7 +492,12 @@ function adQlCoverage(cov: AdTableQlCoverage | null): AdQlJoinCoverage {
 // Same pipeline as GET /api/lp-funnel, then narrowed to the umbrella's landing paths
 // (CampaignDef.lp) and cut to the top 20 by leads. Master keeps every attributable path.
 
-async function loadLpFacts(start: string, end: string, lpRegex: RegExp | null): Promise<LpFact[]> {
+async function loadLpFacts(
+  start: string,
+  end: string,
+  lpRegex: RegExp | null,
+  keepTurkey: boolean
+): Promise<{ rows: LpFact[]; sessionsAvailable: boolean }> {
   const fromISO = new Date(`${start}T00:00:00.000Z`).toISOString()
   const toISO = new Date(`${end}T23:59:59.999Z`).toISOString()
 
@@ -441,8 +521,22 @@ async function loadLpFacts(start: string, end: string, lpRegex: RegExp | null): 
   )
   const aggregates = aggregateByLP(attributable, ga4Map, bookingsByLp)
 
-  return aggregates
+  // ga4_landing_pages is the slowest tab in the set (~24 s) and fetchTab answers a failure with
+  // an empty sheet rather than an error. Empty map + rows that have leads = the GA4 read failed,
+  // and every sessions/cvr below is a null caused by that, not by the pages having no traffic.
+  // Saying so once beats twenty rows of unexplained "n/a".
+  const sessionsAvailable = ga4Map.size > 0
+  if (!sessionsAvailable) {
+    console.warn(
+      '[funnel-facts] ga4_landing_pages returned no rows for %s..%s — sessions/cvr unavailable',
+      start,
+      end
+    )
+  }
+
+  const rows = aggregates
     .filter((a) => (lpRegex ? lpRegex.test(a.path) : true))
+    .filter((a) => keepTurkey || !isTurkeyText(a.path))
     .sort((a, b) => b.leads - a.leads)
     .slice(0, MAX_LPS)
     .map((a) => ({
@@ -460,6 +554,8 @@ async function loadLpFacts(start: string, end: string, lpRegex: RegExp | null): 
       topChannel: strOrNull(a.top_channel),
       topForm: strOrNull(a.top_form),
     }))
+
+  return { rows, sessionsAvailable }
 }
 
 // ─── Ads table ──────────────────────────────────────────────────────────────
@@ -467,7 +563,8 @@ async function loadLpFacts(start: string, end: string, lpRegex: RegExp | null): 
 async function loadAdFacts(
   start: string,
   end: string,
-  slug: string
+  slug: string,
+  keepTurkey: boolean
 ): Promise<{ ads: AdFact[]; coverage: AdTableQlCoverage }> {
   // streak_full ∪ streak_sync, through the shared tab cache — streak_sync is already in it
   // from the LP step, so this costs one extra Apps Script call (streak_full), not two.
@@ -484,7 +581,15 @@ async function loadAdFacts(
       : { matchCampaign: (name: string) => (adSlug('meta', name) === slug ? slug : null) }),
   })
 
-  return { ads: selectAds(ads).map(toAdFact), coverage }
+  // Filter BEFORE the top-25 cut, so removing Turkey frees the slots for rows the answer can
+  // actually use instead of silently shrinking the table.
+  const visible = keepTurkey
+    ? ads
+    : ads.filter(
+        (a) => adSlug('meta', a.campaign) !== TURKEY_SLUG && !isTurkeyText(a.campaign, a.adName, a.adset)
+      )
+
+  return { ads: selectAds(visible).map(toAdFact), coverage }
 }
 
 /**

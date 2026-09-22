@@ -25,6 +25,12 @@
  * without the cookie, set FRESHNESS_TOKEN in the Vercel env and add '/api/freshness'
  * to PUBLIC_PATHS — the token check below then becomes the gate.
  *
+ * SHARED TAB CACHE
+ * lib/sheetsData.ts caches every tab for 10 minutes so the dashboard routes stop fighting over
+ * Apps Script slots. This route passes bypassCache on every read: a watchdog whose whole job is
+ * to report "this feed is N days stale" must read the sheet, not a copy of it. The fresh rows
+ * it pulls are still written into the cache, so the next dashboard request benefits.
+ *
  * APPS SCRIPT CONCURRENCY
  * Every tab is fetched STRICTLY SEQUENTIALLY (await in a straight line, no
  * Promise.all). Parallel fetches are what wedged /api/dashboard-totals in the first
@@ -193,7 +199,7 @@ export async function GET(request: Request) {
   // -- 1/5  fb_ads_api — authoritative daily FB spend, straight from Meta -----
   const d1 = deadline()
   try {
-    const rows = await fetchSheet({ sheetUrl: url, tab: SHEETS_TABS.FB_SPEND_DAILY, signal: d1.signal })
+    const rows = await fetchSheet({ sheetUrl: url, tab: SHEETS_TABS.FB_SPEND_DAILY, signal: d1.signal, bypassCache: true })
     const [header = [], ...data] = rows || []
     const H = normalizeHeaders(header as any[])
     const iDate = pickIdx(H, ['date', 'date_start', 'day'])
@@ -237,7 +243,7 @@ export async function GET(request: Request) {
   // -- 2/5  daily_api — Google Ads daily -------------------------------------
   const d2 = deadline()
   try {
-    const rows = await fetchSheet({ sheetUrl: url, tab: SHEETS_TABS.DAILY, signal: d2.signal })
+    const rows = await fetchSheet({ sheetUrl: url, tab: SHEETS_TABS.DAILY, signal: d2.signal, bypassCache: true })
     const [header = [], ...data] = rows || []
     const H = normalizeHeaders(header as any[])
     const iDate = pickIdx(H, ['date', 'day'])
@@ -299,7 +305,7 @@ export async function GET(request: Request) {
   for (const fc of flatChannels) {
     const dFlat = deadline()
     try {
-      const rows = await fetchSheet({ sheetUrl: url, tab: fc.tab, signal: dFlat.signal })
+      const rows = await fetchSheet({ sheetUrl: url, tab: fc.tab, signal: dFlat.signal, bypassCache: true })
       const [header = [], ...data] = rows || []
       const H = normalizeHeaders(header as any[])
       const iDate = pickIdx(H, ['date', 'day'])
@@ -382,7 +388,7 @@ export async function GET(request: Request) {
   for (const st of streakTabs) {
     const dS = deadline()
     try {
-      const rows = await fetchSheet({ sheetUrl: url, tab: st.tab, signal: dS.signal })
+      const rows = await fetchSheet({ sheetUrl: url, tab: st.tab, signal: dS.signal, bypassCache: true })
       const leads = mapStreakLeads(rows || [])
       st.set(leads)
       streakReadOk = streakReadOk || leads.length > 0
@@ -455,7 +461,7 @@ export async function GET(request: Request) {
   // the report either. The day it starts producing rows again, this goes green.
   const d4 = deadline()
   try {
-    const rows = await fetchSheet({ sheetUrl: url, tab: SHEETS_TABS.FB_ENRICHED, signal: d4.signal })
+    const rows = await fetchSheet({ sheetUrl: url, tab: SHEETS_TABS.FB_ENRICHED, signal: d4.signal, bypassCache: true })
     const enriched = mapFbEnriched(rows || [])
     let maxDate: string | null = null
     for (const r of enriched) {
@@ -496,7 +502,7 @@ export async function GET(request: Request) {
   // the bug that zeroed revenue for eight days.
   const d5 = deadline()
   try {
-    const bookings = await fetchBookings((a) => fetchSheet({ ...a, signal: d5.signal }))
+    const bookings = await fetchBookings((a) => fetchSheet({ ...a, signal: d5.signal, bypassCache: true }))
     // fetchBookings swallows its own errors and returns [], so an aborted read looks
     // like "no bookings". Say so out loud instead of reporting a quiet, wrong zero.
     if (d5.signal.aborted) throw new Error('bookings read aborted')

@@ -1601,24 +1601,52 @@ export async function fetchEmailGrowth(
   }
 }
 
-// Generic fetchSheet helper
-export async function fetchSheet(args: {
-  sheetUrl: string
-  tab: string
-  /**
-   * Optional per-call deadline. Added 2026-09-09: /api/freshness reads five tabs in a
-   * straight line, and when the Apps Script sync is running its concurrency limit turns
-   * one tab into a 60 s hang — the whole route then died with a Vercel 504 and the
-   * watchdog reported "monitor down" instead of the four feeds it had already read.
-   * With a signal the caller can cap one tab and carry on. Omitted = old behaviour.
-   */
-  signal?: AbortSignal
-}): Promise<any[][]> {
-  const { sheetUrl, tab, signal } = args
+// ─── Shared Apps Script tab cache ───────────────────────────────────────────
+//
+// WHY (2026-09-22). Every route rebuilt its own view of the sheet, so one page load fired
+// ~10 `?tab=` requests and several routes fired the SAME tab independently. The Apps Script
+// web app caps at 30 simultaneous executions, so /api/funnel drifted to 40-170 s and
+// /api/insights/funnel-ask hit 297 s against a 300 s maxDuration. The fix is one cache at the
+// lowest level: every caller of fetchSheet()/fetchTab() now shares one request per tab.
+//
+// THREE BEHAVIOURS, all deliberate:
+//   TTL             10 minutes (env SHEET_CACHE_TTL_MS). The feeds behind these tabs are
+//                   written by syncs that run every 15-30 min, so this cannot hide data that
+//                   exists yet.
+//   in-flight dedup Concurrent callers of the same tab await ONE request instead of racing
+//                   each other for an Apps Script slot. This is the half that fixes the hangs.
+//   serve-stale     A refresh that fails returns the stale entry and logs, instead of turning
+//                   a transient Apps Script hiccup into an empty feed. Emptiness is the
+//                   failure mode the freshness contract exists to prevent.
+//
+// SERVER ONLY. `/` is a client component with a Refresh button; caching there would make that
+// button lie for 10 minutes, so the browser always fetches.
+//
+// NOT CACHED: a call that passes its own `signal` (only /api/freshness does) never shares an
+// in-flight promise — one caller's deadline must not abort another caller's request — and
+// /api/freshness additionally passes bypassCache, because a watchdog that reports "days stale"
+// has to read the sheet, not a copy of it.
+
+const SHEET_CACHE_TTL_MS = () => {
+  const v = Number(process.env.SHEET_CACHE_TTL_MS)
+  return Number.isFinite(v) && v >= 0 ? v : 10 * 60 * 1000
+}
+
+const isServer = () => typeof window === 'undefined'
+
+type SheetCacheEntry = { at: number; data: any }
+const sheetCache = new Map<string, SheetCacheEntry>()
+const sheetInflight = new Map<string, Promise<any>>()
+
+/** Test/ops hook: drop everything so the next read goes to Apps Script. */
+export function clearSheetCache() {
+  sheetCache.clear()
+  sheetInflight.clear()
+}
+
+/** Raw Apps Script body for one tab, with retry. No normalisation, no caching. */
+async function fetchTabBody(sheetUrl: string, tab: string, signal?: AbortSignal): Promise<any> {
   const url = `${sheetUrl}?tab=${encodeURIComponent(tab)}`
-  // Apps Script web-app fetches (esp. the large streak_sync tab) intermittently fail/timeout in
-  // the serverless function. Retry up to 3x before giving up so a transient hiccup doesn't wipe
-  // out the whole dashboard (which then cached zeros).
   let response: Response | null = null
   let lastErr: unknown = null
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -1641,8 +1669,87 @@ export async function fetchSheet(args: {
   if (!response) {
     throw (lastErr instanceof Error ? lastErr : new Error(`Failed to fetch ${tab}`))
   }
+  return response.json()
+}
 
-  const data = await response.json()
+/**
+ * The ONE place an Apps Script tab is read. Returns the parsed body exactly as the web app
+ * sent it; fetchSheet() and fetchTab() each normalise it their own way and keep their own
+ * error contract (fetchSheet throws, fetchTab returns empty).
+ */
+async function fetchTabJson(
+  sheetUrl: string,
+  tab: string,
+  opts: { signal?: AbortSignal; bypassCache?: boolean } = {}
+): Promise<any> {
+  const { signal, bypassCache } = opts
+  if (!isServer()) return fetchTabBody(sheetUrl, tab, signal)
+
+  const key = `${sheetUrl}|${tab}`
+  const hit = sheetCache.get(key)
+  const fresh = hit && Date.now() - hit.at < SHEET_CACHE_TTL_MS()
+
+  if (fresh && !bypassCache) {
+    console.log(`[sheet-cache] HIT ${tab}`)
+    return hit!.data
+  }
+
+  // A call with its own deadline never joins or publishes a shared promise.
+  if (signal) {
+    console.log(`[sheet-cache] MISS ${tab} (signal, unshared)`)
+    const data = await fetchTabBody(sheetUrl, tab, signal)
+    if (Array.isArray(data)) sheetCache.set(key, { at: Date.now(), data })
+    return data
+  }
+
+  const running = sheetInflight.get(key)
+  if (running && !bypassCache) {
+    console.log(`[sheet-cache] JOIN ${tab}`)
+    return running
+  }
+
+  console.log(`[sheet-cache] MISS ${tab}`)
+  const p = fetchTabBody(sheetUrl, tab)
+    .then((data) => {
+      // The Apps Script answers a bad or renamed tab with {"error": "..."} — a 200 with an
+      // object body. Caching that would freeze a broken feed in place for 10 minutes, which is
+      // the cached-emptiness failure this whole layer is supposed to prevent. Only real row
+      // arrays are cached; an error body is returned once and re-asked next time.
+      if (Array.isArray(data)) sheetCache.set(key, { at: Date.now(), data })
+      else console.warn(`[sheet-cache] NOSTORE ${tab} (non-array body)`)
+      sheetInflight.delete(key)
+      return data
+    })
+    .catch((e) => {
+      sheetInflight.delete(key)
+      if (hit) {
+        console.warn(`[sheet-cache] STALE ${tab} (refresh failed: ${(e as Error).message})`)
+        return hit.data
+      }
+      throw e
+    })
+  sheetInflight.set(key, p)
+  return p
+}
+
+// Generic fetchSheet helper
+export async function fetchSheet(args: {
+  sheetUrl: string
+  tab: string
+  /**
+   * Optional per-call deadline. Added 2026-09-09: /api/freshness reads five tabs in a
+   * straight line, and when the Apps Script sync is running its concurrency limit turns
+   * one tab into a 60 s hang — the whole route then died with a Vercel 504 and the
+   * watchdog reported "monitor down" instead of the four feeds it had already read.
+   * With a signal the caller can cap one tab and carry on. Omitted = old behaviour.
+   */
+  signal?: AbortSignal
+  /** Skip the shared tab cache — /api/freshness must read the sheet, not a copy of it. */
+  bypassCache?: boolean
+}): Promise<any[][]> {
+  const { sheetUrl, tab, signal, bypassCache } = args
+  const data = await fetchTabJson(sheetUrl, tab, { signal, bypassCache })
+
   if (!Array.isArray(data)) {
     console.warn(`Response is not an array for ${tab}:`, data)
     return []
@@ -1667,19 +1774,9 @@ export async function fetchTab(tabName: string, sheetUrl?: string): Promise<{ he
   }
 
   try {
-    const fetchUrl = `${url}?tab=${encodeURIComponent(tabName)}`
-    console.log(`[fetchTab] Fetching ${tabName} from:`, fetchUrl)
-
-    const response = await fetch(fetchUrl, { cache: 'no-store', next: { revalidate: 0 } })
-    console.log(`[fetchTab] Response status for ${tabName}:`, response.status, response.statusText)
-
-    if (!response.ok) {
-      console.error(`[fetchTab] Failed to fetch ${tabName}: ${response.status} ${response.statusText}`)
-      return { headers: [], rows: [] }
-    }
-
-    const data = await response.json()
-    console.log(`[fetchTab] Raw data for ${tabName}:`, Array.isArray(data) ? `${data.length} items` : typeof data)
+    // Goes through the shared tab cache (see fetchTabJson), so two routes asking for the same
+    // tab in the same 10 minutes cost the Apps Script one execution, not two.
+    const data = await fetchTabJson(url, tabName)
 
     if (!Array.isArray(data)) {
       console.warn(`[fetchTab] Response is not an array for ${tabName}:`, data)
@@ -1689,8 +1786,7 @@ export async function fetchTab(tabName: string, sheetUrl?: string): Promise<{ he
     let sheet: any[][]
     if (data.length > 0 && typeof data[0] === 'object' && !Array.isArray(data[0])) {
       const headers = Object.keys(data[0])
-      const rows = [headers, ...data.map(row => headers.map(h => row[h]))]
-      sheet = rows
+      sheet = [headers, ...data.map((row: any) => headers.map((h) => row[h]))]
     } else {
       sheet = data
     }
@@ -1702,12 +1798,6 @@ export async function fetchTab(tabName: string, sheetUrl?: string): Promise<{ he
 
     const headers = sheet[0] || []
     const rows = sheet.slice(1) || []
-
-    console.log(`[fetchTab] Tab ${tabName} parsed: ${headers.length} headers, ${rows.length} rows`)
-    if (headers.length > 0) {
-      console.log(`[fetchTab] First 5 headers:`, headers.slice(0, 5))
-    }
-
     return { headers, rows }
   } catch (error) {
     console.error(`[fetchTab] Error fetching tab ${tabName}:`, error)

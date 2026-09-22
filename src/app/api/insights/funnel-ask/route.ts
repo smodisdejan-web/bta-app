@@ -28,6 +28,28 @@ const LOCALHOST = /^http:\/\/localhost(:\d+)?$/
 const ISO = /^\d{4}-\d{2}-\d{2}$/
 const CHANNELS: Channel[] = ['all', 'meta', 'google', 'bing', 'chatgpt']
 
+/**
+ * Does the QUESTION itself ask about Turkey? Only then do Turkey rows enter the facts.
+ * Covers the Slovenian forms (Turčija, turški, v Turčiji) and the vessel names, because
+ * "kako gre Tosca?" is a Turkey question even though the word Turkey is nowhere in it.
+ */
+const TURKEY_QUESTION =
+  /turkey|turkish|tur[cč]ij|tursk|tosca|belgin|esma|onur|la\s*bella\s*vita/i
+
+/**
+ * The model writes em dashes however often the rules say not to, so the rule is backed by a
+ * scrub. " — " becomes ", " and a bare em/en dash becomes a comma; a dash that already sits
+ * next to punctuation just goes.
+ */
+function stripEmDashes(text: string): string {
+  return text
+    .replace(/\s*[—–]\s*([,.;:!?])/g, '$1')
+    .replace(/\s+[—–]\s+/g, ', ')
+    .replace(/[—–]/g, ', ')
+    .replace(/,\s*,/g, ',')
+    .replace(/\s+,/g, ',')
+}
+
 const DEFAULT_MODEL = 'claude-sonnet-5'
 const MAX_TOKENS = 4000
 // claude-sonnet-5 has no thinking BUDGET any more: `{type:'enabled', budget_tokens:N}` is
@@ -135,11 +157,14 @@ above (funnel-glossary.md) defines every term; follow it over any industry defau
    - append coverage.ads.note as the final bullet, in the answer's language, whenever
      coverage.ads.partialMonths, incompleteMonths, missingMonths or uncoveredDays is non-empty;
    - CPQL RANKING IS BLOCKED when coverage.ads.missingMonths is non-empty OR
-     coverage.ads.uncoveredDays is greater than 0. That means the ad spend and the leads cover
+     coverage.ads.uncoveredDays is greater than 3. That means the ad spend and the leads cover
      different stretches of time, so every CPQL in the facts is arithmetic on mismatched
      periods. In that case your FIRST bullet says CPQL cannot be ranked and names the gap, and
      you rank by spend, CPL, CTR, hook rate or quality rate instead. Check those two fields
      before you write anything about CPQL;
+   - 1 to 3 uncovered days with no missing month is the normal daily lag of the ad export, NOT
+     a gap. Do not block CPQL for it. Add one short bullet saying ad metrics run through
+     coverage.ads.lastCoveredDate and carry on ranking normally;
    - when CPQL ranking is not blocked, use only ads with ql of at least 5 and SAY that you
      applied that floor;
    - quote coverage.adQlJoin.matchedShare whenever you cite per-ad QL, because per-ad QL only
@@ -149,14 +174,37 @@ above (funnel-glossary.md) defines every term; follow it over any industry defau
      the ad-naming worklist.
 7. ATTRIBUTION. Mention the LP-table vs funnel attribution difference ONLY if the totals you
    are actually citing differ. Otherwise say nothing about it.
-8. TURKEY. Unless the question itself asks about Turkey, treat every Turkey row as if it were
-   not in the facts: the "turkey" umbrella, any campaign, ad set, ad, landing page or vessel
-   whose name contains Turkey, Turkish, Tosca, Belgin, Esma or La Bella Vita. Do not name them,
-   do not rank them, do not use them as a best / worst example, and do not refer to them
-   obliquely. Pick the next eligible row instead. This rule outranks "the data says it is the
-   best performer".
-9. STYLE. No em dashes. Use € for money. Digits for numbers. No emoji. No speculation about
+8. TURKEY. Turkey rows are removed from the facts before you see them unless the question asks
+   about Turkey, so there is nothing to exclude and nothing to explain. Never write the word
+   Turkey, never name a Turkish landing page, ad, campaign or vessel, and above all never
+   mention that anything was left out, filtered, or excluded from the comparison. A sentence
+   like "Turkish landing pages are excluded" is exactly as wrong as ranking one. Write the
+   answer as though the rows the facts contain are the only rows there are.
+9. STYLE. No em dashes and no en dashes, ever. Where you would reach for one, use a comma or
+   start a new sentence. Use € for money. Digits for numbers. No emoji. No speculation about
    causes that the facts cannot support.
+9b. PLAIN LANGUAGE, NOT FIELD NAMES. The reader is looking at a dashboard and has never seen
+   this payload. NEVER write the name of a field from the facts, with or without backticks,
+   in any language. That includes qlRate, cvr, sessions, matchedInStreak, leadsStreak,
+   avgAiScore, landingLeads, hookRate, holdRate, ql, cpql, cpl, matchedShare, uncoveredDays,
+   lastCoveredDate, unattributedLeadsShare, and every other key you can see, as well as raw
+   enum values such as PAID_SEARCH or DIRECT_TRAFFIC. Say what the number is instead:
+     ql, qualityLeads      -> quality leads / kakovostni leadi
+     qlRate                -> share of quality leads / delež kakovostnih leadov
+     cvr                   -> conversion rate / stopnja konverzije
+     sessions              -> visits / obiski (seje)
+     matchedInStreak       -> leads found in the CRM / leadi, najdeni v CRM
+     avgAiScore            -> average lead score / povprečna ocena leada
+     cpql                  -> cost per quality lead / cena na kakovostni lead
+     cpl                   -> cost per lead / cena na lead
+     landingLeads          -> leads from the page / leadi s strani
+     hookRate / holdRate   -> share who watched the opening / to the end
+     matchedShare          -> share of leads matched to an ad / delež pripisanih leadov
+     PAID_SEARCH           -> paid search / plačano iskanje
+   A bullet that contains a field name is a broken bullet. Rewrite it before you send it.
+9c. MISSING SESSIONS. If coverage.lps.sessionsAvailable is false, say ONCE, in a single bullet,
+   that session counts and page conversion rates are unavailable for this window. Do not repeat
+   it on every landing page bullet and do not call it out row by row.
 10. If the facts do not contain what is needed to answer, say that in one bullet and name the
     field that is missing. Do not guess.`
 
@@ -242,7 +290,13 @@ export async function POST(req: NextRequest) {
   // 5. Facts
   let facts
   try {
-    facts = await buildFunnelFacts({ start, end, campaign, channel })
+    facts = await buildFunnelFacts({
+      start,
+      end,
+      campaign,
+      channel,
+      includeTurkey: TURKEY_QUESTION.test(question),
+    })
   } catch (err) {
     console.error('[insights/funnel-ask] facts failed', err)
     return json({ error: (err as Error)?.message || 'Failed to build funnel facts' }, 500)
@@ -296,11 +350,13 @@ QUESTION: ${question}`
       messages: [{ role: 'user', content: userPrompt }],
     })
 
-    const answer = response.content
-      .filter((b): b is Anthropic.TextBlock => b.type === 'text')
-      .map((b) => b.text)
-      .join('')
-      .trim()
+    const answer = stripEmDashes(
+      response.content
+        .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+        .map((b) => b.text)
+        .join('')
+        .trim()
+    )
 
     // A truncated or empty answer is a silent lie to the portal, so it gets logged loudly.
     if (!answer || response.stop_reason === 'max_tokens') {

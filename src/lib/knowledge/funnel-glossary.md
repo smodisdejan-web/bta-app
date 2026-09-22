@@ -78,6 +78,10 @@ Three different kinds of "not exact", and they mean different things:
   ad-level data.** A range that starts in June is missing June's ad spend and June's ad leads
   entirely, and you must say so before ranking anything.
 - `uncoveredDays` — days of the range no dump reaches, usually the tail of the current month.
+  **1 to 3 trailing uncovered days with no missing month is the normal daily lag** of the export
+  (the dump is rebuilt overnight, so "this month" always runs a day or two ahead of it). That is
+  a footnote, not a gap: say that ad metrics run through `lastCoveredDate` and carry on.
+- `lastCoveredDate` — the last day of the range the ad dumps actually reach.
 
 ### Per-ad quality leads
 
@@ -99,10 +103,10 @@ PLACEMENT a lead arrived with and resolves it to one ad name inside one campaign
 - **Ranking by CPQL requires `ql` at least 5 on the row, and you must say that you applied that
   floor.** One or two quality leads make a CPQL that swings by hundreds of euro and ranks noise.
 - Ads below that floor can still be discussed by spend, CPL, CTR, hook rate or hold rate.
-- Never rank by CPQL when the spend window and the lead window disagree — that is, when
-  `coverage.ads.partialMonths`, `missingMonths` or `uncoveredDays` say the ad spend covers a
-  different stretch of time than the leads. Say which one is out of step and rank by something
-  the data supports instead.
+- Never rank by CPQL when the spend window and the lead window genuinely disagree: when
+  `missingMonths` is non-empty, or `uncoveredDays` is greater than 3. Say which one is out of
+  step and rank by something the data supports instead. A lag of 1 to 3 trailing days does NOT
+  block CPQL; it only earns a one-line note.
 - Ads are Meta only. A Google, Bing or ChatGPT channel view returns an empty ads array.
 
 ## Window vs cohort
@@ -134,3 +138,23 @@ say so rather than presenting the umbrella breakdown as complete.
 2026-09-14), `chatgpt` (OpenAI Ads Manager, live since 2026-09-14), plus `other`
 (organic + direct) on the channel split. Bing and ChatGPT are FLAT: their spend sits in the
 master total and in `unattributed`, but they never belong to an umbrella.
+
+## Landing page sessions
+
+`coverage.lps.sessionsAvailable` is false when the GA4 landing-page feed could not be read for
+the window. Every landing page row then has no session count and no page conversion rate, while
+its lead, quality-lead and booking figures are still sound. Say that once, in one line, and do
+not repeat it per row.
+
+## How to write the numbers
+
+The reader is looking at a dashboard, not at this payload. Never quote a field name, a key path
+or anything in backticks: "session counts are not available", not "sessions and cvr are null";
+"quality leads", not "ql"; "the ad data only reaches 21 September", not "uncoveredDays = 1".
+
+## Turkey
+
+Turkey rows are stripped from the facts before the model is called, unless the selected umbrella
+is Turkey or the question asked about it. There is therefore nothing to exclude and nothing to
+explain. Never name Turkey, a Turkish landing page, ad, campaign or vessel, and never mention
+that anything was filtered or left out of the comparison.
