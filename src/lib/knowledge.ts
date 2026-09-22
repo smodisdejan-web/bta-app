@@ -11,6 +11,8 @@ const KNOWLEDGE_FILES = [
   'business-context.md',
   'kpis-2026.md',
   'handoff.md',
+  'utm-attribution.md',
+  'funnel-glossary.md',
 ] as const
 
 export function getGooletsKnowledge(): string {

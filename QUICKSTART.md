@@ -128,6 +128,27 @@ Once configured:
 
 ---
 
+---
+
+## 🔑 Portal Q&A env vars (`/api/insights/funnel-ask`)
+
+The Business Health Funnel Q&A endpoint the Goolets Content Portal calls needs two extra
+variables in `.env.local` (and in the Vercel project settings for production):
+
+```
+# Shared secret the portal sends as the X-Portal-Token header.
+# Without it the endpoint returns 503; with a wrong value, 401.
+PORTAL_ASK_TOKEN=replace-with-a-long-random-string
+
+# Optional. Which model answers the funnel questions.
+# Defaults to claude-sonnet-5 when unset.
+FUNNEL_ASK_MODEL=claude-sonnet-5
+```
+
+The endpoint also needs `ANTHROPIC_API_KEY` (server-side, not the `NEXT_PUBLIC_` one) and only
+accepts requests whose `Origin` is `https://goolets-content-portal.vercel.app` or
+`http://localhost:*`. Values above are placeholders, never commit real ones.
+
 ## 🎓 Next Steps
 
 Once you have AI insights working:
