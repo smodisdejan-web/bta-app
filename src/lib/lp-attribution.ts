@@ -35,6 +35,10 @@ export interface JoinedLead {
   streak_stage: string | null  // null = not in Streak
   is_ql: boolean              // ai_score >= 50
   is_matched: boolean         // exists in Streak
+  email_open: number          // marketing emails opened
+  email_click: number         // marketing emails clicked
+  email_delivered: number     // marketing emails delivered
+  is_email_engaged: boolean   // opened or clicked ≥1 marketing email
 }
 
 export interface LPAggregate {
@@ -42,7 +46,7 @@ export interface LPAggregate {
   leads: number
   matched_in_streak: number   // transparency for AI-based metrics
   ql: number                  // matched && ai_score >= 50
-  ql_rate: number             // ql / leads (%)
+  ql_rate: number             // ql / matched (%) — Quality Rate is over Streak-matched leads, NOT all leads
   avg_ai_score: number        // over matched subset only
   top_channel: string         // most common hs_analytics_source
   channel_breakdown: Record<string, number>  // channel → lead count
@@ -63,7 +67,7 @@ export interface LPFunnelTotals {
   total_leads: number
   total_matched: number
   total_ql: number
-  avg_ql_rate: number       // overall ql / leads
+  avg_ql_rate: number       // overall ql / matched (Streak-matched leads, NOT all leads). Coverage shown separately.
   avg_ai_score: number      // over matched subset
   unique_lps: number
   date_range: { from: string; to: string }
@@ -184,8 +188,59 @@ export function joinHubspotStreak(
       streak_stage: streak ? streak.stage : null,
       is_ql: ai_score !== null && ai_score >= 50,
       is_matched: streak !== undefined,
+      email_open: c.email_open || 0,
+      email_click: c.email_click || 0,
+      email_delivered: c.email_delivered || 0,
+      is_email_engaged: (c.email_open || 0) > 0 || (c.email_click || 0) > 0,
     }
   })
+}
+
+// ============================================================================
+// EMAIL MARKETING (section B): do email-engaged leads convert better?
+// ============================================================================
+
+export interface EmailFunnelBucket {
+  label: 'engaged' | 'non_engaged'
+  leads: number
+  matched: number       // in Streak (denominator for QL rate)
+  ql: number
+  ql_rate: number       // ql / matched (%)
+  bookings: number      // leads in this bucket whose email shows up in bookings
+  booking_rate: number  // bookings / leads (%)
+}
+
+/**
+ * Split in-range leads into email-engaged vs non-engaged and compare QL + booking
+ * rates. "Engaged" = opened or clicked ≥1 marketing email. Booking is lead-cohort
+ * here (did THIS lead's email ever book) — the question is whether nurturing a lead
+ * lifts its own conversion, so booking month is irrelevant.
+ *
+ * NB: correlation, not proven causation — engaged leads are self-selected (more
+ * interested prospects open more email). Surfaced as a signal, labelled as such.
+ */
+export function computeEmailFunnel(
+  leads: JoinedLead[],
+  bookedEmails: Set<string>,
+): { engaged: EmailFunnelBucket; non_engaged: EmailFunnelBucket; booking_lift: number } {
+  const make = (label: 'engaged' | 'non_engaged'): EmailFunnelBucket =>
+    ({ label, leads: 0, matched: 0, ql: 0, ql_rate: 0, bookings: 0, booking_rate: 0 })
+  const eng = make('engaged')
+  const non = make('non_engaged')
+
+  for (const l of leads) {
+    const b = l.is_email_engaged ? eng : non
+    b.leads++
+    if (l.is_matched) b.matched++
+    if (l.is_ql) b.ql++
+    if (l.email && bookedEmails.has(l.email)) b.bookings++
+  }
+  for (const b of [eng, non]) {
+    b.ql_rate = b.matched > 0 ? (b.ql / b.matched) * 100 : 0
+    b.booking_rate = b.leads > 0 ? (b.bookings / b.leads) * 100 : 0
+  }
+  const booking_lift = non.booking_rate > 0 ? eng.booking_rate / non.booking_rate : 0
+  return { engaged: eng, non_engaged: non, booking_lift }
 }
 
 // ============================================================================
@@ -239,19 +294,67 @@ function topByCount(items: string[]): string {
   return top
 }
 
+export const UNATTRIBUTED_LP = '(unattributed)'
+
 /**
- * Build email → aggregated bookings map. Multiple bookings per email collapse
- * into one entry (count + summed revenue), so an LP credits all repeat bookings.
+ * Booking attribution model — BOOKING-DATE (locked 2026-06-15, replaced lead-cohort).
+ *
+ * A booking counts in the month it HAPPENED (booking_date), not the month its lead
+ * arrived. "Booking in June → shows in June." Simpler and matches how Dejan reads the
+ * dashboard. (Old lead-cohort model hid a June booking that came from a May lead.)
+ *
+ * Bookings still credit the landing page their booker first arrived on, via a global
+ * email→LP map built from ALL leads (any date) — so attribution survives even when the
+ * booker's lead predates the selected range.
  */
-export function aggregateBookingsByEmail(
+export function filterBookingsByBookingMonth(
   bookings: BookingRecord[],
+  fromISO: string,
+  toISO: string,
+): BookingRecord[] {
+  // booking_date is month-granular ("YYYY-MM"); compare on a year*12+month index.
+  const from = new Date(fromISO)
+  const to = new Date(toISO)
+  const fromIdx = from.getFullYear() * 12 + from.getMonth()
+  const toIdx = to.getFullYear() * 12 + to.getMonth()
+  return bookings.filter(b => {
+    const [y, m] = String(b.booking_date || '').split('-').map(Number)
+    if (!y || !m) return false
+    const idx = y * 12 + (m - 1)
+    return idx >= fromIdx && idx <= toIdx
+  })
+}
+
+/**
+ * email → first landing page, across ALL leads (any date). First landing wins.
+ * Lets a booking attach to the LP its booker originally arrived on even when that
+ * lead is outside the selected range.
+ */
+export function buildEmailToLpMap(allLeads: JoinedLead[]): Map<string, string> {
+  const map = new Map<string, string>()
+  for (const l of allLeads) {
+    const email = (l.email || '').toLowerCase().trim()
+    if (!email || !l.first_url_path) continue
+    if (!map.has(email)) map.set(email, l.first_url_path)
+  }
+  return map
+}
+
+/**
+ * Aggregate booking-date-filtered bookings per LP path via the global email→LP map.
+ * Bookings whose booker has no tracked lead fall into UNATTRIBUTED_LP so per-LP totals
+ * reconcile with the headline.
+ */
+export function aggregateBookingsByLp(
+  bookingsInRange: BookingRecord[],
+  emailToLp: Map<string, string>,
 ): Map<string, { count: number; revenue: number }> {
   const map = new Map<string, { count: number; revenue: number }>()
-  for (const b of bookings) {
+  for (const b of bookingsInRange) {
     const email = (b.client_email || '').toLowerCase().trim()
-    if (!email) continue
-    if (!map.has(email)) map.set(email, { count: 0, revenue: 0 })
-    const s = map.get(email)!
+    const path = (email && emailToLp.get(email)) || UNATTRIBUTED_LP
+    if (!map.has(path)) map.set(path, { count: 0, revenue: 0 })
+    const s = map.get(path)!
     s.count++
     s.revenue += b.rvc || 0
   }
@@ -261,7 +364,7 @@ export function aggregateBookingsByEmail(
 export function aggregateByLP(
   leads: JoinedLead[],
   ga4Map?: Map<string, { sessions: number; users: number; conversions: number }>,
-  bookingMap?: Map<string, { count: number; revenue: number }>,
+  bookingsByLp?: Map<string, { count: number; revenue: number }>,
 ): LPAggregate[] {
   const byPath = new Map<string, JoinedLead[]>()
   for (const l of leads) {
@@ -299,19 +402,10 @@ export function aggregateByLP(
     const users = ga4?.users
     const cvr = sessions && sessions > 0 ? (group.length / sessions) * 100 : undefined
 
-    // Bookings: count leads on this LP whose email shows up in bookings tab.
-    // Sum revenue across those bookings (one contact may book multiple times).
-    let bookings = 0
-    let revenue = 0
-    if (bookingMap) {
-      for (const lead of group) {
-        const b = bookingMap.get(lead.email)
-        if (b) {
-          bookings += b.count
-          revenue += b.revenue
-        }
-      }
-    }
+    // Bookings credited to this LP by booking-date (booker first landed here).
+    const bk = bookingsByLp?.get(path)
+    const bookings = bk?.count ?? 0
+    const revenue = bk?.revenue ?? 0
     const booking_rate = bookings > 0 && group.length > 0 ? (bookings / group.length) * 100 : undefined
 
     aggregates.push({
@@ -319,7 +413,9 @@ export function aggregateByLP(
       leads: group.length,
       matched_in_streak: matched.length,
       ql,
-      ql_rate: group.length > 0 ? (ql / group.length) * 100 : 0,
+      // Quality Rate = QL ÷ Streak-matched leads (locked model). Leads not in Streak
+      // are coverage, not failed-QL — dividing by all leads understated the rate.
+      ql_rate: matched.length > 0 ? (ql / matched.length) * 100 : 0,
       avg_ai_score,
       top_channel,
       channel_breakdown,
@@ -328,8 +424,32 @@ export function aggregateByLP(
       sessions,
       users,
       cvr,
-      ...(bookingMap ? { bookings, revenue, booking_rate } : {}),
+      ...(bookingsByLp ? { bookings, revenue, booking_rate } : {}),
     })
+  }
+
+  // Orphan LPs: got booking-date bookings this range but have no in-range leads
+  // (their leads came earlier, or the booker was never a tracked lead → UNATTRIBUTED_LP).
+  // Surface as zero-lead rows so per-LP booking/revenue totals reconcile with the headline.
+  if (bookingsByLp) {
+    for (const [path, bk] of bookingsByLp.entries()) {
+      if (byPath.has(path)) continue
+      aggregates.push({
+        path,
+        leads: 0,
+        matched_in_streak: 0,
+        ql: 0,
+        ql_rate: 0,
+        avg_ai_score: 0,
+        top_channel: '',
+        channel_breakdown: {},
+        top_campaign: '',
+        top_form: '',
+        bookings: bk.count,
+        revenue: bk.revenue,
+        booking_rate: undefined,
+      })
+    }
   }
 
   return aggregates.sort((a, b) => b.leads - a.leads)
@@ -364,7 +484,10 @@ export function computeTotals(leads: JoinedLead[], aggregates: LPAggregate[], fr
     total_leads: leads.length,
     total_matched: matched.length,
     total_ql: ql,
-    avg_ql_rate: leads.length > 0 ? (ql / leads.length) * 100 : 0,
+    // Quality Rate = QL ÷ Streak-matched leads (locked model), NOT ÷ all leads.
+    // 16% of leads aren't in Streak (coverage gap, surfaced separately) and would
+    // otherwise depress the rate as if they were non-QL.
+    avg_ql_rate: matched.length > 0 ? (ql / matched.length) * 100 : 0,
     avg_ai_score: aiScores.length > 0 ? aiScores.reduce((a, b) => a + b, 0) / aiScores.length : 0,
     unique_lps: aggregates.length,
     date_range: { from: fromISO, to: toISO },
@@ -406,40 +529,44 @@ export function getLeakyPages(aggregates: LPAggregate[], minLeads = 50, limit = 
     .slice(0, limit)
 }
 
-export function aggregateByChannel(leads: JoinedLead[]): { channel: string; leads: number; ql: number; ql_rate: number }[] {
-  const map = new Map<string, { leads: number; ql: number }>()
+export function aggregateByChannel(leads: JoinedLead[]): { channel: string; leads: number; matched: number; ql: number; ql_rate: number }[] {
+  const map = new Map<string, { leads: number; matched: number; ql: number }>()
   for (const l of leads) {
     const ch = l.hs_analytics_source || 'UNKNOWN'
-    if (!map.has(ch)) map.set(ch, { leads: 0, ql: 0 })
+    if (!map.has(ch)) map.set(ch, { leads: 0, matched: 0, ql: 0 })
     const s = map.get(ch)!
     s.leads++
+    if (l.is_matched) s.matched++
     if (l.is_ql) s.ql++
   }
   return Array.from(map.entries())
     .map(([channel, v]) => ({
       channel,
       leads: v.leads,
+      matched: v.matched,
       ql: v.ql,
-      ql_rate: v.leads > 0 ? (v.ql / v.leads) * 100 : 0,
+      ql_rate: v.matched > 0 ? (v.ql / v.matched) * 100 : 0,  // ÷ matched (locked model)
     }))
     .sort((a, b) => b.leads - a.leads)
 }
 
-export function aggregateByForm(leads: JoinedLead[]): { form: string; leads: number; ql: number; ql_rate: number }[] {
-  const map = new Map<string, { leads: number; ql: number }>()
+export function aggregateByForm(leads: JoinedLead[]): { form: string; leads: number; matched: number; ql: number; ql_rate: number }[] {
+  const map = new Map<string, { leads: number; matched: number; ql: number }>()
   for (const l of leads) {
     const f = l.recent_conversion_event_name || 'UNKNOWN'
-    if (!map.has(f)) map.set(f, { leads: 0, ql: 0 })
+    if (!map.has(f)) map.set(f, { leads: 0, matched: 0, ql: 0 })
     const s = map.get(f)!
     s.leads++
+    if (l.is_matched) s.matched++
     if (l.is_ql) s.ql++
   }
   return Array.from(map.entries())
     .map(([form, v]) => ({
       form,
       leads: v.leads,
+      matched: v.matched,
       ql: v.ql,
-      ql_rate: v.leads > 0 ? (v.ql / v.leads) * 100 : 0,
+      ql_rate: v.matched > 0 ? (v.ql / v.matched) * 100 : 0,  // ÷ matched (locked model)
     }))
     .sort((a, b) => b.leads - a.leads)
 }

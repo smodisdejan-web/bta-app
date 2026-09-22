@@ -22,11 +22,14 @@ const navItems = [
     ]
   },
   { label: 'GA4 Landing Pages', href: '/ga4-landing-pages' },
+  { label: 'Email Marketing', href: '/email-marketing' },
   { label: 'Tests', href: '/tests' },
   { label: 'Vessel Funnel', href: '/vessel-funnel' },
   { label: 'AI Traffic', href: '/ai-traffic' },
+  { label: 'Turkey 2026', href: '/turkey-campaign' },
   { label: 'Dobrik Trip', href: '/dobrik-trip' },
-  { label: 'Reports', href: 'https://goolets-reports.vercel.app/', external: true }
+  { label: 'Reports', href: 'https://goolets-reports.vercel.app/', external: true },
+  { label: 'Content Portal', href: 'https://goolets-content-portal.vercel.app/', external: true }
 ] as const
 
 function BrandMark({ className }: { className?: string }) {

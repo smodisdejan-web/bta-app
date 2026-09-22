@@ -12,7 +12,9 @@ import {
   isAttributableLP,
   aggregateByLP,
   aggregateGA4ByLP,
-  aggregateBookingsByEmail,
+  buildEmailToLpMap,
+  filterBookingsByBookingMonth,
+  aggregateBookingsByLp,
   computeTotals,
   getQualityWinners,
   getLeakyPages,
@@ -61,10 +63,14 @@ export async function GET(request: Request) {
     const inRange = filterByDateRange(joined, fromISO, toISO)
     const attributable = inRange.filter(l => isAttributableLP(l.first_url_path))
 
-    // Aggregate (GA4 + bookings maps joined per LP path / email)
+    // Aggregate. Bookings use the BOOKING-DATE model: counted in the month they
+    // happened, credited to the LP the booker first arrived on (global email→LP map
+    // over ALL leads, so attribution survives a booker whose lead predates the range).
     const ga4Map = aggregateGA4ByLP(ga4Rows, fromISO, toISO)
-    const bookingMap = aggregateBookingsByEmail(bookings)
-    const aggregates = aggregateByLP(attributable, ga4Map, bookingMap)
+    const emailToLp = buildEmailToLpMap(joined)
+    const bookingsInRange = filterBookingsByBookingMonth(bookings, fromISO, toISO)
+    const bookingsByLp = aggregateBookingsByLp(bookingsInRange, emailToLp)
+    const aggregates = aggregateByLP(attributable, ga4Map, bookingsByLp)
     const totals = computeTotals(attributable, aggregates, fromISO, toISO)
     const quality_winners = getQualityWinners(aggregates)
     const leaky_pages = getLeakyPages(aggregates)

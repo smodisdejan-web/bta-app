@@ -131,6 +131,28 @@ interface AggregateBlock {
     ig?: FollowerSeries
     yt?: FollowerSeries
   }
+  dobrikLandingPage?: DobrikLandingPageBlock
+}
+
+interface DobrikLandingPageBlock {
+  path?: string
+  url?: string
+  utm?: string
+  dateRange?: { from?: string | null; to?: string | null }
+  ga4?: {
+    sessions: number
+    users: number
+    conversions: number
+    conversionSource?: string
+    socialSessions?: number
+    socialConversions?: number
+    srcMed?: { sourceMedium: string; sessions: number; users: number; conversions: number }[]
+    devices?: { device: string; sessions: number; users: number; conversions: number }[]
+    daily?: { date: string; sessions: number; users: number; conversions: number }[]
+    source?: string
+  }
+  streak?: { leads: number; qualifiedLeads?: number; note?: string | null; source?: string }
+  asOf?: string
 }
 
 /* ============================================================
@@ -547,6 +569,9 @@ export default function DobrikTripPage() {
           })}
         </Card>
 
+        {/* DOBRIK LANDING PAGE — dedicated ?utm_campaign=dobrik link tracking */}
+        {aggBlock?.dobrikLandingPage && <DobrikLandingPageCard lp={aggBlock.dobrikLandingPage} hubspotDirect={aggBlock?.leads?.direct?.value ?? null} />}
+
         {/* GOOLETS YOUTUBE CHANNEL — trip vs baseline (views, watch time, subs) */}
         {ytChannel?.trip && <YouTubeChannelCard yt={ytChannel} />}
 
@@ -593,6 +618,128 @@ export default function DobrikTripPage() {
         )}
       </div>
     </div>
+  )
+}
+
+/* Dobrik dedicated landing page — ?utm_campaign=dobrik link tracking (GA4 + CRM) */
+function DobrikLandingPageCard({
+  lp,
+  hubspotDirect,
+}: {
+  lp: DobrikLandingPageBlock
+  hubspotDirect: number | null
+}) {
+  const ga4 = lp.ga4
+  const daily = ga4?.daily ?? []
+  const maxSessions = Math.max(1, ...daily.map((d) => d.sessions))
+  const fmtDate = (d: string) =>
+    d.length === 8 ? `${d.slice(6, 8)}.${d.slice(4, 6)}.` : d
+  const socialPct = ga4?.sessions ? Math.round(((ga4.socialSessions ?? 0) / ga4.sessions) * 100) : 0
+
+  return (
+    <Card className="border-[#B39262]/40">
+      <div className="flex items-start justify-between mb-4">
+        <div className="min-w-0">
+          <p className="text-xs uppercase tracking-wide text-gray-500 inline-flex items-center">
+            <ExternalLink className="mr-1.5 h-3.5 w-3.5 text-[#B39262]" />
+            Dobrik Landing Page
+            <InfoIcon text={`Namenska stran ${lp.path} z UTM linkom (${lp.utm}). GA4 sledi obiskom + on-page konverzijam; CRM atribucija prek HubSpot utm_campaign=dobrik. ${ga4?.source ?? ''}`} />
+          </p>
+          <a
+            href={lp.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-1 inline-flex items-center text-sm font-semibold text-gray-900 hover:text-[#B39262] break-all"
+          >
+            goolets.net/dobrik-smart-yachting-croatia
+          </a>
+          <div className="mt-0.5 text-[10px] text-gray-500 font-mono break-all">?{lp.utm?.replace(/ · /g, '&').replace(/ /g, '')}</div>
+        </div>
+        {lp.dateRange?.from && (
+          <div className="text-right text-[10px] text-gray-400 shrink-0 ml-3">
+            {fmtDate(lp.dateRange.from)} – {fmtDate(lp.dateRange.to || '')}
+          </div>
+        )}
+      </div>
+
+      {/* Metric tiles */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label: 'Sessions', value: fmtNum(ga4?.sessions ?? 0), sub: `${fmtNum(ga4?.users ?? 0)} users` },
+          { label: 'On-page konverzije', value: String(ga4?.conversions ?? 0), sub: 'GA4 key events' },
+          { label: 'IG / social', value: `${socialPct}%`, sub: `${fmtNum(ga4?.socialSessions ?? 0)} sessions` },
+          { label: 'HubSpot leads', value: hubspotDirect !== null ? String(hubspotDirect) : '—', sub: 'utm_campaign=dobrik' },
+        ].map((m) => (
+          <div key={m.label} className="rounded-lg border border-gray-100 bg-gray-50/60 px-3 py-2.5">
+            <div className="text-[10px] uppercase tracking-wider text-gray-500">{m.label}</div>
+            <div className="mt-0.5 text-xl font-semibold text-gray-900">{m.value}</div>
+            <div className="text-[10px] text-gray-500">{m.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Daily sessions bar chart */}
+      {daily.length > 0 && (
+        <div className="mt-5">
+          <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-2">Dnevne seje (sessions)</div>
+          <div className="flex items-end gap-[3px] h-24">
+            {daily.map((d) => (
+              <div key={d.date} className="group relative flex-1 flex flex-col items-center justify-end h-full">
+                <div
+                  className="w-full rounded-t bg-[#B39262]/70 group-hover:bg-[#B39262] transition-colors"
+                  style={{ height: `${Math.max(2, (d.sessions / maxSessions) * 100)}%` }}
+                />
+                <span className="pointer-events-none absolute bottom-full mb-1 hidden whitespace-nowrap rounded bg-[#1A1A2E] px-1.5 py-1 text-[10px] text-white group-hover:block z-10">
+                  {fmtDate(d.date)}: {d.sessions} sej · {d.conversions} konv
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-1 flex justify-between text-[9px] text-gray-400">
+            <span>{fmtDate(daily[0].date)}</span>
+            <span>{fmtDate(daily[daily.length - 1].date)}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Source / medium table */}
+      {ga4?.srcMed && ga4.srcMed.length > 0 && (
+        <div className="mt-5 overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-[10px] uppercase tracking-wider text-gray-400 border-b border-gray-100">
+                <th className="text-left py-1.5 pr-3 font-medium">Source / Medium</th>
+                <th className="text-right py-1.5 px-3 font-medium">Sessions</th>
+                <th className="text-right py-1.5 px-3 font-medium">Users</th>
+                <th className="text-right py-1.5 pl-3 font-medium">Konv.</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ga4.srcMed.slice(0, 6).map((r) => (
+                <tr key={r.sourceMedium} className="border-b border-gray-50 last:border-0">
+                  <td className="py-1.5 pr-3 text-gray-700">{r.sourceMedium}</td>
+                  <td className="py-1.5 px-3 text-right text-gray-900 font-medium">{r.sessions.toLocaleString()}</td>
+                  <td className="py-1.5 px-3 text-right text-gray-500">{r.users.toLocaleString()}</td>
+                  <td className="py-1.5 pl-3 text-right text-gray-500">{r.conversions}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* CRM attribution note */}
+      <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-[11px] text-amber-800">
+        <strong>CRM atribucija:</strong> HubSpot lovi{' '}
+        <strong>{hubspotDirect ?? 0}</strong> leadov prek <code className="rounded bg-amber-100 px-1">utm_campaign=dobrik</code>.
+        {lp.streak && (
+          <>
+            {' '}Streak (<code className="rounded bg-amber-100 px-1">streak_sync</code>) pa kaže{' '}
+            <strong>{lp.streak.leads}</strong> — {lp.streak.note}
+          </>
+        )}
+      </div>
+    </Card>
   )
 }
 

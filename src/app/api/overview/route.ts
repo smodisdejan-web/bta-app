@@ -26,10 +26,15 @@ export async function GET(request: NextRequest) {
       loadFbDashboard()
     ]);
 
+    // FB lead/QL metrics still come from dashboard_fb, but its `spend` is stale (Mixed Analytics
+    // stopped writing on 2026-08-08), so the authoritative daily figure from fb_ads_api wins.
+    const fbSpend = (overviewData as { fbSpendAuthoritative?: number }).fbSpendAuthoritative;
+    const fbSummary = fbDashboard ?? overviewData.facebookSummary;
     const payload = {
       ...overviewData,
-      // Ensure FB metrics come from dashboard_fb tab
-      facebookSummary: fbDashboard ?? overviewData.facebookSummary
+      facebookSummary: fbSummary && typeof fbSpend === 'number' && fbSpend > 0
+        ? { ...fbSummary, spend: fbSpend }
+        : fbSummary
     };
 
     return NextResponse.json(payload);

@@ -19,7 +19,7 @@ import {
   FbSpendResult,
   StreakLeadRow
 } from './sheetsData';
-import { getSheetsUrl } from './config';
+import { getSheetsUrl, SHEETS_TABS } from './config';
 import { computeFacebookSummary, FacebookSummary } from './metrics/facebook';
 import { fetchTab } from './sheetsData';
 import { loadFbDashboard, FbDashboardData } from './loaders/fb-dashboard';
@@ -103,6 +103,8 @@ export interface OverviewDataResult {
   range: DateRange;
   trendPoints: TrendPoint[];
   facebookSummary?: FacebookSummary | FbDashboardData;
+  /** FB spend for the window from fb_ads_api (Meta), used to override dashboard_fb's stale value. */
+  fbSpendAuthoritative?: number;
   googleSummary?: {
     spend: number;
     clicks: number;
@@ -213,7 +215,14 @@ export async function getOverviewData(days = 30, cacMode: CACMode = 'leads'): Pr
   // - Facebook summary from dashboard_fb tab (cell ranges)
   const [googleTraffic, fbSpendRaw, fbTrafficEnriched, fbRawTab, fbEnrichedTab, fbSheetSummary, streakAll] = await Promise.all([
     loadGoogleTraffic(sheetsUrl),
-    loadFbSpendFromRaw(sheetsUrl, 'fb_ads_raw'),
+    // fb_ads_api = daily FB spend straight from Meta (sync-fb-ads-api.js). Falls back to the legacy
+    // Mixed Analytics tab only if the clean one is empty — that feed died on 2026-08-08 and puts
+    // timestamps in its spend column, which understated August spend by €12.4k.
+    loadFbSpendFromRaw(sheetsUrl, SHEETS_TABS.FB_SPEND_DAILY).then(async (r) => {
+      if (r.ok && Object.keys(r.fbSpendByDate).length > 0) return r;
+      console.warn('[overview-data] fb_ads_api empty — falling back to legacy fb_ads_raw');
+      return loadFbSpendFromRaw(sheetsUrl, SHEETS_TABS.FB_RAW);
+    }),
     loadFbTraffic(sheetsUrl), // For LP views only
     fetchTab('fb_ads_raw', sheetsUrl),
     fetchTab('fb_ads_enriched', sheetsUrl),
@@ -328,7 +337,13 @@ export async function getOverviewData(days = 30, cacMode: CACMode = 'leads'): Pr
   const revenueTotal = trendPoints.reduce((sum, p) => sum + p.revenue, 0);
 
   // Facebook spend: use dashboard_fb when available, but for 60d fallback to window spend
-  const fbSpendFinal = days === 60
+  // Precedence flipped 2026-08-17. This used to trust `dashboard_fb` (fbSummaryData) for every
+  // window except 60 days, which silently discarded the daily series. Both Mixed Analytics feeds
+  // behind that summary had gone stale: for 1.–16.8. it reported €23.898 of FB spend against a
+  // true €36.282, so Total Spend read €37.212 instead of €48.881 and ROAS showed 3,31x when the
+  // real figure was 2,52x — the difference between "above ROMI break-even" and below it.
+  // fb_ads_api is pulled straight from Meta, so the daily series now wins whenever it has data.
+  const fbSpendFinal = hasFbSpendDaily && fbSpendInWindow > 0
     ? fbSpendInWindow
     : fbSummaryData?.spend ?? fbSpendInWindow;
   const spendTotal = gaSpendInWindow + fbSpendFinal;
@@ -459,7 +474,10 @@ export async function getOverviewData(days = 30, cacMode: CACMode = 'leads'): Pr
     },
     range,
     trendPoints,
-    facebookSummary: fbSummaryData || undefined,
+    // Keep dashboard_fb's lead/QL figures but override its spend with the authoritative daily
+    // series (fb_ads_api ← Meta). dashboard_fb lags — see the fbSpendFinal note above.
+    facebookSummary: fbSummaryData ? { ...fbSummaryData, spend: fbSpendFinal } : undefined,
+    fbSpendAuthoritative: fbSpendFinal,
     googleSummary: {
       spend: gaSpendInWindow,
       clicks: gaClicksInWindow,

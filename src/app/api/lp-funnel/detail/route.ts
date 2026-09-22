@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { fetchTab, fetchHubspotContacts, fetchStreakSync, fetchGA4LandingPages, fetchBookings } from '@/lib/sheetsData'
-import { joinHubspotStreak, filterByDateRange, aggregateGA4ByLP, aggregateBookingsByEmail, type JoinedLead } from '@/lib/lp-attribution'
+import { joinHubspotStreak, filterByDateRange, aggregateGA4ByLP, buildEmailToLpMap, filterBookingsByBookingMonth, type JoinedLead } from '@/lib/lp-attribution'
 
 export const dynamic = 'force-dynamic'
 
@@ -61,18 +61,18 @@ export async function GET(request: Request) {
     const lpLeads = inRange.filter(l => l.first_url_path === path)
     const ga4Map = aggregateGA4ByLP(ga4Rows, fromISO, toISO)
     const ga4Lp = ga4Map.get(path) || null
-    const bookingMap = aggregateBookingsByEmail(bookings)
 
-    // Bookings attributed to this LP (via lead email match)
+    // Bookings attributed to this LP by BOOKING-DATE: counted in the month they
+    // happened, credited to the LP the booker first arrived on (global email→LP map).
+    const emailToLp = buildEmailToLpMap(joined)
+    const bookingsInRange = filterBookingsByBookingMonth(bookings, fromISO, toISO)
     let totalBookings = 0
     let totalRevenue = 0
-    const bookedLeadEmails = new Set<string>()
-    for (const lead of lpLeads) {
-      const b = bookingMap.get(lead.email)
-      if (b) {
-        totalBookings += b.count
-        totalRevenue += b.revenue
-        bookedLeadEmails.add(lead.email)
+    for (const b of bookingsInRange) {
+      const email = (b.client_email || '').toLowerCase().trim()
+      if (email && emailToLp.get(email) === path) {
+        totalBookings++
+        totalRevenue += b.rvc || 0
       }
     }
 
@@ -127,7 +127,7 @@ export async function GET(request: Request) {
         leads: lpLeads.length,
         matched: matched.length,
         ql,
-        ql_rate: lpLeads.length > 0 ? (ql / lpLeads.length) * 100 : 0,
+        ql_rate: matched.length > 0 ? (ql / matched.length) * 100 : 0,  // ÷ matched (locked model)
         avg_ai_score,
         sessions: ga4Lp?.sessions,
         users: ga4Lp?.users,

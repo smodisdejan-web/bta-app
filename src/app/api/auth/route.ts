@@ -9,7 +9,7 @@ export async function POST(request: Request) {
     // simple password check; keep or switch to env
     const ok =
       password === process.env.UNLOCK_PASSWORD ||
-      password === 'GooletsAIagent';
+      password === 'goolets';
 
     if (!ok) {
       return NextResponse.json({ error: 'Invalid password' }, { status: 400 });

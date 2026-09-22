@@ -21,7 +21,7 @@ import { CAMPAIGNS, UMBRELLA_ORDER, type Channel } from '@/lib/business-funnel'
 
 export const runtime = 'nodejs'
 // GA4 (32 MB) + fb_ads_raw + HubSpot + Streak on a cold lambda, then a model call on top.
-export const maxDuration = 120
+export const maxDuration = 300
 
 const PORTAL_ORIGIN = 'https://goolets-content-portal.vercel.app'
 const LOCALHOST = /^http:\/\/localhost(:\d+)?$/

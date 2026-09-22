@@ -1979,3 +1979,1651 @@ Done. Key takeaways:
 - **Google auth still expired** — needs re-authentication for calendar/email checks
 - **174 TS errors** — unchanged, not blocking
 - 2 old stashes still sitting around
+Done. Written to `briefing/heartbeat-today.md`.
+
+**Quick summary:** Nothing urgent changed overnight. Working tree is clean, main is in sync with origin, TS errors hold steady at 174. Google auth is still expired (same as yesterday) — that's the only standing issue blocking calendar/email checks. 5 commits landed since last heartbeat, all Smart Spirit and CRO test work.
+Done. Key findings:
+
+- **Google auth still expired** — calendar/Gmail checks won't work until you re-authenticate
+- **Origin is 1 commit ahead** (overnight heartbeat commit) — `git pull` when ready
+- **2 stashes** still sitting on main
+- Working tree is clean (aside from heartbeat log files)
+Done. Key takeaways:
+
+- **Google auth still expired** — calendar/email checks can't run. Needs re-authentication.
+- **1 commit behind origin** — an overnight heartbeat commit. `git pull` when ready.
+- Working tree is clean (only heartbeat log files modified). 2 stashes sitting around.
+Done. Quick summary:
+
+- **Google auth still expired** since ~Mar 14 — no calendar/email data available
+- **1 commit behind origin** (overnight heartbeat commit) — `git pull` when ready
+- **Working tree clean**, 2 stashes saved
+- Recent work focused on **Smart Spirit vessel tests** and **CRO streak matching fixes**
+Heartbeat done. Quick summary:
+
+- **Google auth expired** since ~Mar 14 — calendar/Gmail checks blocked. Needs re-auth.
+- **1 behind origin** — overnight heartbeat commit. `git pull` when ready.
+- **Working tree clean** aside from expected heartbeat log files.
+- **2 stashes** still sitting (fb debug endpoint, streak_sync leads fix).
+- Recent work focused on **Smart Spirit vessel profiles** and **SS/CRO test tracker fixes**.
+Done. Written to `briefing/heartbeat-today.md`.
+
+**Key flags:**
+- Google auth expired since ~Mar 14 — no calendar/email data available
+- 1 commit behind origin (overnight heartbeat commit) — `git pull` when ready
+- 2 stashes still parked
+- Working tree clean otherwise
+Done. Two things need attention:
+
+1. **Google auth expired** since ~Mar 14 — calendar/Gmail checks won't work until you re-authenticate.
+2. **1 commit behind origin** — run `git pull` to pick up the overnight heartbeat commit.
+
+Everything else looks clean. Smart Spirit work (SS-001, SS-002) is the most recent activity. Two stashes still parked.
+Done. Two things need attention:
+
+1. **Google auth expired** since ~Mar 14 — calendar/email checks can't run until you re-authenticate.
+2. **1 commit behind origin** — just the overnight heartbeat commit. `git pull` when ready.
+
+Everything else looks clean. Smart Spirit work (SS-001, SS-002) is the latest activity. 2 stashes still parked.
+Done. Quick summary:
+
+- **1 behind origin** — overnight heartbeat commit. `git pull` when ready.
+- **Google auth expired** since ~Mar 14 — calendar/email checks still down.
+- **Working tree clean**, 2 stashes parked.
+- Recent work focused on **Smart Spirit vessel tests** and **CRO-001 tracker fixes**.
+Done. Key findings:
+
+- **Google auth expired** since ~Mar 14 — no calendar/email data until you re-authenticate
+- **1 commit behind origin** — just an overnight heartbeat commit, `git pull` when ready
+- **2 stashes** still parked (fb matching debug, streak_sync leads fix)
+- Working tree is clean otherwise
+Done. Key items:
+
+- **Google auth expired** since ~Mar 14 — calendar/Gmail checks won't work until you re-authenticate
+- **1 commit behind origin** — just an overnight heartbeat commit, `git pull` when ready
+- **2 stashes** still sitting there (fb matching debug, streak_sync leads fix)
+- Working tree is clean otherwise. Recent work focused on Smart Spirit vessel profiles and CRO test tracking.
+Heartbeat written to `briefing/heartbeat-today.md`. Quick summary:
+
+- **Google auth expired** since ~Mar 14 — no calendar/email data until you re-authenticate
+- **1 behind origin** (overnight heartbeat commit) — `git pull --rebase` to sync
+- **2 stashes** still sitting around (fb debug endpoint, streak_sync leads fix)
+- **Recent work** focused on Smart Spirit vessel profiles and SS/CRO test fixes
+Done. Key takeaways:
+
+- **Google auth expired** since ~Mar 14 — no calendar/email data until you re-authenticate
+- **1 behind origin** — run `git pull --rebase` to pick up the overnight heartbeat commit
+- Working tree is clean, 2 stashes parked, recent work focused on Smart Spirit tests and CRO streak matching
+Done. Two things need attention:
+
+1. **Google auth expired** since ~Mar 14 — re-authenticate to restore calendar/Gmail checks
+2. **1 behind origin** — `git pull --rebase` to sync
+
+Everything else looks clean. Smart Spirit work (SS-001, SS-002) is the latest focus. 2 stashes sitting around if you need them.
+Heartbeat written to `briefing/heartbeat-today.md`. Two things need attention:
+
+1. **Google auth expired** since ~Mar 14 — calendar/email checks are blocked until you re-authenticate.
+2. **1 commit behind origin** — `git pull --rebase` will sync you up.
+
+Everything else looks clean. 2 stashes sitting around if you need them.
+Done. Two things flagged:
+
+1. **Google auth expired** since ~Mar 14 — calendar/email checks can't run until you re-authenticate.
+2. **1 commit behind origin** — `git pull --rebase` will fix it.
+
+Working tree is clean, 2 stashes saved, recent work is all Smart Spirit vessel tests and CRO tracker fixes.
+Heartbeat written to `briefing/heartbeat-today.md`.
+
+**Two items need attention:**
+1. **1 commit behind origin** — `git pull --rebase` to sync
+2. **Google auth expired** since ~Mar 14 — calendar/Gmail checks still down
+
+Everything else looks clean. Smart Spirit work (SS-001, SS-002) is the latest focus area. 2 stashes sitting around if you need them.
+Heartbeat done. Summary:
+
+- **1 behind origin** — you need `git pull --rebase`
+- **Google auth expired** (~Mar 14) — calendar/email checks skipped
+- **Working tree clean** aside from heartbeat log files
+- **2 stashes** still sitting there (fb matching debug, streak_sync leads)
+- No drafts, nothing else urgent.
+Done. Two things need attention:
+
+1. **2 commits behind origin** — `git pull --rebase` to sync (just overnight heartbeat commits)
+2. **Google auth expired since ~Mar 14** — calendar/email checks still down
+
+Everything else looks clean. Smart Spirit work (SS-001, SS-002) is the latest feature track.
+Heartbeat written to `briefing/heartbeat-today.md`.
+
+**Two things need attention:**
+1. **2 commits behind origin** — `git pull --rebase` to sync
+2. **Google auth expired** since ~Mar 14 — calendar/Gmail checks won't work until you re-authenticate
+
+Everything else looks clean. 2 stashes sitting around if you need them.
+Heartbeat written to `briefing/heartbeat-today.md`. Two things need attention:
+
+1. **2 commits behind origin** — `git pull --rebase` to sync
+2. **Google auth expired** since ~Mar 14 — calendar/Gmail checks won't work until you re-authenticate
+Heartbeat written to `briefing/heartbeat-today.md`. Two items need attention:
+
+1. **2 commits behind origin** — `git pull --rebase` to sync
+2. **Google auth expired** since ~Mar 14 — calendar/Gmail checks won't work until you re-authenticate
+
+Everything else looks clean. Two stashes sitting around if you need them.
+Heartbeat written to `briefing/heartbeat-today.md`. Two items need attention:
+
+1. **2 commits behind origin** — `git pull --rebase` to sync
+2. **Google auth expired** since ~Mar 14 — calendar/Gmail checks won't work until you re-authenticate
+
+Everything else looks clean. Working tree only has the expected heartbeat log modifications, 2 stashes parked.
+Done. Two things need attention:
+
+1. **2 commits behind origin** — `git pull --rebase` to sync the overnight heartbeat commits.
+2. **Google auth still expired** since ~Mar 14 — calendar/email checks won't work until you re-authenticate.
+
+Everything else looks clean. Smart Spirit work (SS-001, SS-002) is the latest activity on main.
+Heartbeat written to `briefing/heartbeat-today.md`. Two things need attention:
+
+1. **2 commits behind origin** — `git pull --rebase` to sync
+2. **Google auth expired** since ~Mar 14 — calendar/email checks won't work until you re-authenticate
+
+Everything else looks clean. Smart Spirit work (SS-001/SS-002) is the latest activity, 2 stashes parked.
+Heartbeat written to `briefing/heartbeat-today.md`. Key findings:
+
+- **Branch is in sync** with origin (was 2 behind yesterday, now caught up)
+- **Google auth still expired** since ~Mar 14 — no calendar/email data until you re-authenticate
+- 5 recent commits focused on vessel funnel improvements (hyphenated names, source column, lead form color-coding)
+- 2 stashes still hanging around
+Heartbeat written to `briefing/heartbeat-today.md`.
+
+**Key finding:** Google auth is still expired (since ~Mar 14) — no calendar/email data available. Everything else looks clean: main is in sync with origin, working tree is clean, 2 stashes parked.
+Heartbeat written to `briefing/heartbeat-today.md`.
+
+**Key findings:**
+- **Google auth still expired** since ~Mar 14 — calendar/email checks are down. Re-authenticate to restore.
+- Branch `main` is in sync with origin, working tree clean.
+- Latest commit: campaign-attributed bookings + all-vessel bookings indicator.
+- 2 stashes still parked (fb matching debug, streak_sync leads fix).
+Done. Key finding: **Google auth is still expired** (since ~Mar 14), so calendar/email checks remain unavailable. Everything else looks clean — main is in sync with origin, no uncommitted work beyond heartbeat logs, 2 stashes sitting around.
+Done. Key takeaway: **Google auth has been expired since ~Mar 14** — that's the only thing needing attention. Everything else looks healthy: main is in sync with origin, working tree is clean, 2 stashes parked.
+API Error: 500 {"type":"error","error":{"type":"api_error","message":"Internal server error"},"request_id":"req_011CZ9DsVpUPC2m75VLTQBVQ"}
+Done. Key takeaway: **Google auth is still expired** (since ~Mar 14), so calendar/email checks can't run. Everything else looks healthy — main is in sync with origin, working tree is clean.
+Done. Briefing written to `briefing/heartbeat-today.md`.
+
+Key finding: **Google auth is still expired** (since ~Mar 14) — that's the only item needing attention. Everything else looks healthy: main is in sync with origin, working tree clean, 2 stashes parked.
+Done. Key finding: **Google auth is still expired** (since ~Mar 14) — that's the only action item. Everything else looks clean: main is in sync with origin, no uncommitted work beyond heartbeat logs.
+Done. Written to `briefing/heartbeat-today.md`. 
+
+Key takeaway: **Google auth is still expired** (since ~Mar 14) — that's the only action item. Everything else looks clean: main is in sync with origin, no uncommitted work beyond heartbeat logs, 2 stashes sitting around.
+Done. Briefing written to `briefing/heartbeat-today.md`.
+
+**Key finding:** Everything is healthy — main is in sync with origin, working tree clean. The only ongoing issue is **Google auth expired since ~Mar 14**, blocking Calendar/Gmail checks. Re-authenticate when you get a chance.
+Done. Key takeaway: **Google auth is still expired** (since ~Mar 14) — that's the only thing needing attention. Everything else looks clean: main is in sync with origin, working tree is tidy, and the last few commits show solid progress on campaign attribution and vessel funnel features.
+Done. Key findings:
+
+- **Google auth still expired** since ~Mar 14 — calendar/email checks won't work until you re-authenticate
+- **Local is 1 commit behind origin** — an overnight heartbeat commit landed on remote. Run `git pull` to sync.
+- Working tree is clean, 2 stashes still saved. No other issues.
+Done. Two things need attention:
+
+1. **Google auth expired** since ~Mar 14 — calendar/email checks are broken. Re-authenticate to fix.
+2. **1 commit behind origin** — just an overnight heartbeat commit. `git pull` to sync.
+
+Everything else looks clean. Working tree is fine, 2 stashes parked.
+Done. Written to `briefing/heartbeat-today.md`. Two things need attention:
+
+1. **Google auth expired** since ~Mar 14 — calendar/email checks won't work until you re-authenticate
+2. **1 commit behind origin** — `git pull` to sync the overnight heartbeat commit
+Done. Two things need attention:
+
+1. **Google auth expired** since ~Mar 14 — re-authenticate to restore calendar/email checks
+2. **1 commit behind origin** — `git pull` to sync
+
+Everything else looks clean. Working tree is fine, 2 stashes parked.
+API Error: 529 {"type":"error","error":{"type":"overloaded_error","message":"Overloaded"},"request_id":"req_011CZAa2h9CE2kzz38ZxTvJX"}
+Done. Written to `briefing/heartbeat-today.md`.
+
+Two things need attention:
+- **1 behind origin** — `git pull` to sync
+- **Google auth expired** — re-authenticate to restore Calendar/Gmail overnight checks
+Heartbeat written to `briefing/heartbeat-today.md`. Two items need attention:
+
+1. **1 commit behind origin** — `git pull` to sync
+2. **Google auth expired** since ~Mar 14 — re-authenticate to restore Calendar/Gmail checks
+Done. Two things need attention:
+
+1. **1 commit behind origin** — run `git pull` to sync the overnight heartbeat commit.
+2. **Google auth expired since ~Mar 14** — re-authenticate to restore Calendar/Gmail checks.
+
+Everything else looks clean — working tree is normal, 2 stashes parked, recent commits are all vessel funnel and campaign attribution work.
+Done. Written to `briefing/heartbeat-today.md`. Two things need attention:
+
+1. **1 commit behind origin** — run `git pull` to sync the overnight heartbeat commit
+2. **Google auth expired** (~Mar 14) — Calendar/Gmail checks won't work until you re-authenticate
+
+Everything else looks clean. No new issues since yesterday.
+Done. Key findings:
+
+- **2 commits behind origin** — you should `git pull`
+- **Google auth still expired** since ~Mar 14 — calendar/email checks remain unavailable
+- Working tree clean, 2 stashes saved
+Done. Key findings:
+
+- **2 commits behind origin** — `git pull` needed
+- **Google auth expired** since ~Mar 14 — calendar/email checks won't work until you re-authenticate
+- Working tree is clean, 2 stashes saved
+- Recent work focused on campaign-attributed bookings and vessel funnel fixes
+Done. Two things need attention:
+
+1. **2 commits behind origin** — `git pull` to sync the overnight heartbeat commits
+2. **Google auth expired** since ~Mar 14 — re-authenticate to restore Calendar/Gmail checks
+
+Working tree is clean otherwise. Two stashes saved. Briefing written to `briefing/heartbeat-today.md`.
+Done. Two things need attention:
+
+1. **2 commits behind origin** — `git pull` to sync the overnight heartbeat commits
+2. **Google auth expired** (~Mar 14) — re-authenticate to restore Calendar/Gmail checks
+Done. Two things need attention:
+
+1. **`git pull`** — you're 2 commits behind origin (overnight heartbeat commits)
+2. **Google auth expired** — Calendar/Gmail checks have been down since ~Mar 14. Re-authenticate to restore those summaries.
+
+Otherwise, working tree is clean and recent work looks solid (campaign attribution, vessel funnels, lead sources).
+Done. Two things need attention:
+
+1. **`git pull`** — you're 2 commits behind origin (overnight heartbeat commits)
+2. **Google auth expired** — Calendar/Gmail checks have been failing since ~Mar 14. Re-authenticate to restore those summaries.
+
+Otherwise, working tree is clean and recent work looks solid (campaign bookings, vessel funnel fixes, lead source color-coding).
+Done. Key items: you're **2 behind origin** (need `git pull`) and **Google auth is still expired** (no calendar/email since ~Mar 14). Everything else looks clean.
+Done. Two things need attention:
+
+1. **2 commits behind origin** — `git pull` to sync
+2. **Google auth expired** since ~Mar 14 — no calendar/email checks until you re-authenticate
+
+Everything else looks clean. Briefing written to `briefing/heartbeat-today.md`.
+Done. Two things need attention:
+
+1. **3 commits behind origin** — `git pull` to sync
+2. **Google auth expired** since ~Mar 14 — re-authenticate to get Calendar/Gmail checks working again
+Heartbeat updated. Key findings:
+
+- **3 commits ahead of origin** — you have unpushed work (campaign bookings, ad set cleanup, Smart Spirit reorder, funnel matching fix, lead source colors). Consider `git push`.
+- **Google auth still expired** since ~Mar 14 — no calendar/email data available.
+- **2 stashes** still sitting around if you need them.
+- Working tree is clean otherwise.
+Done. Key findings:
+
+- **3 behind origin** — remote has overnight heartbeat commits from Mar 18-20. Run `git pull` to sync.
+- **Google auth still expired** since ~Mar 14 — calendar/email checks remain broken.
+- **2 stashes** still sitting around (fb matching debug, streak_sync leads fix).
+- Working tree is clean otherwise.
+Done. Written to `briefing/heartbeat-today.md`. Two items need attention:
+
+1. **3 commits behind origin** — all just overnight heartbeat commits, `git pull` to sync
+2. **Google auth expired** — Calendar/Gmail checks have been down since ~Mar 14, needs re-authentication
+
+Otherwise, everything looks clean.
+Done. Two things need attention:
+
+1. **`git pull`** — you're 3 commits behind origin (all overnight heartbeat commits, nothing scary)
+2. **Google re-auth** — calendar/email checks have been broken since ~Mar 14
+
+Everything else looks clean.
+Done. Heartbeat written to `briefing/heartbeat-today.md`.
+
+Key findings:
+- **3 behind origin** — all overnight heartbeat commits (Mar 18–20), run `git pull` to sync
+- **Working tree clean** aside from expected heartbeat files
+- **2 stashes** still parked (fb debug endpoint, streak_sync leads fix)
+Done. Written to `briefing/heartbeat-today.md`.
+
+**Quick summary:** Everything looks healthy. You're 3 commits behind origin (all overnight heartbeat commits) — a `git pull` will sync you up. Working tree is clean, 2 stashes saved. No urgent issues.
+Done. Written to `briefing/heartbeat-today.md`.
+
+**Key finding:** You're 3 commits behind origin (all overnight heartbeat commits). Run `git pull` to sync. Everything else looks clean — no issues to flag.
+Done. Heartbeat written to `briefing/heartbeat-today.md`. Key finding: you're **3 commits behind origin** (overnight heartbeat commits only) — a `git pull` will sync you up. Everything else looks clean.
+Done. Written to `briefing/heartbeat-today.md`.
+
+**Quick summary:** You're 3 commits behind origin (just overnight heartbeat commits — safe to `git pull`). Working tree is clean, 2 stashes saved. No urgent issues. Google calendar/email credentials still not configured.
+Done. Heartbeat written to `briefing/heartbeat-today.md`.
+
+Key finding: **3 commits behind origin** (overnight heartbeat commits). Run `git pull` to sync. Everything else looks clean — no urgent issues.
+Done. Heartbeat written to `briefing/heartbeat-today.md`. 
+
+Key finding: **3 commits behind origin** (overnight heartbeat commits). Run `git pull` to sync. Everything else looks clean.
+Done. Heartbeat written to `briefing/heartbeat-today.md`. Key finding: you're **3 commits behind origin** (overnight heartbeat commits) — a `git pull` will sync you up. Everything else looks clean.
+Heartbeat updated at `briefing/heartbeat-today.md`. Key finding: **3 commits behind origin** (overnight heartbeat commits). Working tree is clean otherwise. No calendar/email access. Run `git pull` when ready to sync.
+Heartbeat written to `briefing/heartbeat-today.md`. Key finding: you're **3 commits behind origin** (overnight heartbeat commits) — a `git pull` will sync you up. Everything else looks clean.
+Heartbeat updated. Summary: you're **3 commits behind origin** (just overnight heartbeat commits). Working tree is clean, 2 stashes saved. Nothing urgent — just `git pull` when ready.
+Done. Briefing written to `briefing/heartbeat-today.md`. 
+
+Key finding: **3 commits behind origin** (overnight heartbeat commits). Working tree is clean otherwise. No urgent issues — Google credentials still not configured for calendar/email checks.
+Done. Written to `briefing/heartbeat-today.md`. 
+
+Key finding: you're **3 commits behind origin** — all overnight heartbeat auto-commits. Run `git pull` to sync. Everything else looks clean.
+Done. Key finding: **3 commits behind origin** (all overnight heartbeat commits Mar 18–20). Run `git pull` to sync. Otherwise, working tree is clean and nothing urgent.
+Done. Written to `briefing/heartbeat-today.md`.
+
+**Quick summary:** Nothing urgent. You're 3 commits behind origin (just overnight heartbeat commits). Working tree is clean. 2 stashes sitting around. Google calendar/email still not configured.
+Done. Heartbeat written to `briefing/heartbeat-today.md`. Key finding: you're **3 commits behind origin** — a `git pull` will sync you up. Everything else looks clean.
+API Error: Unable to connect to API (FailedToOpenSocket)
+API Error: Unable to connect to API (ConnectionRefused)
+Done. Key finding: you're **5 commits behind origin** — all overnight heartbeat commits, safe to pull. Working tree is clean otherwise, 2 stashes still parked.
+Done. Heartbeat written to `briefing/heartbeat-today.md`. 
+
+Key finding: you're **5 commits behind origin** (all heartbeat commits) — a `git pull` will catch you up. Everything else looks clean.
+Done. Heartbeat written to `briefing/heartbeat-today.md`. Summary: nothing urgent — you're 5 commits behind origin (all heartbeat commits), working tree is clean, 2 stashes saved.
+Done. Written to `briefing/heartbeat-today.md`. Quick summary:
+
+- **6 behind origin** — all heartbeat overnight commits, safe to pull
+- **Working tree clean** (only the 2 expected heartbeat files modified)
+- **2 stashes** still sitting there
+- **No calendar/email** access (credentials still not configured)
+Heartbeat written to `briefing/heartbeat-today.md`. Key findings:
+
+- **6 commits behind origin** (all heartbeat overnight commits — safe to pull)
+- Working tree clean, 2 stashes saved
+- Calendar/email checks still unavailable (credentials not configured)
+- Nothing urgent.
+Done. Written to `briefing/heartbeat-today.md`. 
+
+Key findings:
+- **6 behind origin** — all overnight heartbeat commits, safe to `git pull`
+- Working tree clean (only heartbeat files modified, expected)
+- 2 stashes saved
+- Google calendar/email credentials still not configured
+Done. Written to `briefing/heartbeat-today.md`.
+
+**Key takeaway:** You're 6 commits behind origin (all heartbeat overnight commits) — a `git pull` will sync you up. Working tree is clean, 2 stashes sitting around. No calendar/email access configured.
+Done. Written to `briefing/heartbeat-today.md`. 
+
+Key finding: **6 heartbeat-only commits behind origin** — safe to `git pull` when ready. Working tree is clean otherwise, 2 stashes saved. No urgent issues.
+Heartbeat written to `briefing/heartbeat-today.md`. Quick summary:
+
+- **6 behind origin** (all heartbeat commits, safe to pull)
+- **Working tree:** clean aside from 2 expected heartbeat files
+- **2 stashes** still parked (fb debug endpoint, streak_sync leads fix)
+- **Calendar/Email:** still not configured
+- Nothing urgent.
+Done. Quick summary:
+
+- **7 behind origin** — all heartbeat overnight commits, safe to `git pull`
+- **Working tree clean** (only the 2 expected heartbeat files modified)
+- **2 stashes** still sitting there
+- No calendar/email access (credentials still not configured)
+Heartbeat written to `briefing/heartbeat-today.md`. Quick summary:
+
+- **7 behind origin** — all heartbeat overnight commits (Mar 18–24), safe to `git pull`
+- **Working tree clean** aside from the 2 expected heartbeat files
+- **2 stashes** still parked (fb debug endpoint, streak_sync fix)
+- No calendar/email access (credentials not configured)
+
+Nothing urgent.
+Done. Quick summary:
+
+- **7 behind origin** — all heartbeat overnight commits (Mar 18–24), safe to pull
+- **Working tree:** clean aside from the 2 expected heartbeat files
+- **2 stashes** still sitting there (fb debug endpoint, streak_sync fix)
+- **Calendar/email:** still not configured (credentials expired since mid-March)
+
+Nothing urgent today.
+Done. Written to `briefing/heartbeat-today.md`. Key finding: you're **7 commits behind origin** (all heartbeat overnight commits) — a `git pull` will catch you up. Working tree is clean, 2 stashes saved. No calendar/email access.
+Done. Written to `briefing/heartbeat-today.md`. Quick summary:
+
+- **7 behind origin** — all heartbeat overnight commits (Mar 18–24), safe to `git pull`
+- Working tree clean, 2 stashes saved
+- Last real work: campaign-attributed bookings + vessel funnel fixes
+- Calendar/email still not configured
+Done. Quick summary:
+
+- **8 behind origin** — all heartbeat overnight commits, safe to `git pull`
+- **Working tree clean** (only the 2 expected heartbeat files modified)
+- **2 stashes** still parked
+- No urgent issues found
+Done. Written to `briefing/heartbeat-today.md`.
+
+**Quick summary:** Everything looks clean. Your local branch is 8 commits behind origin — all just overnight heartbeat commits, safe to `git pull` whenever. No urgent issues, working tree is clean, 2 stashes still parked. Google calendar/email credentials remain unconfigured.
+Heartbeat written to `briefing/heartbeat-today.md`. Quick summary:
+
+- **8 behind origin** — all heartbeat overnight commits, safe to `git pull`
+- **Working tree clean** (only the 2 expected heartbeat files modified)
+- **2 stashes** still parked (fb debug endpoint, streak_sync leads fix)
+- No calendar/email access (credentials not configured)
+Done. Quick summary:
+
+- **8 commits behind origin** (all heartbeat overnight commits, safe to pull)
+- **Working tree clean** aside from the 2 expected heartbeat files
+- **2 stashes** still parked (fb debug endpoint, streak_sync fix)
+- **No calendar/email access** (credentials still not configured since Mar 17)
+Heartbeat written to `briefing/heartbeat-today.md`. Quick summary:
+
+- **8 commits behind origin** (all overnight heartbeat commits, safe to pull)
+- Working tree clean, 2 stashes available
+- No calendar/email access configured
+- Nothing urgent.
+Heartbeat done. Nothing changed since the last check — same state:
+
+- **8 behind origin** (all overnight heartbeat commits, safe to pull)
+- **Working tree clean** (only heartbeat files modified, as expected)
+- **2 stashes** still parked
+- No new commits since last heartbeat
+Heartbeat updated. Quick summary:
+
+- **8 behind origin** (all overnight heartbeat commits, safe to pull)
+- **Working tree clean** aside from the 2 heartbeat files
+- **2 stashes** still saved
+- No urgent items
+Heartbeat written to `briefing/heartbeat-today.md`. Nothing urgent — you're 8 commits behind origin (all heartbeat auto-commits, safe to pull). Working tree is clean.
+Done. Quick summary:
+
+- **8 behind origin** — all overnight heartbeat commits (Mar 18–25), safe to pull
+- **Working tree clean** aside from the 2 heartbeat files
+- **2 stashes** still sitting there (fb debug endpoint, streak_sync fix)
+- No calendar/email access (credentials still not configured since Mar 17)
+Done. Quick summary:
+
+- **8 behind origin** — all overnight heartbeat commits (Mar 18–25), safe to pull
+- **Working tree clean** aside from the 2 expected heartbeat files
+- **2 stashes** still saved (fb matching debug, streak_sync leads fix)
+- No calendar/email access (credentials still not configured since Mar 17)
+Done. Heartbeat written to `briefing/heartbeat-today.md`. Key finding: you're **8 commits behind origin** (all heartbeat overnight commits) — a `git pull` will catch you up. Everything else looks clean.
+Done. Written to `briefing/heartbeat-today.md`.
+
+**TL;DR:** Nothing urgent. You're 8 commits behind origin (all heartbeat overnight commits) — a `git pull` will catch you up. Working tree is clean, 2 stashes parked. No calendar/email access configured.
+Done. Briefing written to `briefing/heartbeat-today.md`. 
+
+Summary: Nothing urgent — you're 8 commits behind origin but they're all overnight heartbeat commits. Working tree is clean, 2 stashes saved. Safe to `git pull` whenever.
+Done. Heartbeat written to `briefing/heartbeat-today.md`. 
+
+Key finding: **8 commits behind origin** (all heartbeat overnight commits) — a `git pull` when convenient will sync you up. Otherwise, nothing urgent.
+Done. Quick summary:
+
+- **8 behind origin** — all overnight heartbeat commits (Mar 18–25), safe to pull
+- **Working tree** is clean aside from the 2 heartbeat files
+- **2 stashes** still saved (fb debug endpoint, streak_sync fix)
+- **No urgent issues** found
+Done. Heartbeat written to `briefing/heartbeat-today.md`.
+
+**Key findings:**
+- **8 commits behind origin** — all overnight heartbeat commits, safe to pull
+- Working tree is clean (only the 2 expected heartbeat files modified)
+- 2 stashes still parked
+- Google calendar/email still not configured
+Done. Quick summary:
+
+- **Nothing urgent** — you're 8 commits behind origin but they're all overnight heartbeat commits. Safe to `git pull` whenever.
+- Working tree is clean, 2 stashes sitting around from earlier work.
+- No calendar/email access configured.
+Done. Heartbeat written to `briefing/heartbeat-today.md`. 
+
+Key takeaway: **8 commits behind origin** — all overnight heartbeat commits, safe to pull. Everything else looks clean.
+Done. Quick summary:
+
+- **8 behind origin** — all heartbeat overnight commits, safe to pull
+- **Working tree clean** aside from the 2 expected heartbeat files
+- **2 stashes** still sitting there (fb debug endpoint, streak_sync leads fix)
+- Nothing urgent today.
+Heartbeat written to `briefing/heartbeat-today.md`. Quick summary:
+
+- **8 behind origin** — all heartbeat overnight commits (Mar 18–25), safe to pull
+- **Working tree:** clean aside from expected heartbeat files
+- **2 stashes** still sitting there (fb debug endpoint, streak_sync leads fix)
+- Nothing urgent.
+Done. Written to `briefing/heartbeat-today.md`.
+
+**Quick summary:** You're 8 commits behind origin — all overnight heartbeat commits (Mar 18–25), safe to `git pull`. Working tree is clean, 2 stashes saved. No urgent issues.
+Done. Quick summary:
+
+- **8 behind origin** — all heartbeat overnight commits, safe to pull
+- **Working tree clean** aside from the 2 expected heartbeat files
+- **2 stashes** still sitting there (fb debug endpoint, streak_sync leads fix)
+- Nothing urgent.
+Done. Briefing written to `briefing/heartbeat-today.md`. 
+
+Key takeaway: **8 commits behind origin** (all heartbeat overnight commits from Mar 18–25). A `git pull` will catch you up. Everything else looks clean.
+Done. Briefing written to `briefing/heartbeat-today.md`. 
+
+Key finding: you're **8 commits behind origin** (all overnight heartbeat commits) — a `git pull` will catch you up. Everything else looks clean.
+Heartbeat done. Nothing urgent — you're 8 commits behind origin (all heartbeat auto-commits, safe to pull). Working tree is clean, 2 stashes saved.
+Done. Written to `briefing/heartbeat-today.md`. Quick summary:
+
+- **8 behind origin** (all heartbeat overnight commits, safe to pull)
+- **Working tree:** clean except the 2 heartbeat files
+- **2 stashes** still parked
+- No other flags — nothing urgent.
+Heartbeat written to `briefing/heartbeat-today.md`. Quick summary:
+
+- **8 behind origin** (all heartbeat commits, safe to pull)
+- **Working tree:** clean aside from heartbeat files
+- **2 stashes** still sitting there
+- No calendar/email access configured
+- Nothing urgent.
+Heartbeat updated. Summary: nothing urgent — you're 8 commits behind origin (all heartbeat-only), working tree is clean, 2 stashes saved. No changes since last check.
+Done. Nothing urgent — you're 8 commits behind origin (all heartbeat overnight commits, safe to pull). Working tree is clean, 2 stashes saved. Google calendar/email credentials still not configured.
+Done. Heartbeat written to `briefing/heartbeat-today.md`. Quick summary:
+
+- **8 commits behind origin** (all heartbeat overnight commits, safe to pull)
+- Working tree clean, 2 stashes saved
+- No calendar/email access configured
+- Nothing urgent.
+Heartbeat updated. Quick summary:
+
+- **8 behind origin** — safe to pull (just overnight heartbeat commits)
+- **Working tree:** clean aside from 2 expected heartbeat files
+- **2 stashes** still parked
+- No urgent action needed
+Done. Heartbeat written to `briefing/heartbeat-today.md`. 
+
+Key finding: **8 commits behind origin** (all heartbeat overnight commits) — safe to `git pull` when ready. Otherwise nothing urgent.
+Done. Briefing written to `briefing/heartbeat-today.md`. 
+
+Key findings:
+- **8 behind origin** — all heartbeat overnight commits, safe to pull
+- Working tree clean (only heartbeat files modified)
+- 2 stashes still saved
+- No calendar/email access (credentials still not configured)
+Heartbeat written to `briefing/heartbeat-today.md`. Quick summary:
+
+- **8 behind origin** (heartbeat commits only, safe to pull)
+- Working tree clean, 2 stashes saved
+- No urgent issues detected
+Heartbeat written to `briefing/heartbeat-today.md`. Nothing urgent — you're 8 behind origin (just old heartbeat commits), working tree is clean, 2 stashes sitting around.
+Done. Briefing written to `briefing/heartbeat-today.md`. 
+
+Key finding: you're **8 commits behind origin** (all heartbeat overnight commits from Mar 16–17). A `git pull` will sync you up. Working tree is clean otherwise. No calendar/email access configured.
+Done. Quick summary: you're **10 commits behind origin** (all heartbeat overnight commits, Mar 18–27). Safe to `git pull`. Working tree is clean otherwise, 2 stashes saved. Nothing urgent.
+Done. Heartbeat written to `briefing/heartbeat-today.md`. 
+
+Summary: Nothing urgent — you're 10 commits behind origin (all heartbeat overnight commits), safe to `git pull`. Working tree is clean, 2 stashes saved.
+Heartbeat done. Key finding: you're **10 commits behind origin** — all overnight heartbeat commits (Mar 18–27). Safe to `git pull` whenever. Everything else looks clean.
+Heartbeat updated. Quick summary:
+
+- **10 commits behind origin** (all heartbeat auto-commits, safe to pull)
+- **Working tree:** clean aside from the 2 expected heartbeat files
+- **2 stashes** still sitting there (fb debug endpoint, streak_sync fix)
+- No calendar/email access configured
+
+Nothing urgent.
+Heartbeat updated. Nothing urgent — you're 10 commits behind origin (all heartbeat auto-commits, safe to pull). Working tree is clean, 2 stashes saved.
+Heartbeat updated. Quick summary:
+
+- **10 behind origin** (all heartbeat auto-commits, safe to pull)
+- **Working tree:** clean besides the 2 heartbeat files
+- **2 stashes** still parked
+- No calendar/email access configured
+
+Nothing urgent.
+Heartbeat done. Summary:
+
+- **10 commits behind origin** (all heartbeat overnight commits, safe to pull)
+- **Working tree:** clean besides the 2 heartbeat files
+- **2 stashes** saved (fb matching debug, streak_sync leads fix)
+- No calendar/email access configured
+
+Nothing urgent today.
+Heartbeat done. Nothing urgent — you're 10 commits behind origin (all heartbeat auto-commits, safe to pull). Working tree is clean, 2 stashes saved.
+Done. Written to `briefing/heartbeat-today.md`. Key finding: you're **10 commits behind origin** (all heartbeat overnight commits) — a `git pull` will catch you up. Everything else looks clean.
+Heartbeat updated. Quick summary:
+
+- **10 behind origin** — all just overnight heartbeat commits, safe to pull
+- **Working tree clean** — only the 2 expected heartbeat files modified
+- **2 stashes** still parked (fb debug endpoint, streak_sync leads fix)
+- Nothing urgent.
+Done. Heartbeat updated at `briefing/heartbeat-today.md`. 
+
+Key finding: **10 commits behind origin** (all overnight heartbeat commits) — a `git pull` will catch you up. Everything else looks clean.
+Heartbeat updated. Quick summary:
+
+- **10 behind origin** — all overnight heartbeat commits, safe to `git pull`
+- **Working tree clean** aside from the 2 expected heartbeat files
+- **2 stashes** still parked (fb debug endpoint, streak_sync leads fix)
+- No calendar/email access configured
+
+Nothing urgent.
+Heartbeat updated. Quick summary:
+
+- **10 behind origin** — all heartbeat overnight commits, safe to pull
+- **Working tree:** clean (only heartbeat files modified)
+- **2 stashes** still parked
+- No urgent issues found
+State is unchanged from the existing file. The heartbeat is already up to date for today (2026-03-28). No changes needed.
+
+**Quick summary:**
+- **10 commits behind origin** (all heartbeat overnight commits, safe to pull)
+- **Working tree:** clean aside from 2 expected heartbeat files
+- **2 stashes** saved
+- Last real work: campaign-attributed bookings feature (7ee9b4b)
+Heartbeat written to `briefing/heartbeat-today.md`. Key finding: you're **10 commits behind origin** (all overnight heartbeat commits) — a `git pull` will sync you up. Everything else looks clean.
+Done. Nothing changed since the last check — the briefing is current. Key takeaway: you're **10 commits behind origin** (all overnight heartbeat commits). A `git pull` will bring you up to date.
+(Background fetch check completed — confirmed 10 behind origin, 0 ahead. All consistent with the heartbeat report.)
+Heartbeat done. Nothing has changed since the last check:
+
+- **10 behind origin** — all heartbeat overnight commits, safe to pull
+- **Working tree:** clean (only heartbeat files modified)
+- **2 stashes** still parked
+- No urgent items
+Done. Quick summary:
+
+- **11 behind origin** — all heartbeat overnight commits, safe to `git pull`
+- **Working tree clean** (only the 2 heartbeat files modified, as expected)
+- **2 stashes** still sitting there
+- No urgent issues
+Done. Written to `briefing/heartbeat-today.md`. 
+
+Summary: Nothing urgent — you're **11 commits behind origin** (all heartbeat overnight commits, safe to pull). Working tree is clean, 2 stashes saved. No changes since yesterday's local commits.
+Heartbeat updated. Quick summary:
+
+- **11 behind origin** — all heartbeat overnight commits, safe to `git pull`
+- **Working tree:** clean (only heartbeat files modified)
+- **2 stashes** still parked (fb debug endpoint, streak_sync leads fix)
+- No urgent issues detected.
+Heartbeat written to `briefing/heartbeat-today.md`. Quick summary:
+
+- **11 commits behind origin** — all overnight heartbeat commits (Mar 18–28), safe to `git pull`
+- **Working tree:** clean (only heartbeat files modified)
+- **2 stashes** still parked (fb debug endpoint, streak_sync leads fix)
+- Nothing urgent.
+Heartbeat done. Nothing has changed since the last check — you're still 11 heartbeat commits behind origin (safe to `git pull`), working tree is clean, and 2 stashes are parked. No issues needing attention.
+Done. Updated `briefing/heartbeat-today.md`. Key finding: you're **12 commits behind origin** (all heartbeat overnight commits) — a `git pull` will catch you up. Working tree is clean otherwise, 2 stashes saved.
+Done. Quick summary:
+
+- **12 behind origin** — all heartbeat overnight commits, safe to pull
+- **Working tree:** clean (only the 2 heartbeat files modified, as expected)
+- **2 stashes** still sitting there (fb debug endpoint, streak_sync leads fix)
+- No calendar/email access configured
+
+Nothing urgent today.
+Done. Heartbeat written to `briefing/heartbeat-today.md`.
+
+**TL;DR:** Nothing urgent. You're 12 commits behind origin (all heartbeat auto-commits — safe to pull). Working tree is clean, 2 stashes saved. No calendar/email integration configured.
+Done. Quick summary:
+
+- **12 behind origin** — all heartbeat overnight commits, safe to `git pull`
+- **Working tree:** clean (only heartbeat files modified)
+- **2 stashes** sitting around (fb debug endpoint, streak_sync leads fix)
+- No urgent issues detected
+Done. Written to `briefing/heartbeat-today.md`. Quick summary:
+
+- **12 behind origin** — all heartbeat overnight commits, safe to `git pull`
+- Working tree is clean (only the 2 expected heartbeat files modified)
+- 2 stashes sitting around
+- Calendar/email still not connected (credentials not configured)
+Done. Quick summary:
+
+- **12 behind origin** — safe to pull (just heartbeat commits)
+- **Working tree clean** aside from the 2 expected heartbeat files
+- **2 stashes** still parked
+- No calendar/email access configured
+
+Nothing urgent today.
+Done. Heartbeat written to `briefing/heartbeat-today.md`. 
+
+Key finding: **12 commits behind origin** (all heartbeat overnight commits) — a `git pull` when you're ready will catch you up. Everything else looks clean.
+Done. Briefing updated at `briefing/heartbeat-today.md`. 
+
+Key takeaway: **12 commits behind origin** (all heartbeat overnight commits) — safe to `git pull` when ready. Working tree is clean otherwise, 2 stashes saved.
+Done. Briefing written to `briefing/heartbeat-today.md`. 
+
+**Quick summary:** Nothing urgent. You're 12 commits behind origin (all heartbeat auto-commits, safe to pull). Working tree is clean, 2 stashes saved. No calendar/email access configured.
+Heartbeat done. Written to `briefing/heartbeat-today.md`.
+
+**Summary:** Nothing urgent. You're 12 commits behind origin — all overnight heartbeat commits, safe to `git pull`. Working tree is clean, 2 stashes saved.
+Done. Quick summary:
+
+- **12 behind origin** — all heartbeat overnight commits, safe to pull
+- **Working tree** clean (only the 2 expected heartbeat files modified)
+- **2 stashes** still parked (fb debug endpoint, streak_sync leads fix)
+- No urgent issues found
+Done. Key takeaways:
+
+- **12 commits behind origin** — all overnight heartbeat commits, safe to `git pull`
+- **Uncommitted change** in `src/app/api/test-tracker/route.ts`
+- **2 stashes** still sitting around (fb matching debug, streak_sync leads fix)
+- No urgent issues detected
+Done. Key findings:
+
+- **12 behind origin** — safe to `git pull` (just heartbeat commits)
+- **1 uncommitted change** worth noting: `src/app/api/test-tracker/route.ts`
+- **2 stashes** sitting around
+- No calendar/email access configured
+
+Nothing urgent.
+Done. **TL;DR:** Nothing urgent — repo is fully synced with origin, working tree is clean (only heartbeat log artifacts modified), and 2 stashes are still sitting there from earlier work. No new non-heartbeat commits since the Unmatched Value test tracking feature.
+Done. All clear — repo is synced, no urgent items. Latest work was test tracker UX fixes and campaign-attributed bookings. Two stashes still parked.
+Done. Nothing urgent — repo is synced, working tree clean aside from heartbeat artifacts. Two stashes still sitting there from earlier work.
+Heartbeat done. Nothing urgent — repo is synced with origin, working tree clean. Two stashes sitting around (fb matching debug, streak_sync leads fix) if you want to revisit those.
+Done. All clear — repo is synced, working tree clean, no action needed. Two stashes sitting around if you need them.
+Done. Everything looks good — repo is clean, synced with origin, no pending work outside heartbeat artifacts. Briefing written to `briefing/heartbeat-today.md`.
+Done. Everything looks clean — repo is synced, no urgent items. The two recent commits are test tracker improvements, and you have 2 stashes saved.
+Done. Nothing urgent — repo is synced, working tree clean. Added one more recent commit to the briefing (`7ee9b4b` campaign-attributed bookings). Two stashes still parked.
+Done. Everything looks clean:
+
+- **Repo:** synced with origin, no pending pushes
+- **Working tree:** clean (only heartbeat artifacts)
+- **Stashes:** 2 saved (fb matching debug, streak_sync leads fix)
+- **Nothing urgent** — last real commits were test tracker UX fixes
+All clear. Nothing changed since the overnight run — repo is synced, working tree clean, no urgent items. The two most recent commits are your test tracker UX improvements. Two stashes still sitting there if you need them.
+Done. Nothing urgent — repo is synced, working tree clean. Latest non-heartbeat work was test tracker UX fixes. Two stashes sitting around if you need them.
+Heartbeat done. All clear — repo is synced, working tree clean, no action needed. The two most recent real commits are the test tracker UX fixes from your last session. Two stashes still sitting there (fb matching debug, streak_sync leads fix).
+Done. No changes from the overnight run — repo is clean and synced. Nothing needs attention today.
+Done. Nothing urgent — repo is synced with origin, working tree is clean. Two stashes sitting around if you need them. Recent work has been on test tracker UX and campaign-attributed bookings.
+Done. Nothing urgent — repo is clean and synced. Last real work was test tracker UX fixes. Two stashes still sitting around if you need them.
+Done. Nothing urgent — no new commits since yesterday, working tree is clean. Briefing written to `briefing/heartbeat-today.md`.
+Done. Nothing urgent — no new commits since last check, working tree is clean. Two stashes still sitting there. Briefing written to `briefing/heartbeat-today.md`.
+Done. Briefing updated at `briefing/heartbeat-today.md`. Nothing urgent — no new work since the last test tracker UX fix. Two stashes still sitting around if you need them.
+Done. Nothing urgent — no new commits since the last heartbeat. Working tree is clean, 2 stashes still parked. Google calendar/email not connected.
+Done. Nothing urgent — repo is quiet. Last real work was test tracker UX fixes (bca1d81). Two stashes sitting around. No Google credentials for email/calendar checks.
+All clear — nothing urgent. Latest real work was the test tracker UX fixes. Two stashes sitting around if you need them. Google calendar/email not wired up yet.
+Done. Nothing urgent — repo is quiet. Latest real work was the test tracker UX fixes. Two stashes are sitting if you need them.
+Done. Nothing urgent — repo is quiet. Latest real work was the test tracker UX fixes (bca1d81). Two stashes still sitting there. Output written to `briefing/heartbeat-today.md`.
+Done. Nothing urgent — main is on `bca1d81`, working tree clean, 2 stashes parked. Briefing written to `briefing/heartbeat-today.md`.
+Done. Nothing urgent — no new commits since March 30. Working tree is clean, 2 stashes saved. Briefing written to `briefing/heartbeat-today.md`.
+Done. Nothing urgent — no new commits since March 30. Working tree is clean, 2 stashes still parked. Google calendar/email not connected.
+Done. Nothing urgent — no new commits since March 30. The repo is clean with 2 stashes sitting around. Briefing written to `briefing/heartbeat-today.md`.
+Done. Nothing urgent — no new commits since March 30. Two stashes still parked, working tree clean.
+Done. Nothing urgent — no new commits since March 30. Working tree is clean, 2 stashes still parked. Calendar/email checks skipped (no Google credentials configured).
+No changes since the last check — file is already up to date for today. The heartbeat at `briefing/heartbeat-today.md` is current:
+
+- **No new commits** since last heartbeat
+- **Working tree clean** (only heartbeat artifacts modified)
+- **2 stashes** still parked (fb matching debug, streak_sync leads fix)
+- **Google Calendar/Email** not available (no credentials configured)
+
+Nothing urgent.
+Done. Nothing urgent — repo is quiet since March 30. Two recent commits (test tracker UX fixes), clean working tree, 2 stashes sitting around. Google calendar/email not connected.
+Done. Nothing urgent — no new commits since 2026-03-30. Briefing updated at `briefing/heartbeat-today.md`.
+Done. No new commits since yesterday — repo is quiet. Two stashes still sitting there. Output written to `briefing/heartbeat-today.md`.
+Done. Nothing urgent — no new commits since the last check. Working tree is clean, 2 stashes parked. Briefing written to `briefing/heartbeat-today.md`.
+Done. **Nothing urgent** — no new commits since the last heartbeat on Mar 30. Working tree is clean, 2 stashes still parked. Google calendar/email not connected.
+Done. Quick summary: **Nothing urgent.** No new commits since Mar 30 (3 days). Two stashes still sitting there (fb matching debug endpoint, streak_sync leads fix) — might be worth revisiting.
+Done. Updated `briefing/heartbeat-today.md`. Summary: nothing urgent — no new commits since Mar 30, working tree is clean, 2 stashes sitting there (fb matching debug endpoint, streak_sync leads fix).
+Done. Heartbeat written to `briefing/heartbeat-today.md`. Key finding: 3 days since last real commit, 2 stashes sitting idle. Otherwise clean.
+Done. Quick summary:
+
+- **No new commits** since Mar 30 (3 days idle)
+- **2 stashes** still sitting around (fb matching debug, streak_sync leads fix) — worth cleaning up or applying
+- Working tree is clean otherwise
+- Google credentials still not configured for email/calendar checks
+Done. Quick summary:
+
+- **3 days idle** since last real commit (Mar 30)
+- **2 stashes** still sitting around (fb matching debug, streak_sync leads fix)
+- Working tree is clean
+- No calendar/email access configured
+Done. The briefing is up to date — nothing has changed since the last overnight check. Key flags:
+
+- **3 days idle** since last real commit (Mar 30)
+- **2 stashes** still sitting around (fb matching debug, streak_sync leads fix)
+- Working tree is clean otherwise
+Heartbeat done. Key takeaway: **3 days since last real commit** (Mar 30). Two stashes still sitting around. Otherwise quiet — working tree is clean.
+Done. Briefing written to `briefing/heartbeat-today.md`.
+
+**Key flags:**
+- 3 days since last real commit — might be time to pick up the next task
+- 2 stashes still idle (fb matching debug, streak_sync leads fix)
+- Working tree is clean, Google calendar/email not connected
+Done. Key takeaways:
+
+- **3 days idle** since last real commit (Mar 30) — only heartbeat auto-commits since then
+- **2 stashes** still sitting around (fb debug endpoint, streak_sync fix) — worth cleaning up or applying
+- Working tree is clean otherwise
+Done. Key takeaways:
+
+- **3 days idle** since last real commit (Mar 30) — only heartbeat commits since then
+- **2 stashes** still sitting around (fb matching debug, streak_sync leads fix) — worth cleaning up or applying
+- Working tree is clean otherwise
+Done. Key takeaways:
+
+- **3 days idle** since last real commit (Mar 30)
+- **2 stashes** still parked (fb matching debug, streak_sync leads fix)
+- Working tree is clean otherwise
+- Google calendar/email still not connected
+Done. Heartbeat written to `briefing/heartbeat-today.md`.
+
+**Key flags:**
+- 3 days since last real commit — might be time to pick up the next task
+- 2 stashes still sitting idle (fb matching debug, streak_sync leads fix)
+- Working tree is clean otherwise
+Done. Briefing updated at `briefing/heartbeat-today.md`. Key flags:
+
+- **3 days idle** since last real commit (Mar 30)
+- **2 stale stashes** (fb matching debug, streak_sync leads fix) — worth reviewing
+- Working tree is clean otherwise
+Done. Key takeaways:
+
+- **3 days idle** since last real commit (Mar 30) — just heartbeat auto-commits since then
+- **2 stashes** still sitting around (fb matching debug, streak_sync leads fix)
+- Working tree is clean otherwise
+Done. Summary: nothing urgent — main flag is 3 days since last real commit. Two stashes are still sitting around if you want to clean those up.
+Done. Key takeaway: **4 days since last real commit** (bca1d81, Mar 30). Working tree is clean. 2 stashes still sitting idle. Nothing else urgent.
+Heartbeat done. Key takeaways:
+
+- **4 days idle** since last real commit (Mar 30) — just heartbeat commits since then
+- **2 stashes** still sitting around (fb matching debug, streak_sync leads fix)
+- Working tree is clean otherwise
+
+Written to `briefing/heartbeat-today.md`.
+Done. Quick summary:
+
+- **4 days** since last real commit (bca1d81, Mar 30)
+- **2 stashes** idle (fb matching debug, streak_sync leads fix)
+- Working tree is clean
+- No calendar/email access configured
+Done. Quick summary:
+
+- **4 days** since last real commit (bca1d81, Mar 30)
+- **2 stashes** still sitting idle (fb matching debug, streak_sync leads fix)
+- Working tree is clean besides heartbeat artifacts
+- No Google credentials configured for email/calendar checks
+Done. Briefing updated at `briefing/heartbeat-today.md`.
+
+**Key flags:**
+- 4 days idle (no real commits since Mar 30)
+- 2 stashes still sitting — worth reviewing or dropping
+- Working tree clean otherwise
+Done. Briefing updated at `briefing/heartbeat-today.md`.
+
+**Key takeaway:** No new commits in 4 days (since Mar 30). Two stashes are still sitting idle. Working tree is clean otherwise. Google calendar/email not connected.
+Done. Quick summary:
+
+- **4 days idle** since last real commit (Mar 30)
+- **2 stashes** still sitting around (fb matching debug, streak_sync leads fix)
+- Working tree is clean, no calendar/email access configured
+- Nothing urgent
+Done. Briefing updated at `briefing/heartbeat-today.md`. Key flags:
+
+- **4 days idle** since last real commit (Mar 30)
+- **2 stashes** still sitting around (fb debug endpoint + streak_sync fix)
+- Working tree is clean otherwise
+Done. Key takeaway: **4 days idle** since last real commit (Mar 30). Two stashes still sitting around — the fb matching debug endpoint and streak_sync leads fix. Everything else is clean.
+Done. Key takeaways:
+
+- **4 days since last real commit** (Mar 30) — might be time to pick up the next task
+- **2 stashes idle** — fb matching debug endpoint + streak_sync leads fix — worth reviewing if still needed
+- Working tree is clean otherwise
+Done. Key takeaways:
+
+- **4 days idle** since last real commit (Mar 30, test tracker UX fix)
+- **2 stashes** still sitting — fb matching debug endpoint + streak_sync leads fix
+- Working tree is clean otherwise
+- No calendar/email access configured
+Done. Key takeaways:
+
+- **4 days idle** since last real commit (Mar 30) — only heartbeat commits since then
+- **2 stashes** still sitting around (fb debug endpoint + streak_sync fix)
+- Working tree is clean otherwise
+- Google Calendar/Email not connected
+Done. Key takeaways:
+
+- **4 days idle** since last real commit (Mar 30)
+- **2 stashes** still parked (fb debug endpoint + streak_sync fix) — worth reviewing
+- Working tree is clean otherwise
+- No calendar/email access configured
+Done. Key takeaways:
+
+- **4 days idle** since last real commit (Mar 30)
+- **2 stashes** still sitting around (fb debug endpoint + streak_sync fix)
+- Working tree is clean otherwise
+- No calendar/email access configured
+Heartbeat written to `briefing/heartbeat-today.md`. Key takeaway: **4 days since last real commit** (Mar 30). Two stashes still sitting idle. Working tree is clean otherwise.
+Done. Quick summary:
+
+- **No urgent issues.** Working tree is clean.
+- **4 days since last real commit** (Mar 30) — only heartbeat auto-commits since then.
+- **2 stashes** still sitting idle (fb matching debug endpoint + streak_sync leads fix) — worth reviewing if you still need them.
+- Google Calendar/Email not available (no credentials configured).
+Done. Quick summary:
+
+- **4 days** since last real commit (Mar 30 test tracker UX fix)
+- **2 stashes** still sitting idle (fb debug endpoint + streak_sync leads fix)
+- Working tree is clean aside from heartbeat artifacts
+- No Google calendar/email configured
+Done. Key takeaways:
+
+- **4 days idle** since last real commit (Mar 30, test tracker UX fix)
+- **2 stashes** still sitting around (fb debug endpoint + streak_sync leads fix) — worth reviewing
+- Working tree is clean otherwise
+Done. Key takeaways:
+
+- **4 days idle** since last real commit (Mar 30 test tracker fixes)
+- **2 stashes** still parked (fb debug endpoint + streak_sync leads fix) — worth cleaning up or applying
+- Working tree is clean otherwise
+Done. Quick summary:
+
+- **4 days** since last real commit (bca1d81, Mar 30)
+- **2 stashes** still sitting idle (fb debug endpoint + streak_sync fix)
+- Working tree is clean aside from heartbeat artifacts
+- No Google calendar/email access configured
+Done. Key takeaways:
+
+- **4 days idle** since last real commit (Mar 30)
+- **2 stashes** still sitting around (fb debug endpoint, streak_sync fix) — worth reviewing
+- Working tree is clean otherwise
+- No calendar/email access configured
+Done. Key takeaways:
+
+- **4 days idle** since last real commit (Mar 30)
+- **2 stashes** still sitting around (fb matching debug + streak_sync leads fix) — worth reviewing
+- Working tree is clean otherwise
+- Google calendar/email not connected
+Done. Key takeaway: **5 days since last real commit** (Mar 30). Two stashes still idle. No Google integrations for calendar/email. Briefing written to `briefing/heartbeat-today.md`.
+Done. Key takeaways:
+
+- **5 days idle** since last real commit (Mar 30)
+- **2 stashes** still sitting around (fb debug endpoint + streak_sync fix)
+- Working tree clean otherwise
+- No Google credentials for email/calendar checks
+Done. Key takeaways:
+
+- **5 days idle** since last real commit (Mar 30)
+- **2 stashes** still sitting around (fb debug endpoint + streak_sync fix)
+- Working tree is clean otherwise
+- No Google Calendar/Email access configured
+Done. Key takeaways:
+
+- **5 days idle** since last real commit (Mar 30)
+- **2 stashes** still sitting around (fb debug endpoint, streak_sync fix) — worth reviewing
+- Working tree is clean otherwise
+Done. Quick summary:
+
+- **No urgent items** — working tree is clean
+- **5 days** since last real commit (Mar 30, test tracker UX fixes)
+- **2 stashes** still sitting idle (fb matching debug + streak_sync leads fix) — worth reviewing if you still need them
+- Calendar/email checks unavailable (no Google creds configured)
+Done. Quick summary:
+
+- **5 days** since last real commit (bca1d81, Mar 30)
+- **2 stashes** still sitting idle (fb debug endpoint + streak_sync fix)
+- Working tree is clean aside from heartbeat files
+- Google calendar/email not connected
+Done. Key takeaway: **5 days since last real commit** (Mar 30). Two stashes are still sitting idle. Working tree is clean otherwise. No calendar/email access configured.
+Done. Key takeaways:
+
+- **5 days since last real commit** (bca1d81, Mar 30) — all commits since are heartbeat-only
+- **2 stashes idle** — fb matching debug endpoint & streak_sync leads fix
+- Working tree clean otherwise
+Done. Key findings:
+
+- **5 days idle** since last real commit (Mar 30)
+- **2 stashes** still sitting around (fb debug endpoint, streak_sync fix)
+- Working tree is clean otherwise
+- No calendar/email access configured
+Done. Key takeaways:
+
+- **5 days idle** since last real commit (Mar 30)
+- **2 stashes** still parked (fb debug endpoint + streak_sync fix)
+- Working tree is clean otherwise
+- No Google calendar/email integration configured
+Done. Key takeaway: **5 days since last real commit** (Mar 30). Two stashes still sitting idle. Working tree is clean otherwise. Calendar/email checks unavailable without Google credentials.
+Done. Key takeaways:
+
+- **5 days since last real commit** (Mar 30) — only heartbeat auto-commits since then
+- **2 stashes idle** — fb matching debug endpoint + streak_sync leads fix. Worth reviewing if you still need them
+- **Working tree clean** otherwise
+Done. Key takeaway: **5 days since last real commit** (Mar 30). Two stashes are still sitting idle. Working tree is clean otherwise. No calendar/email access configured.
+Done. Key finding: **6 days since last real commit** (bca1d81, Mar 30). Working tree is clean. 2 stashes still idle. Nothing else urgent.
+Done. Key takeaway: **6 days since last real commit** (Mar 30). Two stashes still sitting idle. Working tree is clean otherwise. No calendar/email access configured.
+Done. Key takeaways:
+
+- **6 days idle** since last real commit (Mar 30)
+- **2 stashes** still sitting — fb matching debug endpoint & streak_sync leads fix
+- Working tree is clean otherwise
+- Google calendar/email not connected
+Done. Key takeaways:
+
+- **6 days idle** since last real commit (Mar 30)
+- **2 stashes** still sitting around (fb debug endpoint + streak_sync fix)
+- Working tree is clean otherwise
+- No calendar/email access configured
+Done. Quick summary:
+
+- **No urgent issues.** Working tree is clean.
+- **6 days** since last real commit (bca1d81, Mar 30 — test tracker UX fix).
+- **2 stashes** still sitting idle (fb matching debug endpoint + streak_sync leads fix) — worth reviewing if you still need them.
+- Calendar/email checks unavailable (no Google credentials configured).
+Heartbeat written to `briefing/heartbeat-today.md`. Key highlights:
+
+- **6 days idle** since last real commit (Mar 30)
+- **2 stashes** still sitting around (fb debug endpoint + streak_sync fix)
+- Working tree is clean otherwise
+- No Google credentials configured for email/calendar checks
+Done. Key findings:
+
+- **6 days idle** since last real commit (Mar 30) — only heartbeat commits since then
+- **2 stashes** still sitting around (fb matching debug + streak_sync leads fix)
+- Working tree is clean otherwise
+Done. Written to `briefing/heartbeat-today.md`.
+
+**Key flags:**
+- 6 days since last real commit — might be time to pick up next work
+- 2 stashes still sitting idle (fb matching debug + streak_sync leads fix)
+- Working tree is clean otherwise
+Done. Key takeaway: **7 days since last real commit** (Mar 30). Two stashes still sitting idle. Otherwise all quiet — nothing urgent.
+Done. Key takeaway: **7 days since last real commit** (Mar 30). Two stashes are still sitting idle. Working tree is clean otherwise. Output written to `briefing/heartbeat-today.md`.
+Done. Key takeaway: **7 days idle** since the last real commit (Mar 30). Two stashes are still sitting around. No Google credentials for email/calendar checks. Nothing else urgent.
+Done. Key takeaway: **no new real commits in 7 days** (last was Mar 30 test tracker fixes). Two stashes are still sitting idle. Google calendar/email not connected. Nothing else flagged.
+Done. Key takeaway: **7 days since last real commit** (Mar 30). Two stashes are still sitting around — worth reviewing if you still need them. Otherwise, working tree is clean.
+Done. Key takeaways:
+
+- **7 days idle** since last real commit (Mar 30) — only heartbeat auto-commits since then
+- **2 stashes** still sitting around (fb debug endpoint + streak_sync fix)
+- Working tree is clean otherwise
+Done. Written to `briefing/heartbeat-today.md`. Key flag: **7 days since last real commit** (Mar 30). Two stashes still sitting idle. Working tree is clean otherwise. No calendar/email access configured.
+Done. Summary: no new real work in 7 days (last commit Mar 30), 2 stashes still sitting idle, working tree clean. Google calendar/email not connected. Nothing urgent beyond picking up the next task.
+Done. Briefing written to `briefing/heartbeat-today.md`. Key flag: **7 days since last real commit** (Mar 30). Two stashes still sitting idle. Working tree is clean otherwise.
+Done. Key takeaway: **no real commits in 7 days** — only heartbeat auto-commits since Mar 30. Two stashes are still hanging around. Everything else is clean.
+Done. `briefing/heartbeat-today.md` updated. Key flags:
+
+- **7 days idle** since last real commit (Mar 30)
+- **2 stashes** still sitting around (fb debug endpoint + streak_sync fix)
+- Working tree is clean otherwise
+- Google calendar/email not connected
+Done. Key callout: **8 days since last real commit** (Mar 30). Two stashes still sitting idle. Everything else is clean.
+Done. `briefing/heartbeat-today.md` updated. Key flags:
+
+- **8 days since last real commit** (Mar 30) — only heartbeat commits since then
+- **2 stashes** still sitting idle (fb debug endpoint + streak_sync fix)
+- Working tree is clean otherwise
+Done. Key takeaway: **8 days since last real commit** (Mar 30). Two stashes still sitting idle. Working tree is clean otherwise. No calendar/email access configured.
+Done. Key takeaway: **8 days since last real commit** (Mar 30). Two stashes are still sitting around. Working tree is clean otherwise. No calendar/email access configured.
+Done. Key findings:
+
+- **8 days idle** since last real commit (Mar 30)
+- **2 stashes** still sitting around (fb matching debug + streak_sync leads fix)
+- Working tree is clean aside from heartbeat artifacts
+- Google calendar/email not configured
+Done. `briefing/heartbeat-today.md` updated. Key flags:
+
+- **8 days idle** since last real commit (Mar 30)
+- **2 stashes** still sitting around (fb debug endpoint + streak_sync fix)
+- Working tree is clean otherwise
+- Google calendar/email not connected
+Done. Written to `briefing/heartbeat-today.md`. Key takeaway: **8 days since last real commit** (Mar 30), working tree is clean, 2 stashes still sitting idle.
+Done. Key takeaway: **9 days since last real commit** (Mar 30). Two stashes still idle. Working tree is clean otherwise.
+Done. Key takeaway: **9 days since last real commit** (Mar 30). Two stashes still sitting idle. Working tree is clean otherwise. No calendar/email access configured.
+Done. Key takeaways:
+
+- **9 days idle** since last real commit (Mar 30)
+- **2 stashes** still sitting — fb matching debug endpoint + streak_sync leads fix
+- Working tree is clean otherwise
+- Google Calendar/Email not connected
+Done. Key takeaway: **9 days since last real commit** (Mar 30). Two stashes are still sitting around — worth reviewing if you still need them. Everything else is quiet.
+Done. `briefing/heartbeat-today.md` updated. Key flags:
+
+- **9 days since last real commit** (Mar 30) — only heartbeat commits since then
+- **2 stashes** still sitting idle (fb debug endpoint + streak_sync fix)
+- Working tree is clean otherwise
+- Google credentials not configured so no email/calendar data
+Done. Key findings:
+
+- **9 days since last real commit** (bca1d81, Mar 30) — all commits since are automated heartbeats
+- **2 stashes idle** — fb matching debug endpoint + streak_sync leads fix
+- **Working tree clean** otherwise
+- Google Calendar/Email not connected
+Done. Key takeaway: **9 days since last real commit** (Mar 30). Two stashes still sitting idle. Working tree is clean otherwise. No calendar/email access configured.
+Heartbeat written to `briefing/heartbeat-today.md`. Key flags:
+
+- **9 days since last real commit** (Mar 30) — only heartbeat commits since then
+- **2 stashes** still sitting idle (fb debug endpoint + streak_sync fix)
+- Working tree is clean otherwise
+- Google calendar/email not connected
+Done. Key takeaway: **9 days since last real commit** (Mar 30). Two stashes still sitting around. Working tree is clean otherwise. No Google calendar/email access configured.
+Done. `briefing/heartbeat-today.md` updated. Key flags:
+
+- **9 days since last real commit** (Mar 30) — only heartbeat commits since then
+- **2 stashes idle** — fb matching debug endpoint + streak_sync leads fix
+- Working tree clean otherwise
+- Google Calendar/Email not connected
+Done. `briefing/heartbeat-today.md` updated. Key finding: **9 days since last real commit** (Mar 30). Two stashes still idle. Working tree is clean. No calendar/email access configured.
+Heartbeat written to `briefing/heartbeat-today.md`. Key finding: **9 days since last real commit** (Mar 30). Two stashes still sitting idle. Working tree is clean otherwise. No Google credentials for email/calendar checks.
+Done. Key takeaway: **9 days since last real commit** (Mar 30). Two stashes still sitting idle. Working tree is clean otherwise.
+Done. Key takeaways:
+
+- **9 days idle** since last real commit (Mar 30) — only heartbeat auto-commits since then
+- **2 stashes** still sitting around (fb debug endpoint, streak_sync fix)
+- Working tree is clean otherwise
+- Google calendar/email not connected
+Done. Key takeaway: **9 days since last real commit** (Mar 30). Two stashes still sitting idle. Working tree is clean otherwise. No calendar/email access configured.
+Heartbeat written to `briefing/heartbeat-today.md`. Key finding: **9 days since last real commit** (Mar 30). Two stashes still sitting idle. Working tree is clean. No Google calendar/email access configured.
+Done. Key finding: **9 days since last real commit** (Mar 30). Two stashes still sitting idle. Working tree is clean otherwise. No calendar/email access configured.
+Done. Key takeaway: **9 days since last real commit** (Mar 30). Two stashes are still sitting idle. Working tree is clean otherwise. No calendar/email access configured.
+Done. Key takeaway: **10 days since last real commit** (Mar 30). Two stashes still sitting idle. Working tree is clean otherwise.
+Done. Key takeaway: **10 days since last real commit** (Mar 30). Two stashes still sitting idle. Working tree is clean otherwise. No calendar/email access configured.
+Done. `briefing/heartbeat-today.md` updated. Key finding: **10 days since last real commit** (Mar 30). Two stashes still sitting around. Working tree is clean otherwise. No Google credentials configured for email/calendar checks.
+Done. `briefing/heartbeat-today.md` updated. Key flags:
+
+- **10 days since last real commit** (Mar 30) — might be time to pick up the next task
+- **2 stashes** still sitting around (fb matching debug + streak_sync leads fix)
+- Working tree is clean otherwise. Google calendar/email not configured.
+Done. Key takeaway: **10 days since last real commit** (Mar 30). Two stashes still sitting idle. Working tree is clean. No Google credentials configured for email/calendar checks.
+Heartbeat written to `briefing/heartbeat-today.md`. Key findings:
+
+- **10 days idle** since last real commit (Mar 30)
+- **2 stashes** still sitting around (fb matching debug, streak_sync leads fix)
+- Working tree is clean otherwise
+- No Google credentials configured for email/calendar checks
+Done. Key findings:
+
+- **10 days idle** since last real commit (Mar 30)
+- **2 stashes** still sitting around (fb debug endpoint + streak_sync fix)
+- Working tree is clean otherwise
+- No Google calendar/email configured
+Heartbeat updated. Key takeaways:
+
+- **10 days idle** since last real commit (Mar 30) — only heartbeat commits since then
+- **2 stashes** still sitting around (fb debug endpoint + streak_sync fix)
+- Working tree is clean otherwise
+- Google calendar/email not connected
+Done. Key takeaway: **10 days since last real commit** (Mar 30). Two stashes still sitting around. Working tree is clean otherwise. No calendar/email access configured.
+Heartbeat written to `briefing/heartbeat-today.md`. Key flags:
+
+- **10 days idle** since last real commit (Mar 30)
+- **2 stashes** still sitting — fb debug endpoint + streak_sync leads fix
+- Working tree is clean otherwise
+- Google calendar/email not connected
+Done. Key takeaway: **10 days since last real commit** (Mar 30). Two stashes still sitting idle. Working tree is clean otherwise. No calendar/email access configured.
+Done. Key takeaway: **10 days since last real commit** (Mar 30). Two stashes still sitting idle. Working tree is clean otherwise. No email/calendar access configured.
+Done. Key findings:
+
+- **10 days since last real commit** (bca1d81, Mar 30) — all commits since are heartbeat-only
+- **2 stashes** still sitting idle (fb matching debug + streak_sync leads fix)
+- Working tree is clean aside from heartbeat artifacts
+Done. `briefing/heartbeat-today.md` updated. Key findings:
+
+- **10 days idle** since last real commit (Mar 30) — only heartbeat commits since then
+- **2 stashes** still sitting around (fb matching debug + streak_sync leads fix)
+- Working tree is clean otherwise
+- Google credentials not configured so no email/calendar data
+Heartbeat done. Key takeaway: **10 days since last real commit** (Mar 30). Two stashes still sitting idle. Otherwise all quiet — working tree clean, no new non-heartbeat activity.
+Done. Key takeaway: **10 days since last real commit** (Mar 30). Two stashes are still sitting idle. Working tree is clean otherwise. No calendar/email access configured.
+Done. Key findings:
+
+- **10 days since last real commit** (Mar 30) — only heartbeat commits since then
+- **2 stashes** still sitting around (fb debug endpoint + streak_sync fix)
+- Working tree is clean otherwise
+- Google calendar/email not connected
+Done. Key finding: **11 days since last real commit** (Mar 30). Two stashes still sitting idle. Otherwise nothing urgent — working tree is clean.
+Done. `briefing/heartbeat-today.md` updated. Key flags:
+
+- **11 days idle** since last real commit (Mar 30)
+- **2 stashes** still sitting around (fb debug endpoint + streak_sync fix)
+- Working tree is clean otherwise
+- Google calendar/email not connected
+Done. Key takeaway: **11 days idle** since the last real commit (Mar 30). Two stashes still sitting around. Working tree is clean otherwise. No Google credentials configured for email/calendar checks.
+Done. Key findings:
+
+- **11 days since last real commit** (Mar 30) — only heartbeat commits since then
+- **2 stashes** still sitting idle (fb matching debug + streak_sync leads fix)
+- **Uncommitted change** in `src/app/api/test-tracker/route.ts` worth reviewing
+- Google Calendar/Email not connected
+Done. Key takeaway: productive day with 4 commits on test tracker (freeze infra, done cards, Streak leads fix, end_date filtering). Working tree is clean. Google credentials are still expired if you want calendar/email checks.
+Done. Briefing updated at `briefing/heartbeat-today.md`.
+
+**TL;DR:** 5 commits landed recently (3 features, 2 fixes — mostly test tracker work). Working tree is clean. Google OAuth is still expired so Calendar/Gmail checks are offline. Two old stashes are sitting around if you want to clean them up.
+Done. Heartbeat written to `briefing/heartbeat-today.md`.
+
+**TL;DR:** Nothing urgent. Google OAuth is still expired (no calendar/email data). 5 commits landed since yesterday — mostly test tracker improvements (KPI fix, freeze infra, end_date filtering). 2 old stashes sitting around you might want to clean up.
+Done. Quick summary:
+
+- **No new commits** since last heartbeat — tree is clean.
+- **Google OAuth still expired** — Calendar/Gmail checks remain blocked.
+- **2 old stashes** still sitting around (`fb matching debug`, `streak_sync leads fix`). Worth dropping if those fixes already landed.
+- Briefing written to `briefing/heartbeat-today.md`.
+Done. The briefing is up to date at `briefing/heartbeat-today.md`.
+
+**Summary:** Nothing has changed since the overnight run — same 5 commits from yesterday, clean working tree. Two items flagged:
+
+1. **Google OAuth still expired** — Calendar/Gmail checks remain blocked.
+2. **2 stale stashes** — `fb matching debug` and `streak_sync leads fix` — worth dropping if those fixes are already merged.
+Done. Heartbeat written to `briefing/heartbeat-today.md`.
+
+**Quick summary:** Nothing new since the last overnight run. Working tree is clean, 5 recent commits all on main. Two stale stashes still sitting around, and Google OAuth is still expired blocking Calendar/Email checks.
+Done. Summary:
+
+- **Nothing new since last overnight run** — same 5 commits on main, working tree clean
+- **2 stale stashes** still sitting there (both likely superseded by recent fixes)
+- **Google OAuth still expired** — Calendar/Email checks remain blocked until you re-authenticate
+Done. Summary:
+
+- **No new commits** since this morning's heartbeat
+- **Google OAuth still expired** — Calendar/Gmail unavailable until you re-authenticate
+- **2 stale stashes** (`fb matching debug`, `streak_sync leads fix`) can be dropped — both are superseded by recent fixes
+- **Working tree is clean** aside from heartbeat artifacts
+Done. Briefing written to `briefing/heartbeat-today.md`.
+
+**Quick summary:**
+- Build is clean, working tree is clean.
+- 5 solid commits since last heartbeat — leads table, vessel funnel breakdown, KPI fix, end_date filtering, freeze infra.
+- Google OAuth is still expired (Calendar/Gmail unavailable).
+- 2 stale stashes you can drop whenever.
+Done. Briefing written to `briefing/heartbeat-today.md`. 
+
+**Summary:** Build is clean, working tree is clean (just heartbeat artifacts). Latest commit restricts Alessandro's funnel to dedicated campaigns. Two stale stashes can be dropped. Google OAuth is still expired so no calendar/email data.
+Done. Everything looks healthy:
+
+- **Build:** passes cleanly
+- **Working tree:** clean (only heartbeat artifacts modified)
+- **2 stale stashes** still lingering — safe to drop when you want
+- **Google OAuth** still expired so no Calendar/Gmail data
+
+No urgent issues.
+Heartbeat done. Summary:
+
+- **Nothing new** since the last run — same 5 commits on main, clean working tree.
+- **2 stale stashes** can be dropped when convenient.
+- **Google OAuth still expired** — Calendar/Gmail checks remain unavailable until you re-authenticate.
+Heartbeat refreshed. No changes from the earlier run today — everything is current.
+
+**TL;DR:** Working tree clean, last 5 commits are vessel funnel + test tracker work. Two stale stashes you can drop. Google OAuth still needs re-auth for Calendar/Gmail checks.
+Heartbeat done. Everything looks healthy:
+
+- **Build:** clean
+- **Working tree:** clean (only heartbeat artifacts)
+- **2 stale stashes** you can drop when convenient
+- **Google OAuth** still expired — Calendar/Gmail remain unavailable
+Done. Everything looks healthy:
+
+- **Build:** clean
+- **Working tree:** clean (only heartbeat artifacts modified)
+- **2 stale stashes** you can drop when convenient
+- **Google OAuth** still expired — Calendar/Gmail checks remain unavailable
+Done. Everything looks healthy:
+
+- **Build:** clean
+- **Working tree:** clean (only heartbeat artifacts modified)
+- **2 stale stashes** you can drop when convenient
+- **Google OAuth** still expired — Calendar/Gmail remain unavailable
+
+Nothing urgent today.
+Heartbeat written to `briefing/heartbeat-today.md`. Key takeaway: working tree is clean with 8 solid commits in the last 48h. Two blockers persist — Google OAuth tokens need re-authentication (blocking overnight checks) and Sheet write credentials (blocking freeze feature).
+Heartbeat written to `briefing/heartbeat-today.md`. Two items need attention: Google OAuth is still expired (blocking calendar/email checks), and freeze test data remains blocked on Sheet write credentials. Build is clean, working tree is clean, 8 commits in the last 48h.
+Heartbeat written to `briefing/heartbeat-today.md`. Summary:
+
+- **Build:** clean, all good
+- **2 items need attention:** Google OAuth expired (blocking calendar/email checks) and freeze test data still waiting on Sheet write credentials
+- **8 commits** in the last 48h — mostly vessel funnel and test tracker improvements
+- **2 stale stashes** can be dropped when convenient
+Heartbeat done. Two things need attention:
+
+1. **Google OAuth expired** — Calendar/Gmail checks have been down since Apr 10. Re-authenticate to restore.
+2. **Freeze test data** — still blocked on Sheet write credentials.
+
+Otherwise: build is clean, 8 commits in the last 48h (vessel funnel + test tracker improvements), 2 stale stashes you can safely drop.
+Heartbeat updated at `briefing/heartbeat-today.md`. Two items need attention:
+
+1. **Google OAuth expired** — Calendar/Gmail checks have been down since Apr 10. Re-authenticate when you get a chance.
+2. **Freeze test data** — still blocked on Sheet write credentials.
+
+Otherwise the project is clean: 8 commits landed in the last 48h, working tree is tidy, and 2 old stashes can be dropped whenever.
+Heartbeat written to `briefing/heartbeat-today.md`.
+
+**Key items:** Build is clean, no new commits since yesterday. Two blockers persist — Google OAuth expired (no calendar/email checks) and freeze test data waiting on Sheet write credentials. Two stale stashes can be dropped whenever.
+Done. Written to `briefing/heartbeat-today.md`.
+
+**Summary:** Nothing new since yesterday — same 8 commits in the 48h window, build is clean, working tree is clean. Two items still need attention:
+1. **Google OAuth expired** — blocking calendar/email checks
+2. **Sheet write credentials** — blocking freeze test data feature
+
+Two stale stashes can be dropped whenever you like.
+Done. No changes since the last heartbeat — repo is quiet. Two items still need attention:
+
+1. **Google OAuth expired** — re-authenticate to get Calendar/Gmail checks back
+2. **Freeze test data** — still blocked on Sheet write credentials
+Done. Quick summary:
+
+- **Build:** clean
+- **Working tree:** clean (only heartbeat artifacts modified)
+- **2 blockers persist:** Google OAuth expired (no calendar/email access) and Sheet write credentials for freeze test data
+- **5 commits** in the last 48h — Alessandro funnel fixes, leads table UX, KPI data source fix
+- **2 stale stashes** can be dropped when convenient
+Done. Briefing updated at `briefing/heartbeat-today.md`. 
+
+Summary: Build is clean, working tree is clean (only heartbeat artifacts modified), no new commits since last check. The only outstanding item is the freeze test data feature still blocked on Sheet write credentials. Two stale stashes can be dropped when convenient.
+Done. Everything looks good:
+
+- **Build:** clean ✓
+- **Working tree:** clean (only heartbeat artifacts modified)
+- **No new issues** since the last check
+- **Freeze test data** remains the only open blocker (Sheet write credentials)
+- 2 stale stashes can be dropped whenever you like
+Done. Build is clean, no issues found. The briefing is unchanged from the last check — nothing new since the last commits. The two stale stashes can be dropped whenever you want.
+Heartbeat done. Everything looks healthy:
+
+- **Build:** clean
+- **Working tree:** clean (only heartbeat artifacts modified)
+- **No urgent items** — freeze test data remains blocked on Sheet write creds
+- **2 stale stashes** you can drop when convenient
+- Last 5 commits are all vessel funnel and test tracker improvements
+Done. Build is clean, working tree is clean (only heartbeat artifacts modified), no new issues. The briefing is unchanged from the prior run — nothing new to flag today.
+API Error: Stream idle timeout - partial response received
+Done. Build is clean, no new commits since yesterday, nothing urgent. The only ongoing blocker remains the Sheet write credentials for freeze test data.
+Done. Quick summary:
+
+- **Build:** clean
+- **Nothing urgent** — freeze test data still blocked on Sheet write creds
+- **5 recent commits** around Alessandro funnel, leads table collapse, KPI fix, and test tracker end_date filtering
+- **2 stale stashes** safe to drop whenever
+- **Google OAuth** still not connected (no calendar/email checks)
+Done. All clear — build passes, working tree is clean, no new issues. The freeze test data blocker on Sheet write credentials is the only ongoing item.
+Done. All clear — build passes, working tree is clean, no new commits since last check. The freeze test data blocker remains the only open item.
+Done. Everything looks healthy:
+
+- **Build:** clean
+- **Working tree:** clean (only heartbeat artifacts modified)
+- **No new issues** since last check
+- **Freeze test data** remains the only open blocker (Sheet write credentials)
+- 2 stale stashes still around — safe to drop whenever you want (`git stash drop`)
+Done. Everything looks clean — no urgent issues. The briefing is updated at `briefing/heartbeat-today.md`. Key takeaway: working tree is clean, 5 recent commits landed on main, and the only ongoing blocker is the Sheet write credentials for freeze test data.
+Done. Key findings:
+
+- **52 TS errors** in the main app — mostly in `src/app/api/insights/` (function signature mismatches) and `test-tracker` route. Not new, but worth cleaning up.
+- **Uncommitted `Navigation.tsx`** change sitting in working tree.
+- **2 stale stashes** safe to drop whenever.
+- Freeze test data still blocked on Sheet credentials — no change there.
+Done. Quick summary:
+
+- **Nothing new since last overnight check** — latest commit is the Reports nav link from today.
+- **52 TS errors** in main app persist (insights API + test-tracker types). 108 more in legacy `week7/`.
+- **Freeze test data** still blocked on Sheet write credentials.
+- **Working tree** is clean (just heartbeat files). 2 stale stashes can be dropped whenever.
+Done. Briefing written to `briefing/heartbeat-today.md`. 
+
+**Summary:** No changes since the last overnight check — same 52 TS errors in src/, 108 in week7/ (legacy). Working tree is clean. Freeze test data still blocked on Sheet write credentials. 7 commits this week across vessel funnel, test tracker, and navigation features.
+Done. No changes since last check — 160 TS errors (52 in src/, 108 legacy), clean working tree, freeze feature still blocked on Sheet credentials. Briefing written to `briefing/heartbeat-today.md`.
+Done. Quick summary:
+
+- **No changes** from yesterday's state — 160 TS errors (52 in src/, 108 legacy), working tree clean.
+- **New flag:** overnight GitHub Actions heartbeat is failing due to expired Google OAuth (`invalid_grant`). You'd need to re-authenticate to restore Calendar/Gmail checks.
+- **Freeze test data** still blocked on Sheet write credentials.
+- 2 stale stashes safe to drop whenever.
+Done. No changes since the overnight check — everything is the same:
+
+- **160 TS errors** (52 in src/, 108 legacy in week7/) — unchanged
+- **Freeze test data** still blocked on Sheet write credentials
+- **Google OAuth** still expired — Calendar/Gmail checks unavailable
+- **Working tree** clean, 2 stale stashes
+- No new commits since the Reports nav link feature
+Done. No changes since the overnight check — everything is stable. The three standing items remain:
+
+1. **52 TS errors** in src/ (160 total with legacy week7/) — unchanged
+2. **Freeze test data** — blocked on Sheet write credentials
+3. **Google OAuth** — expired, needs re-auth to restore Calendar/Gmail checks
+Done. Quick summary:
+
+- **Nothing new** since last check — repo state unchanged.
+- **OAuth still expired** — Calendar/Gmail checks remain broken. You'll need to re-authenticate to restore overnight monitoring.
+- **160 TS errors** (52 src, 108 legacy week7) — same count as before.
+- **Freeze test data** still blocked on Sheet write creds.
+- **2 stale stashes** safe to drop whenever.
+Done. No changes since the last check — everything is stable:
+
+- **160 TS errors** (52 src/ + 108 legacy week7/) — unchanged
+- **Working tree** clean
+- **OAuth still expired** — Calendar & Gmail checks won't work until you re-authenticate
+- **Freeze test data** still blocked on Sheet write creds
+- 2 stale stashes safe to drop whenever
+Heartbeat done. Quick summary:
+
+- **Nothing new since last check** — codebase stable, no new commits today beyond heartbeat
+- **160 TS errors** unchanged (52 src/ + 108 legacy week7/)
+- **Google OAuth still expired** — Calendar/Gmail checks unavailable until you re-auth
+- **Freeze test data** still blocked on Sheet write creds
+- **2 stale stashes** safe to drop whenever
+Done. Quick summary: **nothing changed since the overnight check** — same 160 TS errors, no new commits, working tree clean. The three items needing attention remain:
+
+1. **Google OAuth expired** — re-authenticate to restore Calendar/Gmail checks
+2. **160 TS errors** — stable, 52 in src/ + 108 in week7/
+3. **Freeze test data** — still blocked on Sheet write credentials
+Done. No changes since the last check — everything is steady:
+- **160 TS errors** (unchanged, 52 src + 108 legacy)
+- **Working tree clean** (only heartbeat files)
+- **Google OAuth still expired** — the main actionable item
+- **Freeze test data** still blocked on Sheet write creds
+Done. No changes since the last heartbeat — everything is stable:
+
+- **3 items need attention**: Google OAuth re-auth, 160 TS errors (unchanged), freeze test data still blocked on credentials
+- **Working tree** is clean, **main** branch up to date
+- **2 stale stashes** can be dropped when convenient
+API Error: Stream idle timeout - partial response received
+Done. Quick summary: **nothing changed since yesterday** — same 160 TS errors, clean working tree, Google OAuth still expired. No new non-heartbeat commits since the Reports nav link on Apr 13.
+Done. No changes since the last check — everything is the same:
+
+- **160 TS errors** (unchanged)
+- **Google OAuth** still expired (blocks Calendar/Gmail checks)
+- **Freeze test data** still blocked on Sheet write creds
+- **Working tree** clean, no new commits today
+Done. No changes since yesterday — everything is steady. Three items still need attention:
+
+1. **Google OAuth** — re-authenticate to restore Calendar/Gmail in overnight checks
+2. **160 TS errors** — unchanged (52 src/ + 108 legacy)
+3. **Freeze test data** — still blocked on Sheet write credentials
+Done. No changes since this morning's heartbeat — everything is the same:
+
+- **160 TS errors** (unchanged)
+- **Google OAuth** still expired (blocking Calendar/Gmail checks)
+- **Freeze test data** still blocked on Sheet write creds
+- **Working tree** clean, no new commits today
+Done. No changes since this morning's check — everything is steady:
+
+- **160 TS errors** (52 src + 108 legacy) — unchanged
+- **Google OAuth** still expired — overnight checks won't work until you re-authenticate
+- **Freeze test data** still blocked on Sheet write creds
+- **Working tree** clean, 2 stale stashes you can drop anytime
+Done. No changes since the last check — everything is the same:
+
+- **160 TS errors** (unchanged)
+- **Google OAuth** still expired (blocking Calendar/Gmail checks)
+- **Freeze test data** still blocked on Sheet write credentials
+- Working tree is clean, no new commits since yesterday's Reports nav link addition
+Heartbeat written to `briefing/heartbeat-today.md`. Quick summary:
+
+- **Nothing new since last check** — no new commits, TS errors still at 160 (unchanged), working tree clean.
+- **Google OAuth still expired** — overnight GitHub Actions checks continue to fail. Calendar/Gmail unavailable until you re-authenticate.
+- **Freeze test data** remains blocked on Sheet write credentials.
+- 2 stale stashes are safe to drop whenever you like.
+Done. Status is unchanged from the last check — no new commits, same 160 TS errors, OAuth still expired. Nothing urgent beyond the standing items already flagged.
+Done. No changes since the last check — everything is steady:
+
+- **160 TS errors** (unchanged)
+- **Working tree** clean
+- **Google OAuth** still expired (blocking Calendar/Gmail checks)
+- **Freeze test data** still blocked on Sheet write creds
+- 2 stale stashes safe to drop whenever
+Done. No changes since yesterday's check — same 160 TS errors, same OAuth issue, clean working tree. The top action item remains re-authenticating Google OAuth to restore overnight Calendar/Gmail checks.
+Done. No changes from the last check — everything is stable:
+
+- **3 items need attention:** Google OAuth (still expired), 160 TS errors (unchanged), freeze-test credentials (still blocked)
+- **Recent work:** Reports nav link, Alessandro funnel fix, leads table collapse, and several test tracker features
+- **Working tree:** clean aside from heartbeat files
+Done. No changes since last check — everything is steady:
+
+- **160 TS errors** (unchanged)
+- **Working tree** clean
+- **Google OAuth** still expired (blocking Calendar/Gmail checks)
+- **Freeze test data** still blocked on Sheet write credentials
+- 2 stale stashes safe to drop whenever
+Heartbeat done. No changes since the last check — same 160 TS errors, clean working tree, OAuth still expired. Briefing written to `briefing/heartbeat-today.md`.
+Heartbeat done. No changes since yesterday — same 160 TS errors, clean working tree, OAuth still expired. The three items needing attention remain: Google OAuth re-auth, TS errors, and Sheet write credentials for freeze tests.
+Heartbeat written to `briefing/heartbeat-today.md`. Nothing new since yesterday — same 160 TS errors, same OAuth block, same freeze-test credential issue. Working tree is clean, no new commits since the Reports nav link on April 13.
+Heartbeat written to `briefing/heartbeat-today.md`. No changes since yesterday — same 160 TS errors, clean working tree, OAuth still expired. Nothing new needs attention.
+Heartbeat written. No changes since the last overnight check — same 3 items need attention:
+
+1. **Google OAuth expired** — re-authenticate to restore Calendar/Gmail checks
+2. **160 TS errors** — unchanged (52 src/ + 108 legacy)
+3. **Freeze test data** — still blocked on Sheet write credentials
+
+Working tree is clean, no new commits since the Reports nav link.
+Heartbeat done. No changes since the last check — same 160 TS errors, clean working tree, OAuth still expired. The three open items remain: Google OAuth re-auth, TS errors, and Sheet write credentials for freeze feature.
+Heartbeat updated. Nothing new since the last check — same 160 TS errors, clean tree, OAuth still expired. The three items needing attention remain: Google OAuth re-auth, TS errors, and Sheet write credentials for freeze feature.
+Heartbeat done. No changes since last check — same 160 TS errors, same 3 blockers (OAuth expired, TS errors, Sheet credentials). Working tree is clean. Briefing written to `briefing/heartbeat-today.md`.
+Heartbeat done. No changes since last check — same 160 TS errors (52 src, 108 legacy), clean working tree, 2 stale stashes. The three attention items remain: Google OAuth expired, TS errors unchanged, freeze-test blocked on Sheet credentials.
+Heartbeat done. No changes since last check — same 160 TS errors, same 3 blockers (OAuth expired, TS errors, Sheet write creds). Working tree is clean. Added 2 more recent commits to the log that were missing. Nothing urgent beyond the existing items.
+Heartbeat done. Nothing changed since yesterday — same 160 TS errors, clean working tree, no new commits. The three standing items remain: Google OAuth expired, TS errors, and freeze-test credentials.
+Failed to authenticate. API Error: 401 {"type":"error","error":{"type":"authentication_error","message":"Invalid authentication credentials"},"request_id":"req_011Ca5pPfYrx2ATz91EWUTkv"}
+Heartbeat written to `briefing/heartbeat-today.md`. No changes since last check — same 3 blockers: OAuth expired, 160 TS errors (unchanged), freeze feature waiting on Sheet credentials. Working tree is clean, 9 feature/fix commits in the last week.
+Heartbeat written. **Nothing new since the last check** — same 160 TS errors (52 src + 108 legacy), clean working tree, Google OAuth still expired. The two stashes are still there and safe to drop whenever you want.
+Heartbeat written to `briefing/heartbeat-today.md`. Summary: nothing changed since yesterday — same 160 TS errors, same 2 stale stashes, OAuth still expired. No new commits since the Reports nav link on April 13.
+Heartbeat refreshed. Same state as before: OAuth still expired, 160 TS errors unchanged, working tree clean on `main` at 2330197. Nothing new to flag.
+Heartbeat written. Nothing urgent — TS errors stable at 160, working tree clean, Google OAuth still expired (calendar/email unavailable), 2 stale stashes safe to drop when convenient.
+Heartbeat refreshed. Nothing urgent: clean tree on `main`, no new commits since the Reports nav link, Google OAuth still expired (Calendar/Gmail checks blocked), and 2 stale stashes remain droppable.
+Heartbeat written. Nothing urgent — OAuth still expired, freeze test data still blocked, tree clean, no new commits since the earlier check today.
+Heartbeat updated. Tree clean on main, no new commits since last check. Google OAuth still expired; 2 stale stashes safe to drop; freeze-test work still blocked on Sheet write credentials.
+Heartbeat refreshed for 2026-04-16. No new commits since last check, tree clean. Persistent blockers: Google OAuth expired, freeze-tests awaiting Sheet credentials, 2 stale stashes pending cleanup.
+Heartbeat written. Nothing new since last check — tree clean, no new commits, same three open items (OAuth, freeze credentials, 2 stale stashes).
+Heartbeat written. Nothing urgent — tree clean, no new commits since 04-13, Google OAuth still expired, 2 stale stashes safe to drop.
+Done. Nothing urgent — tree clean, no new commits since 2026-04-13. Google OAuth still needs re-auth for Gmail/Calendar visibility.
+Done. Heartbeat updated for 2026-04-16:
+
+- **Nothing urgent** — no new commits since 2026-04-13, working tree clean.
+- Carryovers: Google OAuth expired, freeze test data blocked on Sheet creds, 2 stale stashes safe to drop.
+Heartbeat written. Quiet day: no new commits in 3 days, working tree clean. Same carryovers as yesterday (Google OAuth expired, freeze test blocked on Sheet creds, 2 stale stashes).
+Heartbeat written. Quiet morning: no new commits in 3 days, working tree clean. Carryovers unchanged — Google OAuth still needs re-auth and freeze-test-data still blocked on Sheet write creds.
+The briefing for 2026-04-16 is already current and accurate. Git state matches (HEAD 2330197, no new commits since 04-13). No refresh needed.
+Heartbeat refreshed. Nothing urgent — clean tree, no commits since 04-13. Carryovers: Google OAuth re-auth needed; freeze-tests still blocked on Sheet write creds.
+Heartbeat done. Nothing urgent — 3-day quiet period since the Reports nav commit, tree clean. Two carryovers still open: Google OAuth re-auth and freeze test data Sheet credentials.
+Heartbeat refreshed for 2026-04-16. Nothing urgent — clean tree, 3 quiet days since last code commit, two carryovers (Google OAuth re-auth, freeze test Sheet creds).
+Heartbeat written. Nothing urgent — quiet 3-day stretch, working tree clean, two carryover items (Google OAuth re-auth, Sheet write credentials for freeze feature).
+Heartbeat refreshed for 2026-04-16. Nothing urgent — clean tree on main, last code commit 3 days ago. Two carryovers: Google OAuth expired (blocks email/cal checks), and freeze-test-data feature still blocked on Sheet write creds.
+Heartbeat written. Quiet day: no new commits since 04-13, working tree clean, Google OAuth still needs re-auth. The overnight heartbeat cron appears to have stopped — no new `heartbeat: overnight check` commits since 04-13.
+Heartbeat written. Repo is quiet since 04-13; two known carryovers (expired Google OAuth, blocked Sheet-write credentials) still pending.
+Heartbeat written to `briefing/heartbeat-today.md`. Nothing urgent — repo quiet since 2026-04-13, Google OAuth still expired, freeze-test feature still blocked on Sheet write creds.
+Heartbeat updated. Repo quiet (4 days since last code commit), working tree clean, no urgent items. Google OAuth and Sheet write credentials still outstanding as carryovers.
+Heartbeat updated. Nothing urgent — repo quiet for 4 days, working tree clean. Carryovers unchanged: Google OAuth expired, freeze-tests blocked on Sheet write creds.
+Heartbeat refreshed. Nothing urgent — repo quiet since 04-13, Google OAuth still expired, freeze-tests still blocked on Sheet write creds.
+Heartbeat done. Repo quiet (last code commit 04-13), working tree clean. Google OAuth still expired and freeze-test-data still blocked on Sheet write creds — both carryovers. Overnight heartbeats have been paused since 04-13.
+Heartbeat written. Key signal: uncommitted branding WIP (new logos + unlock/nav/layout rewrite, ~400 lines) sitting on main since last commit on 04-13. OAuth for Gmail/Calendar still expired.
+Heartbeat written to `briefing/heartbeat-today.md`. Nothing urgent — branding WIP shipped today (commit daa0b4d), small Alessandro campaign-pattern tweak on `src/lib/vessel-profiles.ts` awaiting your call to commit. Google OAuth still needs re-auth.
+Heartbeat written. Clean tree on code, ALE-001 work from yesterday shipped. One item to triage: untracked `ale-001-formulas.txt` scratch file at repo root.
+Heartbeat written. Repo is clean (only `ale-001-formulas.txt` scratch untracked); Google OAuth still expired blocking calendar/email checks; freeze-tests still blocked on Sheet write creds.
+Heartbeat refreshed. Nothing urgent:
+- Decide on `ale-001-formulas.txt` (delete or move to `briefing/`)
+- Google OAuth + Sheet write creds still blocking overnight checks and Freeze tests
+- Main is clean, today's commit was ALE-001 tracking + Alessandro Discount LF bucket
+Heartbeat refreshed at 15:07. Tree is in sync with origin, nothing new since the morning check — same carryovers (OAuth re-auth, freeze-test credentials, scratch file to clean up).
+Heartbeat written to `briefing/heartbeat-today.md`. Nothing urgent — repo in sync with origin, only expected churn plus the `ale-001-formulas.txt` scratch file to clean up. Google OAuth and Sheet-write credentials still need reauth (carryover).
+Heartbeat refreshed at 20:23. Nothing new: repo clean and in sync with origin, same three carryovers (ALE-001 scratch file, expired Google OAuth, freeze-tests Sheet creds).
+Heartbeat written to `briefing/heartbeat-today.md`. Nothing urgent — main in sync with origin, no new commits since 04-17, same three carryover items (ALE-001 scratch file, Google OAuth re-auth, Sheet write credentials).
+Heartbeat updated. Quiet weekend — main in sync with origin, no new commits since 04-17. Same carryovers: scratch `ale-001-formulas.txt` still untracked, Google OAuth still expired, Freeze test feature still blocked on Sheet write creds.
+Heartbeat refreshed for 2026-04-19. No drift since the prior run today: branch in sync with origin, no new commits in ~48h, same three carryover items (untracked `ale-001-formulas.txt`, expired Google OAuth, freeze-test-data Sheet write blocker). Nothing urgent.
+Heartbeat refreshed for 2026-04-19. No new commits since 04-17, tree clean aside from expected churn and the `ale-001-formulas.txt` scratch file. OAuth and freeze-test blockers still carry over. Note: `.claude/heartbeat-prompt.md` doesn't exist — I used the prior day's structure.
+Heartbeat refreshed. Main @ 15fa812, clean/synced, no new commits since 04-17. Carryovers still open: `ale-001-formulas.txt` scratch file, expired Google OAuth, Sheet write creds for Freeze feature.
+Heartbeat refreshed for 2026-04-19. Nothing urgent — repo in sync with origin, weekend quiet (last code commit 04-17). Three carryovers still open: ALE-001 scratch file at root, expired Google OAuth, and Sheet-write credentials for the freeze-test feature.
+Heartbeat written to `briefing/heartbeat-today.md`. Nothing new since last check: main in sync, 48h quiet, `ale-001-formulas.txt` still untracked, Google OAuth still expired (overnight checks offline).
+Heartbeat written to `briefing/heartbeat-today.md`. Quiet state: no new commits since 04-17, ALE-001 scratch file still untracked, Google OAuth still expired.
+Heartbeat written. Quiet Monday — no new commits since 2026-04-17, branch in sync with origin, nothing urgent. Three carryover items remain: ALE-001 scratch file, expired Google OAuth, and freeze-test Sheet credentials.
+Heartbeat refreshed. All quiet: 3 days since last code commit, main in sync, only expected churn. Three carryover items remain (scratch file, OAuth re-auth, freeze-test credentials).
+Heartbeat refreshed for 2026-04-20. Note: `.claude/heartbeat-prompt.md` doesn't exist — used the existing structure. No drift: main in sync with origin, 3 days quiet since 04-17, same three carryovers (ALE-001 scratch file, expired Google OAuth, freeze-test Sheet credentials).
+Heartbeat written to `briefing/heartbeat-today.md`. Quiet day — repo in sync with origin, no new commits since 2026-04-17. Same three carryovers (scratch file, OAuth, freeze-tests blocker).
+Current `heartbeat-today.md` is already dated 2026-04-20 and accurately reflects state: 0 ahead/0 behind, last commit 2026-04-17 (3 days quiet), `ale-001-formulas.txt` still untracked, OAuth still expired. No refresh needed.
+
+**Summary:** Nothing urgent. 3 days quiet, tree clean apart from carryover scratch file + OAuth re-auth still pending.
+Heartbeat written. Quiet day — main still at `15fa812`, no code since 2026-04-17. Three carryover items (ALE-001 scratch file, expired Google OAuth, freeze-test credentials) remain open.
+Heartbeat written. Quiet 4th day — no new commits since 2026-04-17. Three carryovers still open: untracked `ale-001-formulas.txt`, expired Google OAuth, and freeze-test Sheet write credentials.
+Heartbeat updated. Quiet Monday — main @ 15fa812, in sync, no code activity in 4 days. Three carryover items (ALE-001 scratch file, expired Google OAuth, freeze-tests Sheet creds) still unresolved.
+State matches existing briefing — today is still 2026-04-20, no new activity. The file is already current and accurate; no update needed.
+
+**Status:** Day 4 quiet. Main @ 15fa812 in sync with origin. Only heartbeat churn + stale `ale-001-formulas.txt` scratch file. Google OAuth still expired. No drafts created.
+Heartbeat written. Note: `.claude/heartbeat-prompt.md` doesn't exist — the template lives at `.claude/skills/heartbeat/templates/heartbeat-prompt.md`. Nothing changed since yesterday's check: still quiet day 4, same three carryovers (ALE scratch file, OAuth, freeze-test creds), tree clean, synced with origin.
+Heartbeat written. Key update: code commit `228935d` landed today at 12:22 (ALE-001 source_placement fix), so the "quiet day" status from last night's overnight run is outdated. Carryovers unchanged: scratch file, OAuth, freeze-tests creds.
+Done. No new commits since the last check; state mirrors yesterday. Carryovers unchanged: `ale-001-formulas.txt` still untracked, Google OAuth still expired, freeze-test feature still blocked on Sheet write creds.
+Heartbeat updated — note `.claude/heartbeat-prompt.md` doesn't exist, so I followed the existing `heartbeat-today.md` format. No new commits since 12:22; only open items are the 3 carryovers (scratch file, OAuth, freeze-tests credentials).
+Heartbeat refreshed. No changes since last check — still clean at 228935d, in sync with origin. Same three carryovers: `ale-001-formulas.txt` scratch file untracked, Google OAuth expired, Freeze test data blocked on Sheet write creds.
+Heartbeat done. No change since 12:22 — same carryovers (scratch file `ale-001-formulas.txt`, expired Google OAuth, freeze-test Sheet creds). Timestamp refreshed to 14:57 CEST.
+Heartbeat refreshed at 16:02 CEST. No change since 14:57 check — main @ 228935d, in sync with origin, same three carryovers (ale-001-formulas.txt scratch file, expired Google OAuth, freeze-test Sheet credentials).
+Heartbeat refreshed at 19:41 CEST. Repo is quiet — no new commits since 12:22, main in sync with origin. Same three carryovers persist: `ale-001-formulas.txt` scratch, expired Google OAuth, and freeze-test Sheet write credentials.
+Heartbeat written. Nothing urgent — repo quiet for ~12h since ALE-001 fix, main in sync with origin. Three carryovers persist: `ale-001-formulas.txt` scratch at root, expired Google OAuth, Freeze-test-data feature blocked on Sheet write creds.
+Heartbeat refreshed at `briefing/heartbeat-today.md` — nothing urgent, same three carryovers (ALE-001 scratch file, Google OAuth, freeze-tests credentials).
+Heartbeat updated at 20:14 CEST. Repo is quiet — main in sync with origin, no new commits in ~32h since the ALE-001 fix. Three carryover items still open: untracked `ale-001-formulas.txt`, expired Google OAuth, and blocked freeze-test credentials.
+Heartbeat written to `briefing/heartbeat-today.md`. One thing worth flagging: local `main` is 2 commits behind `origin/main` — the overnight cron brain pushed `d1b5ceb` (04-21) and `93518cd` (04-22). Pull before you start editing. Otherwise quiet: no code commits in ~48h, same carryovers as yesterday (OAuth re-auth, `ale-001-formulas.txt` scratch, Sheet write creds for freeze tests).
+Heartbeat refreshed at `briefing/heartbeat-today.md`.
+
+**Top signals:**
+- Local `main` is 2 commits behind origin/main — pull before editing (overnight cron brain pushed 04-21 + 04-22 briefings).
+- Google OAuth broken for **two nights running** — cron brain is blind. Re-auth needed to restore Calendar/Gmail/Todo/Inbox checks.
+- ~48h quiet on code since the 04-20 Alessandro Discount LF fix.
+- `ale-001-formulas.txt` scratch still untracked.
+Heartbeat refreshed. Key signals: local `main` still 2 behind origin (overnight 04-21 + 04-22 commits unpulled), Google OAuth still broken two nights running (no Calendar/Gmail), and `ale-001-formulas.txt` scratch still untracked. No new code activity in ~48h.
+Heartbeat written to `briefing/heartbeat-today.md`. Key points:
+
+- **Local main is 2 behind origin/main** — pull to pick up 04-21 + 04-22 overnight heartbeats.
+- **Google OAuth broken 2 nights in a row** (`invalid_grant`) — overnight cron is blind until re-auth.
+- **No new code since 04-20** (Alessandro Discount LF fix) — ~48h quiet.
+- Carryovers: `ale-001-formulas.txt` untracked scratch; Freeze test feature still blocked on Sheet write creds.
+Heartbeat refreshed. Key items: local main 2 behind origin (pull needed), Google OAuth broken for overnight cron 2 nights running (re-auth required), plus two carryover items (`ale-001-formulas.txt` scratch, freeze-test Sheet creds).
+Heartbeat refreshed. No state change since last check — main still 2 behind origin (unpulled overnight heartbeats), Google OAuth still broken 2 nights running, ~48h quiet on code, same two carryovers (`ale-001-formulas.txt` scratch, freeze-test Sheet creds).
+Heartbeat refreshed. No state change since last check — main still 2 behind origin (unpulled overnight 04-21 + 04-22 heartbeats), Google OAuth still broken two nights running, ~50h quiet on code, same two carryovers (`ale-001-formulas.txt` scratch, freeze-test Sheet creds).
+Heartbeat refreshed. Key items:
+
+- **2 behind origin/main** — safe fast-forward (just overnight heartbeat commits 04-21 + 04-22).
+- **Google OAuth still dead** — 2nd night in a row `invalid_grant` on Calendar + Gmail. Overnight brain is blind.
+- **Carryovers:** `ale-001-formulas.txt` scratch file; freeze-test-data still blocked on Sheet write creds.
+- No new code activity since 04-20.
+Heartbeat refreshed. Nothing new since last local check: 2 commits behind origin (both heartbeat-only, safe to pull), OAuth still broken on overnight cron, ALE-001 scratch file still untracked, no new code since 04-20.
+API Error: Stream idle timeout - partial response received
+Heartbeat updated at `briefing/heartbeat-today.md` (21:55 CEST). No material change since the 17:23 check:
+
+- **Local 2 behind origin/main** — `git pull` to fast-forward (both pending commits are overnight heartbeats only).
+- **OAuth still broken** — 04-21 + 04-22 overnight cron both `invalid_grant` on Calendar + Gmail. Re-auth needed.
+- Scratch `ale-001-formulas.txt` + freeze-test-data blocker still carrying over.
+API Error: Stream idle timeout - partial response received
+Heartbeat written. Key signals:
+
+- **3 nights of `invalid_grant`** on the overnight cron (04-21, 04-22, 04-23) — Google re-auth is the unblock.
+- **Local `main` is 3 behind origin/main** — all heartbeat commits, safe `git pull`.
+- **04-23 overnight file has a stale template** (dated 2026-03-15, old SS/CRO work) — worth a glance.
+- Carryover: `ale-001-formulas.txt` scratch + Freeze test Sheet-write credentials still pending.
+Written. Biggest new signal: `src/lib/fuzzy-match.ts` has real uncommitted work (+50 lines of explicit campaign rules mirroring STREAK_PREFIX_MAP, plus an exact-match scoring fix) — the earlier heartbeat missed this and called it "expected churn." Otherwise: still 3 behind origin/main (heartbeat-only), Google auth still down 3 nights, ALE-001 scratch still untracked.
+Heartbeat refreshed. No material change since last check:
+
+- **Uncommitted `fuzzy-match.ts`** (+50 lines of explicit campaign rules + exact-match scoring fix) still sitting in working tree — needs commit.
+- **3 behind origin/main**, all heartbeat-only — safe `git pull --ff-only`.
+- **Google OAuth broken 3 nights running** — cron brain blind until re-auth.
+Heartbeat written. Key signals:
+
+- **`fuzzy-match.ts` still uncommitted** (+50 lines of explicit campaign rules + scoring fix) — carryover from yesterday, needs commit.
+- **3 behind origin/main** — all heartbeat-only, safe `git pull --ff-only`.
+- **No 04-24 overnight entry** in the log yet — OAuth was broken 3 nights running, likely still failing until re-auth.
+- Carryovers unchanged: `ale-001-formulas.txt` scratch, freeze-test Sheet creds.
+Heartbeat refreshed at `briefing/heartbeat-today.md`. No state change since last check:
+
+- **`fuzzy-match.ts` still uncommitted** (+50 lines campaign rules + scoring fix) — carryover from 04-23, needs commit.
+- **3 behind origin/main** — all heartbeat-only, safe `git pull --ff-only`.
+- **No 04-24 cron entry yet** — Google OAuth dead 3 nights running; re-auth required.
+- Carryovers unchanged: `ale-001-formulas.txt` scratch, freeze-test Sheet creds.
+Heartbeat refreshed at 06:30 CEST. No state change since the prior local check:
+
+- **`fuzzy-match.ts` still uncommitted** (+50 lines campaign rules + scoring fix) — carryover from 04-23, needs commit.
+- **3 behind origin/main** — heartbeat-only commits, safe `git pull --ff-only`.
+- **No 04-24 cron entry** — Google OAuth dead 3 nights running; re-auth required to restore overnight visibility.
+- Carryovers unchanged: `ale-001-formulas.txt` scratch, freeze-test Sheet creds.
+Heartbeat refreshed at 07:01 CEST. No state change since the 06:30 check:
+
+- **`fuzzy-match.ts` still uncommitted** (+50/-3, explicit campaign rules + exact-match scoring fix) — carryover from 04-23.
+- **3 behind origin/main** — all heartbeat-only commits, safe `git pull --ff-only`.
+- **No 04-24 cron entry yet** — Google OAuth dead 3 nights running (`invalid_grant`); re-auth needed.
+- Carryovers: `ale-001-formulas.txt` scratch, freeze-test Sheet write creds still pending.
+Heartbeat refreshed at `briefing/heartbeat-today.md`. No state change since 07:01: `fuzzy-match.ts` still needs commit+push, `main` 3 behind origin (heartbeat-only), 4th overnight OAuth failure imminent unless re-auth. Want me to pull, commit fuzzy-match, and push now?
+Heartbeat written to `briefing/heartbeat-today.md`.
+
+Top signals:
+- `fuzzy-match.ts` still uncommitted (4th day carryover) — real RULES work, ready to ship
+- Google OAuth broken 4 nights in a row — overnight cron runs but all checks fail; re-auth blocks all Calendar/Gmail visibility
+- Local main is 4 commits behind origin (all heartbeat commits) — safe `git pull --ff-only` before committing fuzzy-match
+Heartbeat written. State unchanged from yesterday's check — two carryovers still blocking:
+
+1. **`fuzzy-match.ts` uncommitted 5 days running** — real work, ready to ship.
+2. **Google OAuth `invalid_grant` 4 nights running** — re-auth needed for overnight visibility.
+Heartbeat refreshed. No delta since the earlier run today: `fuzzy-match.ts` is still the top action item (day 5 uncommitted, dual-sync with STREAK_PREFIX_MAP), OAuth still broken (4th night), `ale-001-formulas.txt` still at root, freeze-tests still blocked on sheet creds. HEAD 228935d clean vs origin.
+Done. Key signals:
+
+- **`fuzzy-match.ts` uncommitted 5th day running** — real dual-sync work for STREAK_PREFIX_MAP sitting in working tree.
+- **Local `main` is 4 commits behind `origin/main`** (overnight heartbeats pushed by GH Action). Fast-forward pull needed before committing new work.
+- **Google OAuth still broken** (4+ nights `invalid_grant`) — no Calendar/Gmail visibility.
+Heartbeat written to `briefing/heartbeat-today.md`.
+
+**Top signals (unchanged from earlier today):**
+1. `fuzzy-match.ts` — 5th day uncommitted, ready to ship
+2. Local `main` 4 commits behind origin — pull before pushing
+3. Google OAuth expired 4+ nights — no email/calendar visibility
+
+Want me to pull, commit `fuzzy-match.ts`, and push now?
