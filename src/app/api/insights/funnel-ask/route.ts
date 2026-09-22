@@ -7,6 +7,9 @@
 // nulls, answered in the language the question was asked in.
 //
 // Body:   { question, start, end, campaign?='master', channel?='all' }
+//         { warm: true, start, end, campaign?, channel? }  — builds and caches the facts for a
+//         scope and returns { ok, ms, cached } without calling the model. Exempt from the
+//         per-minute question limit, capped separately at 30 warm-ups per IP per day.
 // Auth:   X-Portal-Token must equal env PORTAL_ASK_TOKEN, and Origin must be the portal
 //         (or localhost in dev). This route is under /api/insights, which middleware.ts
 //         allowlists as public — the token IS the protection.
@@ -16,7 +19,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { getAnthropic, hasAnthropicKey } from '@/lib/ai'
 import { getGooletsKnowledge } from '@/lib/knowledge'
-import { buildFunnelFacts } from '@/lib/funnel-facts'
+import { buildFunnelFacts, isFunnelFactsCached } from '@/lib/funnel-facts'
 import { CAMPAIGNS, UMBRELLA_ORDER, type Channel } from '@/lib/business-funnel'
 
 export const runtime = 'nodejs'
@@ -85,10 +88,23 @@ function corsHeaders(origin: string | null): Record<string, string> {
 // can each hold their own counter, so the real ceiling is (instances × limit). Good enough to
 // stop a runaway tab or a copy-pasted token; it is not a billing guarantee.
 
-type Bucket = { minuteStart: number; minuteCount: number; dayStart: number; dayCount: number }
+type Bucket = {
+  minuteStart: number
+  minuteCount: number
+  dayStart: number
+  dayCount: number
+  warmDayStart: number
+  warmDayCount: number
+}
 const buckets = new Map<string, Bucket>()
 const PER_MINUTE = 5
 const PER_DAY = 60
+/**
+ * Pre-warms are cheap (no model call) and the portal fires one per scope the user opens, so
+ * they must not eat the question budget. They get their own daily ceiling instead, which is
+ * what stops a stuck tab from hammering the Apps Script all day.
+ */
+const WARM_PER_DAY = 30
 const MINUTE = 60_000
 const DAY = 86_400_000
 
@@ -98,11 +114,14 @@ function clientIp(req: NextRequest): string {
   return req.headers.get('x-real-ip') || 'unknown'
 }
 
-function rateLimit(ip: string): { ok: true } | { ok: false; scope: 'minute' | 'day'; retryAfter: number } {
+function rateLimit(
+  ip: string,
+  warm: boolean
+): { ok: true } | { ok: false; scope: 'minute' | 'day'; retryAfter: number } {
   const now = Date.now()
   let b = buckets.get(ip)
   if (!b) {
-    b = { minuteStart: now, minuteCount: 0, dayStart: now, dayCount: 0 }
+    b = { minuteStart: now, minuteCount: 0, dayStart: now, dayCount: 0, warmDayStart: now, warmDayCount: 0 }
     buckets.set(ip, b)
   }
   if (now - b.minuteStart >= MINUTE) {
@@ -113,6 +132,21 @@ function rateLimit(ip: string): { ok: true } | { ok: false; scope: 'minute' | 'd
     b.dayStart = now
     b.dayCount = 0
   }
+  if (now - b.warmDayStart >= DAY) {
+    b.warmDayStart = now
+    b.warmDayCount = 0
+  }
+
+  // A warm-up is exempt from the per-minute ceiling — the whole point is that it fires the
+  // moment a scope renders — but it has its own daily cap and never touches the question one.
+  if (warm) {
+    if (b.warmDayCount >= WARM_PER_DAY) {
+      return { ok: false, scope: 'day', retryAfter: Math.ceil((b.warmDayStart + DAY - now) / 1000) }
+    }
+    b.warmDayCount += 1
+    return { ok: true }
+  }
+
   if (b.dayCount >= PER_DAY) {
     return { ok: false, scope: 'day', retryAfter: Math.ceil((b.dayStart + DAY - now) / 1000) }
   }
@@ -236,13 +270,27 @@ export async function POST(req: NextRequest) {
     return json({ error: 'Invalid or missing X-Portal-Token' }, 401)
   }
 
-  // 3. Rate limit
-  const limit = rateLimit(clientIp(req))
+  // 3. Body — read before the rate limit, because a warm-up is limited differently.
+  let body: any
+  try {
+    body = await req.json()
+  } catch {
+    return json({ error: 'Body must be JSON' }, 400)
+  }
+
+  // Only the `warm` flag is read before the limiter — it decides WHICH budget applies. Every
+  // other validation stays after it, so a malformed question still costs the caller a slot
+  // rather than giving an attacker an unlimited free endpoint behind the token.
+  const warm = body?.warm === true
+
+  // 4. Rate limit
+  const limit = rateLimit(clientIp(req), warm)
   if (!limit.ok) {
     return NextResponse.json(
       {
-        error:
-          limit.scope === 'minute'
+        error: warm
+          ? `Rate limit: ${WARM_PER_DAY} warm-ups per day`
+          : limit.scope === 'minute'
             ? `Rate limit: ${PER_MINUTE} questions per minute`
             : `Rate limit: ${PER_DAY} questions per day`,
         retryAfterSeconds: limit.retryAfter,
@@ -251,16 +299,8 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  // 4. Body
-  let body: any
-  try {
-    body = await req.json()
-  } catch {
-    return json({ error: 'Body must be JSON' }, 400)
-  }
-
   const question = typeof body?.question === 'string' ? body.question.trim() : ''
-  if (question.length < 1 || question.length > MAX_QUESTION) {
+  if (!warm && (question.length < 1 || question.length > MAX_QUESTION)) {
     return json({ error: `question is required and must be 1-${MAX_QUESTION} characters` }, 400)
   }
 
@@ -281,6 +321,26 @@ export async function POST(req: NextRequest) {
   const channel = (String(body?.channel ?? 'all').trim().toLowerCase() || 'all') as Channel
   if (!CHANNELS.includes(channel)) {
     return json({ error: `Unknown channel "${channel}"`, channels: CHANNELS }, 400)
+  }
+
+  // 5. Pre-warm. The portal fires this the moment a scope finishes rendering, so the ~40 s of
+  // sheet reads is paid while the user is still looking at the funnel instead of after they
+  // type. No model call, no ANTHROPIC_API_KEY needed, nothing but the cache is touched.
+  if (warm) {
+    const t0 = Date.now()
+    const alreadyCached = isFunnelFactsCached({ start, end, campaign, channel })
+    try {
+      await buildFunnelFacts({ start, end, campaign, channel })
+    } catch (err) {
+      console.error('[insights/funnel-ask] warm failed', err)
+      return json({ error: (err as Error)?.message || 'Warm-up failed' }, 500)
+    }
+    const ms = Date.now() - t0
+    console.log(
+      '[insights/funnel-ask] warm %s|%s|%s|%s %s in %dms',
+      start, end, campaign, channel, alreadyCached ? 'HIT' : 'BUILT', ms
+    )
+    return json({ ok: true, ms, cached: alreadyCached })
   }
 
   if (!hasAnthropicKey()) {

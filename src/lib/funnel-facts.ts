@@ -223,10 +223,16 @@ const strOrNull = (v: unknown): string | null => {
 
 const TTL_MS = 10 * 60 * 1000
 
-function makeCache<T>() {
+interface Cache<T> {
+  (key: string, fn: () => Promise<T>): Promise<T>
+  /** Is there a live entry for this key? Used to report warm-up hits, never to skip work. */
+  has(key: string): boolean
+}
+
+function makeCache<T>(): Cache<T> {
   const memo = new Map<string, { at: number; data: T }>()
   const inflight = new Map<string, Promise<T>>()
-  return (key: string, fn: () => Promise<T>): Promise<T> => {
+  const get = (key: string, fn: () => Promise<T>): Promise<T> => {
     const hit = memo.get(key)
     if (hit && Date.now() - hit.at < TTL_MS) return Promise.resolve(hit.data)
     const running = inflight.get(key)
@@ -249,6 +255,12 @@ function makeCache<T>() {
     inflight.set(key, p)
     return p
   }
+  const cache = get as Cache<T>
+  cache.has = (key: string) => {
+    const hit = memo.get(key)
+    return Boolean(hit && Date.now() - hit.at < TTL_MS)
+  }
+  return cache
 }
 
 const cachedFacts = makeCache<FunnelFacts>()
@@ -271,9 +283,23 @@ export async function buildFunnelFacts(input: FunnelFactsInput): Promise<FunnelF
   }
   // The umbrella's OWN view always keeps its rows — asking about Turkey is asking about Turkey.
   const keepTurkey = Boolean(input.includeTurkey) || slug === TURKEY_SLUG
-  return cachedFacts(`${start}|${end}|${slug}|${channel}|${keepTurkey ? 'tk' : 'no-tk'}`, () =>
+  return cachedFacts(factsKey(start, end, slug, channel, keepTurkey), () =>
     assembleFunnelFacts(start, end, slug, channel, keepTurkey)
   )
+}
+
+const factsKey = (start: string, end: string, slug: string, channel: Channel, keepTurkey: boolean) =>
+  `${start}|${end}|${slug}|${channel}|${keepTurkey ? 'tk' : 'no-tk'}`
+
+/**
+ * Is this scope already assembled and still live? The pre-warm path reports it so the portal
+ * (and the logs) can tell a real warm-up from a no-op. It never changes what gets built.
+ */
+export function isFunnelFactsCached(input: FunnelFactsInput): boolean {
+  const slug = input.campaign && input.campaign !== 'master' ? input.campaign : 'master'
+  const channel: Channel = input.channel || 'all'
+  const keepTurkey = Boolean(input.includeTurkey) || slug === TURKEY_SLUG
+  return cachedFacts.has(factsKey(input.start, input.end, slug, channel, keepTurkey))
 }
 
 const isTurkeyText = (...parts: (string | null | undefined)[]): boolean =>
