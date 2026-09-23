@@ -157,8 +157,10 @@ function shortPath(path: string, max = 50) {
 }
 
 const GOOLETS_DOMAIN = 'https://goolets.net'
+// LP keys are goolets.net paths ("/foo") or, for bookings credited from the booking sheet's
+// landing column, "host/path" on another domain ("croatialuxurygulet.com/foo").
 function lpUrl(path: string) {
-  return `${GOOLETS_DOMAIN}${path}`
+  return path.startsWith('/') ? `${GOOLETS_DOMAIN}${path}` : `https://${path}`
 }
 
 // HubSpot form names follow "{page title} - Goolets: {form name}" pattern. In a

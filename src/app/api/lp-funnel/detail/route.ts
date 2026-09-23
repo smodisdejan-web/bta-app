@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { fetchTab, fetchHubspotContacts, fetchStreakSync, fetchGA4LandingPages, fetchBookings } from '@/lib/sheetsData'
-import { joinHubspotStreak, filterByDateRange, aggregateGA4ByLP, buildEmailToLpMap, lookupLpByEmail, filterBookingsByBookingMonth, type JoinedLead } from '@/lib/lp-attribution'
+import { joinHubspotStreak, filterByDateRange, aggregateGA4ByLP, buildEmailToLpMap, resolveBookingLp, filterBookingsByBookingMonth, type JoinedLead } from '@/lib/lp-attribution'
 
 export const dynamic = 'force-dynamic'
 
@@ -62,20 +62,28 @@ export async function GET(request: Request) {
     const ga4Map = aggregateGA4ByLP(ga4Rows, fromISO, toISO)
     const ga4Lp = ga4Map.get(path) || null
 
-    // Bookings attributed to this LP by BOOKING-DATE: counted in the month they
-    // happened, credited to the LP the booker first arrived on (global email→LP map).
+    // Bookings attributed to this LP by BOOKING-DATE: counted in the month they happened,
+    // credited via resolveBookingLp() — the booking sheet's landing_page first, else the LP the
+    // booker first arrived on (global email→LP map). Same rule as /api/lp-funnel.
     const emailToLp = buildEmailToLpMap(joined)
     const bookingsInRange = filterBookingsByBookingMonth(bookings, fromISO, toISO)
     let totalBookings = 0
     let totalRevenue = 0
+    const bookingsVia = { landing: 0, email: 0 }
     for (const b of bookingsInRange) {
-      if (lookupLpByEmail(b.client_email, emailToLp) === path) {
+      const r = resolveBookingLp(b, emailToLp)
+      if (r.path === path) {
         totalBookings++
         totalRevenue += b.rvc || 0
+        if (r.via === 'landing') bookingsVia.landing++
+        else if (r.via === 'email') bookingsVia.email++
       }
     }
 
-    if (lpLeads.length === 0) {
+    // A booking-only LP (e.g. croatialuxurygulet.com/…, or a goolets.net page whose leads came
+    // before the range) has no leads here but is a real row in the LP table — answer it with
+    // zero lead metrics instead of a 404.
+    if (lpLeads.length === 0 && totalBookings === 0) {
       return NextResponse.json({ error: 'No leads for this LP in selected range' }, { status: 404 })
     }
 
@@ -134,6 +142,7 @@ export async function GET(request: Request) {
         bookings: totalBookings,
         revenue: totalRevenue,
         avg_deal: totalBookings > 0 ? totalRevenue / totalBookings : 0,
+        bookings_via: bookingsVia,
       },
       by_channel,
       by_campaign,

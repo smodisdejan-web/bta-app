@@ -57,6 +57,7 @@ import {
   filterBookingsByBookingMonth,
   aggregateBookingsByLp,
   UNATTRIBUTED_LP,
+  type LpBookingBucket,
 } from '@/lib/lp-attribution'
 import { fetchStreakLeadsUnion } from '@/lib/streak-leads'
 import {
@@ -138,9 +139,10 @@ export interface LpsCoverage {
   sessionsAvailable: boolean
   note: string | null
   /**
-   * Booking → landing page join coverage for the window (bookings by booking month). Bookings
-   * whose booker email matches no HubSpot contact with a first landing page sit in no LP row,
-   * so a 0 on a row means "none matched", not "none booked". null = LP table failed to load.
+   * Booking → landing page join coverage for the window (bookings by booking month). A booking is
+   * credited by the booking sheet's landing_page first, else by its booker's HubSpot first page
+   * (email match); bookings with neither sit in no LP row, so a 0 on a row means "none matched",
+   * not "none booked". null = LP table failed to load.
    */
   bookingAttribution: LpBookingCoverage | null
   /** Plain-language version of bookingAttribution for the model. */
@@ -156,6 +158,11 @@ export interface LpBookingCoverage {
   unattributedRevenue: number
   /** attributedRevenue / revenue, 0..1; null when there is no revenue in the window. */
   revenueShare: number | null
+  /** How the attributed bookings were credited: booking-sheet landing_page vs email → HubSpot. */
+  viaLandingBookings: number
+  viaLandingRevenue: number
+  viaEmailBookings: number
+  viaEmailRevenue: number
 }
 
 export interface AdsCoverage {
@@ -613,13 +620,17 @@ async function loadLpFacts(
  * Turkey is filtered out, like every other Turkey row.
  */
 function computeBookingCoverage(
-  bookingsByLp: Map<string, { count: number; revenue: number }>,
+  bookingsByLp: Map<string, LpBookingBucket>,
   keepTurkey: boolean
 ): LpBookingCoverage {
   let bookings = 0
   let revenue = 0
   let attributedBookings = 0
   let attributedRevenue = 0
+  let viaLandingBookings = 0
+  let viaLandingRevenue = 0
+  let viaEmailBookings = 0
+  let viaEmailRevenue = 0
   for (const [path, v] of bookingsByLp) {
     if (!keepTurkey && isTurkeyText(path)) continue
     bookings += v.count
@@ -628,8 +639,16 @@ function computeBookingCoverage(
       attributedBookings += v.count
       attributedRevenue += v.revenue
     }
+    viaLandingBookings += v.viaLanding
+    viaLandingRevenue += v.viaLandingRevenue
+    viaEmailBookings += v.viaEmail
+    viaEmailRevenue += v.viaEmailRevenue
   }
   return {
+    viaLandingBookings,
+    viaLandingRevenue: Math.round(viaLandingRevenue),
+    viaEmailBookings,
+    viaEmailRevenue: Math.round(viaEmailRevenue),
     bookings,
     revenue: Math.round(revenue),
     attributedBookings,
@@ -649,7 +668,10 @@ function lpBookingCoverageNote(c: LpBookingCoverage | null): string | null {
   const pct = c.revenueShare === null ? 'n/a' : `${Math.round(c.revenueShare * 100)}%`
   return (
     `Landing page booking attribution covers ${c.attributedBookings} of ${c.bookings} bookings ` +
-    `(${pct} of revenue, ${eurK(c.attributedRevenue)} of ${eurK(c.revenue)}). ` +
+    `(${pct} of revenue, ${eurK(c.attributedRevenue)} of ${eurK(c.revenue)}): ` +
+    `${c.viaLandingBookings} credited from the landing page recorded in the booking sheet (${eurK(c.viaLandingRevenue)}), ` +
+    `${c.viaEmailBookings} by matching the booker's email to their first HubSpot landing page (${eurK(c.viaEmailRevenue)}). ` +
+    `Landing pages on other domains appear as "domain/path" rows (e.g. croatialuxurygulet.com/…) and have no lead data. ` +
     `The other ${c.unattributedBookings} bookings (${eurK(c.unattributedRevenue)}) could not be matched to any landing page. ` +
     `A landing page showing 0 bookings is NOT a page with zero bookings; say "no bookings matched to this page", never "no revenue booked".`
   )

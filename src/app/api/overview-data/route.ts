@@ -84,7 +84,8 @@ function mapBookings(sheet: any[][]): BookingRecord[] {
     client_country: String(row[colIndex('client_country')] || ''),
     client_email: String(row[colIndex('client_email')] || ''),
     ai_score: Number(row[colIndex('ai_score')]) || 0,
-    notes: String(row[colIndex('notes')] || '')
+    notes: String(row[colIndex('notes')] || ''),
+    landing_page: String(row[colIndex('landing_page')] ?? ''),
   }))
 }
 

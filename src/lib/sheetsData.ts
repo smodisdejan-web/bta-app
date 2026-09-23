@@ -1277,6 +1277,12 @@ export interface BookingRecord {
   client_email: string
   ai_score: number
   notes: string
+  /**
+   * Landing page the booker came in on, from the Acq Channel sheet's Landing column (bookings_api
+   * trailing column, 2026-09-23). Normalised by the sync: "/path" for goolets.net (same namespace
+   * as HubSpot first_url_path), "host/path" for other domains (croatialuxurygulet.com/…). '' = none.
+   */
+  landing_page?: string
 }
 
 export function mapFbEnriched(rows: any[][]): FbEnrichedRow[] {
@@ -2076,6 +2082,8 @@ export async function fetchBookings(
       client_email: String(row[colIndex('client_email')] || ''),
       ai_score: Number(row[colIndex('ai_score')]) || 0,
       notes: String(row[colIndex('notes')] || ''),
+      // Header-based: an older bookings_api without the column yields '' (colIndex -1 → undefined).
+      landing_page: String(row[colIndex('landing_page')] ?? ''),
     }))
     console.log('[fetchBookings] All booking_date values:', mapped.map((m) => m.booking_date))
     return mapped

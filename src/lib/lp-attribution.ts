@@ -8,7 +8,7 @@
  *   hubspot_contacts (LP + form metadata)
  *     ↓  email match
  *   streak_sync (AI score → QL classification)
- *     ↓  optional join (when bookings tab adds landing_page field)
+ *     ↓  booking → LP: bookings_api.landing_page (Acq sheet Landing) first, email → HubSpot second
  *   bookings (RVC)
  */
 
@@ -374,21 +374,79 @@ export function buildEmailToLpMap(allLeads: JoinedLead[]): Map<string, string> {
 }
 
 /**
- * Aggregate booking-date-filtered bookings per LP path via the global email→LP map.
- * Bookings whose booker has no tracked lead fall into UNATTRIBUTED_LP so per-LP totals
- * reconcile with the headline.
+ * Booking-sheet landing → LP key. Mirror of normaliseLanding() in
+ * code/sheets/reconcile-goolets-bookings-acq.js (the sync already writes this form; applying it
+ * again here only protects against a hand-typed full URL):
+ *   https://www.goolets.net/foo/?x=1   → /foo                 (HubSpot first_url_path namespace)
+ *   https://croatialuxurygulet.com/bar → croatialuxurygulet.com/bar   (its own LP key)
+ * Non-URL text and empty → ''.
+ */
+export function normaliseBookingLanding(raw: string | null | undefined): string {
+  let s = String(raw ?? '').trim().toLowerCase()
+  if (!s) return ''
+  if (s.startsWith('/')) return normaliseLpPath(s)
+  s = s.replace(/^[a-z]+:\/\//, '').replace(/^www\./, '').split(/[?#]/)[0].replace(/\/+$/, '')
+  const slash = s.indexOf('/')
+  const host = slash < 0 ? s : s.slice(0, slash)
+  const path = slash < 0 ? '' : s.slice(slash)
+  if (!/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(host)) return ''
+  if (host === 'goolets.net') return path || '/'
+  return host + path
+}
+
+export type BookingLpSource = 'landing' | 'email' | 'none'
+
+/**
+ * Which LP a booking is credited to, and why. Order (locked 2026-09-23):
+ *   1. landing  — bookings_api.landing_page, i.e. the Landing the sales team recorded in the Acq
+ *                 Channel sheet. The sheet wins over HubSpot when they disagree (e.g. NAVILUX,
+ *                 andre@fjossystemer.no: sheet /smart-luxury-sailing, HubSpot first page
+ *                 /sail-turkey-aboard-belgin-sultan-2026).
+ *   2. email    — the booker's HubSpot first landing page (global email→LP map).
+ *   3. none     — UNATTRIBUTED_LP.
+ */
+export function resolveBookingLp(
+  b: Pick<BookingRecord, 'client_email' | 'landing_page'>,
+  emailToLp: Map<string, string>,
+): { path: string; via: BookingLpSource } {
+  const landing = normaliseBookingLanding(b.landing_page)
+  if (landing) return { path: landing, via: 'landing' }
+  const byEmail = lookupLpByEmail(b.client_email, emailToLp)
+  if (byEmail) return { path: byEmail, via: 'email' }
+  return { path: UNATTRIBUTED_LP, via: 'none' }
+}
+
+/** Per-LP booking bucket. count/revenue are the totals; the via* fields split them by source. */
+export interface LpBookingBucket {
+  count: number
+  revenue: number
+  viaLanding: number
+  viaLandingRevenue: number
+  viaEmail: number
+  viaEmailRevenue: number
+}
+
+/**
+ * Aggregate booking-date-filtered bookings per LP key via resolveBookingLp() (sheet landing
+ * first, then email → HubSpot). Bookings with neither fall into UNATTRIBUTED_LP so per-LP totals
+ * reconcile with the headline. LP keys may be goolets.net paths ("/foo") or other-domain keys
+ * ("croatialuxurygulet.com/foo") — the latter never have HubSpot leads and surface as
+ * zero-lead rows in aggregateByLP().
  */
 export function aggregateBookingsByLp(
   bookingsInRange: BookingRecord[],
   emailToLp: Map<string, string>,
-): Map<string, { count: number; revenue: number }> {
-  const map = new Map<string, { count: number; revenue: number }>()
+): Map<string, LpBookingBucket> {
+  const map = new Map<string, LpBookingBucket>()
   for (const b of bookingsInRange) {
-    const path = lookupLpByEmail(b.client_email, emailToLp) || UNATTRIBUTED_LP
-    if (!map.has(path)) map.set(path, { count: 0, revenue: 0 })
+    const { path, via } = resolveBookingLp(b, emailToLp)
+    if (!map.has(path)) map.set(path, { count: 0, revenue: 0, viaLanding: 0, viaLandingRevenue: 0, viaEmail: 0, viaEmailRevenue: 0 })
     const s = map.get(path)!
+    const rvc = b.rvc || 0
     s.count++
-    s.revenue += b.rvc || 0
+    s.revenue += rvc
+    if (via === 'landing') { s.viaLanding++; s.viaLandingRevenue += rvc }
+    else if (via === 'email') { s.viaEmail++; s.viaEmailRevenue += rvc }
   }
   return map
 }
