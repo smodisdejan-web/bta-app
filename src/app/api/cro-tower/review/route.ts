@@ -2,10 +2,12 @@
 //
 // One Sonnet 5 call over the trimmed CroTowerResponse of that period, returning 4-6 items typed
 // best / weak / leak / econ / do (the demo's review renderer). Reviews only non-null steps.
-// Cached in-process for 6 h per period+anchor+data day (one model call per period per day per
-// warm instance). Auth: the `cro_unlock` cookie (middleware + re-check here).
+// Cached per period+anchor+data day: 6 h in-process (L1) and 24 h in the shared Data Cache (L2,
+// all instances; expired by POST /api/cache/clear, refilled by code/goolets/warm-cro-tower.sh). Auth: the `cro_unlock` cookie (middleware + re-check here).
 import { NextRequest, NextResponse } from 'next/server'
-import { buildCroTower, CRO_PERIODS } from '@/lib/cro-tower'
+import { CRO_PERIODS } from '@/lib/cro-tower'
+import { getCroTower, getCroReview } from '@/lib/cro-tower-cache'
+import { todayLjubljana } from '@/lib/business-funnel'
 import { REVIEW_RULES, callCroModel, parseReview, trimCroFacts, plainLabel, type ReviewItem } from '@/lib/cro-tower-ai'
 import { CRO_COOKIE, isCroUnlocked } from '@/lib/cro-auth'
 import { hasAnthropicKey } from '@/lib/ai'
@@ -31,13 +33,15 @@ export async function GET(req: NextRequest) {
   if (!hasAnthropicKey()) return json({ error: 'ANTHROPIC_API_KEY is not configured on the server' }, 503)
 
   try {
-    const data = await buildCroTower({ period, anchor })
-    const key = `${period}|${anchor || ''}|${data.meta.yesterday}`
+    // L1: this instance's memo. L2: the shared Data Cache (lib/cro-tower-cache.ts), so a fresh
+    // instance serves a review another instance (or warm-cro-tower.sh) already generated.
+    const key = `${period}|${anchor || ''}|${todayLjubljana()}`
     const hit = memo.get(key)
     if (!nocache && hit && Date.now() - hit.at < TTL) return json({ ...hit.data, cached: true })
     let p = inflight.get(key)
     if (!p) {
-      p = (async () => {
+      p = getCroReview({ period, anchor, nocache }, async () => {
+        const data = await getCroTower({ period, anchor })
         const facts = trimCroFacts(data)
         const user = `FACTS (Goolets web funnel, period "${plainLabel(data.meta.range.label)}", ${data.meta.range.from} to ${data.meta.range.to}):\n\n${JSON.stringify(facts)}\n\nWrite the review now. JSON only.`
         let out = await callCroModel(REVIEW_RULES, user, 6000)
@@ -51,13 +55,14 @@ export async function GET(req: NextRequest) {
           items = parseReview(out.text)
         }
         return { items, period, range: data.meta.range, model: out.model, generatedAt: new Date().toISOString() }
-      })()
+      })
       inflight.set(key, p)
     }
     try {
       const out = await p
+      const fromL2 = !nocache && Date.now() - Date.parse(out.generatedAt) > 5000
       memo.set(key, { at: Date.now(), data: out })
-      return json({ ...out, cached: false })
+      return json({ ...out, cached: fromL2 })
     } finally {
       inflight.delete(key)
     }

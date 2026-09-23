@@ -18,6 +18,7 @@ import { NextResponse } from 'next/server'
 import { clearSheetCache } from '@/lib/sheetsData'
 import { clearFunnelCache } from '@/lib/business-funnel'
 import { clearCroTowerCache } from '@/lib/cro-tower'
+import { expireCroTag } from '@/lib/cro-tower-cache'
 
 export const maxDuration = 30
 
@@ -38,10 +39,12 @@ export async function POST(request: Request) {
   clearSheetCache()
   clearFunnelCache()
   clearCroTowerCache()
+  // The CRO tower's shared Data Cache (all instances): expire now, warm-cro-tower.sh refills it.
+  expireCroTag()
   console.log('[cache] cleared sheet + funnel + cro-tower caches')
 
   return NextResponse.json(
-    { ok: true, cleared: ['sheetCache', 'funnelCache', 'croTowerCache'], at: new Date().toISOString() },
+    { ok: true, cleared: ['sheetCache', 'funnelCache', 'croTowerCache', 'croTowerDataCache'], at: new Date().toISOString() },
     { headers: NO_STORE }
   )
 }

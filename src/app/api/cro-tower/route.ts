@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { buildCroTower, CRO_PERIODS } from '@/lib/cro-tower'
+import { CRO_PERIODS } from '@/lib/cro-tower'
+import { getCroTower } from '@/lib/cro-tower-cache'
 
 // GET /api/cro-tower?period=week|month|m3|m6|ytd[&anchor=YYYY-MM | YYYY-MM-DD for week][&nocache=1]
 //
@@ -35,7 +36,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const data = await buildCroTower({ period, anchor, nocache })
+    const data = await getCroTower({ period, anchor, nocache })
     return NextResponse.json(data, { headers })
   } catch (err) {
     const msg = (err as Error).message || 'Failed to build CRO tower'

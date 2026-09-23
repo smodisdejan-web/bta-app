@@ -8,7 +8,8 @@
 // Limits: 5 questions / minute and 60 / day per IP (per instance), warm-ups 60 / day.
 // Facts: the CroTowerResponse of that period, trimmed (lib/cro-tower-ai.ts), Turkey NOT filtered.
 import { NextRequest, NextResponse } from 'next/server'
-import { buildCroTower, CRO_PERIODS } from '@/lib/cro-tower'
+import { CRO_PERIODS } from '@/lib/cro-tower'
+import { getCroTower } from '@/lib/cro-tower-cache'
 import { ASK_RULES, callCroModel, clientIp, rateLimit, stripEmDashes, trimCroFacts, plainLabel, PER_DAY, PER_MINUTE, WARM_PER_DAY } from '@/lib/cro-tower-ai'
 import { CRO_COOKIE, isCroUnlocked } from '@/lib/cro-auth'
 import { hasAnthropicKey } from '@/lib/ai'
@@ -52,7 +53,7 @@ export async function POST(req: NextRequest) {
   const t0 = Date.now()
   let data
   try {
-    data = await buildCroTower({ period, anchor })
+    data = await getCroTower({ period, anchor })
   } catch (err) {
     console.error('[cro-tower/ask] facts failed', err)
     return json({ error: (err as Error).message || 'Failed to build the funnel' }, 500)

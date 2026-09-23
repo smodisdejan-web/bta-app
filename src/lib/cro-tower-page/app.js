@@ -435,8 +435,31 @@ function render(){
   $('asOf').textContent = 'Data as of ' + (ga4 && ga4.maxDate ? dl(ga4.maxDate) + ', ' + ga4.maxDate.slice(0, 4) : D.meta.yesterday);
   $('liveDot').style.background = D.meta.freshness.some(t => t.error) ? 'var(--bad)' : 'var(--good)';
 }
+/* Prefetched period payloads (q string → CroTowerResponse), filled in the background after
+   the first paint so chip switches render instantly. */
+const PRE = new Map();
+let prefetched = false;
+async function prefetchAll(){
+  if (prefetched) return;
+  prefetched = true;
+  for (const p of ['week', 'month', 'm3', 'm6', 'ytd']){
+    const q = 'period=' + p;
+    if (PRE.has(q)) continue;
+    try {
+      const res = await fetch('/api/cro-tower?' + q, {credentials:'same-origin'});
+      if (res.ok) PRE.set(q, await res.json());
+    } catch (e) {}
+  }
+}
 async function load(nocache){
   const my = ++reqSeq;
+  const qKey = 'period=' + encodeURIComponent(cur) + (anchor ? '&anchor=' + encodeURIComponent(anchor) : '');
+  if (!nocache && PRE.has(qKey)){
+    D = PRE.get(qKey);
+    render();
+    loadReview();
+    return;
+  }
   $('content').setAttribute('aria-busy', 'true');
   $('content').classList.add('loading');
   $('loadErr').hidden = true;
@@ -448,8 +471,10 @@ async function load(nocache){
     if (my !== reqSeq) return;
     if (!res.ok) throw new Error(j.error || res.statusText);
     D = j;
+    PRE.set(qKey, j);
     render();
     loadReview();
+    setTimeout(prefetchAll, 1500);
   } catch (e) {
     if (my !== reqSeq) return;
     $('loadErr').hidden = false;
