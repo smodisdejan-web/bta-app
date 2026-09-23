@@ -40,8 +40,17 @@ export async function GET(req: NextRequest) {
       p = (async () => {
         const facts = trimCroFacts(data)
         const user = `FACTS (Goolets web funnel, period "${plainLabel(data.meta.range.label)}", ${data.meta.range.from} to ${data.meta.range.to}):\n\n${JSON.stringify(facts)}\n\nWrite the review now. JSON only.`
-        const out = await callCroModel(REVIEW_RULES, user, 6000)
-        return { items: parseReview(out.text), period, range: data.meta.range, model: out.model, generatedAt: new Date().toISOString() }
+        let out = await callCroModel(REVIEW_RULES, user, 6000)
+        let items: ReviewItem[]
+        try {
+          items = parseReview(out.text)
+        } catch (e) {
+          // One retry: the model occasionally emits a stray double quote inside a string.
+          console.warn('[cro-tower/review] unparseable review, retrying once:', (e as Error).message)
+          out = await callCroModel(REVIEW_RULES, `${user}\n\nYour previous answer was not valid JSON (${(e as Error).message}). Return valid JSON only, with no double quotes inside string values.`, 6000)
+          items = parseReview(out.text)
+        }
+        return { items, period, range: data.meta.range, model: out.model, generatedAt: new Date().toISOString() }
       })()
       inflight.set(key, p)
     }

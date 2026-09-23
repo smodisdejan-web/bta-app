@@ -159,7 +159,9 @@ fence:
   volume floor); weak = the weakest sizeable one; leak = the funnel step whose conversion lost the
   most, or fell most vs the previous period; econ = paid spend, ROAS, cost per qualified lead
   (skip if null); do = 2 concrete next steps as "list", each tied to a number in the facts.
-- Put **double asterisks** around key numbers. Name the period once.`
+- Put **double asterisks** around key numbers. Name the period once.
+- The output must be valid JSON: never put a double quote character inside a string value (write
+  names without quotes, or use single quotes), no trailing commas, no line breaks inside strings.`
 
 // ─── Model call ─────────────────────────────────────────────────────────────
 
