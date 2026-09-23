@@ -28,6 +28,7 @@ export function middleware(request: NextRequest) {
     '/api/dalmatincki-kpis', // CEO scoreboard — Last Minute Dalmatinčki funnel (same, cross-origin)
     '/api/live-ads', // Content Bank "Live in ads" badge — flat delivered-ads list (cross-origin)
     '/api/funnel', // Business Health Funnel — master + 6 campaign drill-downs (cross-origin)
+    '/api/cro-tower', // Web Funnel CRO tower for Tadej — portal "Web funnel · CRO" section (cross-origin)
     '/api/cache', // POST /api/cache/clear — gated by the X-Admin-Token header, called by refresh-mtd.sh
     '/favicon.ico',
     '/branding',
@@ -43,6 +44,7 @@ export function middleware(request: NextRequest) {
   // the list on 2026-09-23 — one shared 10-minute build per window is the entire point of it.
   const ownsCacheControl =
     pathname.startsWith('/api/funnel') ||
+    pathname.startsWith('/api/cro-tower') ||
     pathname.startsWith('/api/overview-data') ||
     pathname.startsWith('/api/sheet-tabs')
 

@@ -17,6 +17,7 @@
 import { NextResponse } from 'next/server'
 import { clearSheetCache } from '@/lib/sheetsData'
 import { clearFunnelCache } from '@/lib/business-funnel'
+import { clearCroTowerCache } from '@/lib/cro-tower'
 
 export const maxDuration = 30
 
@@ -36,10 +37,11 @@ export async function POST(request: Request) {
 
   clearSheetCache()
   clearFunnelCache()
-  console.log('[cache] cleared sheet + funnel caches')
+  clearCroTowerCache()
+  console.log('[cache] cleared sheet + funnel + cro-tower caches')
 
   return NextResponse.json(
-    { ok: true, cleared: ['sheetCache', 'funnelCache'], at: new Date().toISOString() },
+    { ok: true, cleared: ['sheetCache', 'funnelCache', 'croTowerCache'], at: new Date().toISOString() },
     { headers: NO_STORE }
   )
 }
