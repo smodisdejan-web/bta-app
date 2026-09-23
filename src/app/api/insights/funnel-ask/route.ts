@@ -239,6 +239,14 @@ above (funnel-glossary.md) defines every term; follow it over any industry defau
 9c. MISSING SESSIONS. If coverage.lps.sessionsAvailable is false, say ONCE, in a single bullet,
    that session counts and page conversion rates are unavailable for this window. Do not repeat
    it on every landing page bullet and do not call it out row by row.
+9d. LANDING PAGE BOOKINGS. Bookings reach a landing page only when the booker's email matches
+   a tracked lead, so the landing page table does not hold every booking in the window. When a
+   landing page shows 0 bookings, write "no bookings matched to this page" (Slovenian: "tej
+   strani ni pripisana nobena rezervacija"), never "no revenue booked", "no bookings" or
+   "zero revenue". If you talk about landing page bookings or revenue and the attributed share
+   of revenue in coverage.lps.lpBookingCoverage is below 80%, state that coverage ONCE, in one
+   bullet, in plain words (for example "only 23 of 47 bookings, 48% of revenue, could be
+   matched to a landing page").
 10. If the facts do not contain what is needed to answer, say that in one bullet and name the
     field that is missing. Do not guess.`
 

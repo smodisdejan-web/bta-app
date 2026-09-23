@@ -56,6 +56,7 @@ import {
   buildEmailToLpMap,
   filterBookingsByBookingMonth,
   aggregateBookingsByLp,
+  UNATTRIBUTED_LP,
 } from '@/lib/lp-attribution'
 import { fetchStreakLeadsUnion } from '@/lib/streak-leads'
 import {
@@ -136,6 +137,25 @@ export interface LpsCoverage {
   /** false = the GA4 landing-page feed could not be read, so every sessions/cvr is null. */
   sessionsAvailable: boolean
   note: string | null
+  /**
+   * Booking → landing page join coverage for the window (bookings by booking month). Bookings
+   * whose booker email matches no HubSpot contact with a first landing page sit in no LP row,
+   * so a 0 on a row means "none matched", not "none booked". null = LP table failed to load.
+   */
+  bookingAttribution: LpBookingCoverage | null
+  /** Plain-language version of bookingAttribution for the model. */
+  lpBookingCoverage: string | null
+}
+
+export interface LpBookingCoverage {
+  bookings: number
+  revenue: number
+  attributedBookings: number
+  attributedRevenue: number
+  unattributedBookings: number
+  unattributedRevenue: number
+  /** attributedRevenue / revenue, 0..1; null when there is no revenue in the window. */
+  revenueShare: number | null
 }
 
 export interface AdsCoverage {
@@ -322,7 +342,7 @@ async function assembleFunnelFacts(
     loadBusinessFunnel({ start, end, campaign: slug, channel }),
     loadLpFacts(start, end, def?.lp ?? null, keepTurkey).catch((err) => {
       console.warn('[funnel-facts] LP table unavailable:', err)
-      return { rows: [] as LpFact[], sessionsAvailable: false }
+      return { rows: [] as LpFact[], sessionsAvailable: false, bookingCoverage: null }
     }),
     wantAds
       ? loadAdFacts(start, end, slug, keepTurkey).catch((err) => {
@@ -398,6 +418,8 @@ async function assembleFunnelFacts(
         note: lpResult.sessionsAvailable
           ? null
           : 'The GA4 landing-page feed could not be read for this window, so session counts and page conversion rates are unavailable on every landing page row. Lead, quality-lead and booking figures are unaffected.',
+        bookingAttribution: lpResult.bookingCoverage,
+        lpBookingCoverage: lpBookingCoverageNote(lpResult.bookingCoverage),
       },
       unattributedLeadsShare: nOrNull(funnel.attribution?.unattributedShare),
     },
@@ -523,7 +545,7 @@ async function loadLpFacts(
   end: string,
   lpRegex: RegExp | null,
   keepTurkey: boolean
-): Promise<{ rows: LpFact[]; sessionsAvailable: boolean }> {
+): Promise<{ rows: LpFact[]; sessionsAvailable: boolean; bookingCoverage: LpBookingCoverage | null }> {
   const fromISO = new Date(`${start}T00:00:00.000Z`).toISOString()
   const toISO = new Date(`${end}T23:59:59.999Z`).toISOString()
 
@@ -546,6 +568,7 @@ async function loadLpFacts(
     emailToLp
   )
   const aggregates = aggregateByLP(attributable, ga4Map, bookingsByLp)
+  const bookingCoverage = computeBookingCoverage(bookingsByLp, keepTurkey)
 
   // ga4_landing_pages is the slowest tab in the set (~24 s) and fetchTab answers a failure with
   // an empty sheet rather than an error. Empty map + rows that have leads = the GA4 read failed,
@@ -581,7 +604,55 @@ async function loadLpFacts(
       topForm: strOrNull(a.top_form),
     }))
 
-  return { rows, sessionsAvailable }
+  return { rows, sessionsAvailable, bookingCoverage }
+}
+
+/**
+ * Window-wide booking → LP coverage. Attributed = every booking credited to a real LP path;
+ * unattributed = the UNATTRIBUTED_LP bucket. Turkey-credited bookings leave both sides when
+ * Turkey is filtered out, like every other Turkey row.
+ */
+function computeBookingCoverage(
+  bookingsByLp: Map<string, { count: number; revenue: number }>,
+  keepTurkey: boolean
+): LpBookingCoverage {
+  let bookings = 0
+  let revenue = 0
+  let attributedBookings = 0
+  let attributedRevenue = 0
+  for (const [path, v] of bookingsByLp) {
+    if (!keepTurkey && isTurkeyText(path)) continue
+    bookings += v.count
+    revenue += v.revenue
+    if (path !== UNATTRIBUTED_LP) {
+      attributedBookings += v.count
+      attributedRevenue += v.revenue
+    }
+  }
+  return {
+    bookings,
+    revenue: Math.round(revenue),
+    attributedBookings,
+    attributedRevenue: Math.round(attributedRevenue),
+    unattributedBookings: bookings - attributedBookings,
+    unattributedRevenue: Math.round(revenue - attributedRevenue),
+    revenueShare: revenue > 0 ? Math.round((attributedRevenue / revenue) * 1000) / 1000 : null,
+  }
+}
+
+function eurK(n: number): string {
+  return n >= 1000 ? `€${Math.round(n / 1000)}k` : `€${Math.round(n)}`
+}
+
+function lpBookingCoverageNote(c: LpBookingCoverage | null): string | null {
+  if (!c || c.bookings === 0) return null
+  const pct = c.revenueShare === null ? 'n/a' : `${Math.round(c.revenueShare * 100)}%`
+  return (
+    `Landing page booking attribution covers ${c.attributedBookings} of ${c.bookings} bookings ` +
+    `(${pct} of revenue, ${eurK(c.attributedRevenue)} of ${eurK(c.revenue)}). ` +
+    `The other ${c.unattributedBookings} bookings (${eurK(c.unattributedRevenue)}) could not be matched to any landing page. ` +
+    `A landing page showing 0 bookings is NOT a page with zero bookings; say "no bookings matched to this page", never "no revenue booked".`
+  )
 }
 
 // ─── Ads table ──────────────────────────────────────────────────────────────

@@ -326,6 +326,38 @@ export function filterBookingsByBookingMonth(
 }
 
 /**
+ * Booking / HubSpot email hygiene. The bookings sheet is typed by hand, so client_email
+ * carries typos (".comm") and sometimes two addresses in one cell ("a@x.net/b@y.com.au").
+ * Returns the candidate addresses in order: lowercased, trimmed, split on / , ; and
+ * whitespace, stripped of wrapping punctuation, with the non-existent TLD typos .comm, .con
+ * and .cmo fixed to .com. Used on BOTH sides of the booking → LP join so they agree.
+ */
+export function normalizeEmailCandidates(raw: string | null | undefined): string[] {
+  const s = String(raw ?? '').toLowerCase().trim()
+  if (!s) return []
+  const out: string[] = []
+  for (const piece of s.split(/[\/,;\s]+/)) {
+    let e = piece.replace(/^[<(\['"]+/, '').replace(/[>)\]'".]+$/, '')
+    if (!e.includes('@')) continue
+    e = e.replace(/\.(comm|con|cmo)$/, '.com')
+    if (!out.includes(e)) out.push(e)
+  }
+  return out
+}
+
+/** First candidate address of `raw` that exists in `emailToLp`, or null. */
+export function lookupLpByEmail(
+  raw: string | null | undefined,
+  emailToLp: Map<string, string>,
+): string | null {
+  for (const e of normalizeEmailCandidates(raw)) {
+    const lp = emailToLp.get(e)
+    if (lp) return lp
+  }
+  return null
+}
+
+/**
  * email → first landing page, across ALL leads (any date). First landing wins.
  * Lets a booking attach to the LP its booker originally arrived on even when that
  * lead is outside the selected range.
@@ -333,9 +365,10 @@ export function filterBookingsByBookingMonth(
 export function buildEmailToLpMap(allLeads: JoinedLead[]): Map<string, string> {
   const map = new Map<string, string>()
   for (const l of allLeads) {
-    const email = (l.email || '').toLowerCase().trim()
-    if (!email || !l.first_url_path) continue
-    if (!map.has(email)) map.set(email, l.first_url_path)
+    if (!l.first_url_path) continue
+    for (const email of normalizeEmailCandidates(l.email)) {
+      if (!map.has(email)) map.set(email, l.first_url_path)
+    }
   }
   return map
 }
@@ -351,8 +384,7 @@ export function aggregateBookingsByLp(
 ): Map<string, { count: number; revenue: number }> {
   const map = new Map<string, { count: number; revenue: number }>()
   for (const b of bookingsInRange) {
-    const email = (b.client_email || '').toLowerCase().trim()
-    const path = (email && emailToLp.get(email)) || UNATTRIBUTED_LP
+    const path = lookupLpByEmail(b.client_email, emailToLp) || UNATTRIBUTED_LP
     if (!map.has(path)) map.set(path, { count: 0, revenue: 0 })
     const s = map.get(path)!
     s.count++

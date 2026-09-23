@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { fetchTab, fetchHubspotContacts, fetchStreakSync, fetchGA4LandingPages, fetchBookings } from '@/lib/sheetsData'
-import { joinHubspotStreak, filterByDateRange, aggregateGA4ByLP, buildEmailToLpMap, filterBookingsByBookingMonth, type JoinedLead } from '@/lib/lp-attribution'
+import { joinHubspotStreak, filterByDateRange, aggregateGA4ByLP, buildEmailToLpMap, lookupLpByEmail, filterBookingsByBookingMonth, type JoinedLead } from '@/lib/lp-attribution'
 
 export const dynamic = 'force-dynamic'
 
@@ -69,8 +69,7 @@ export async function GET(request: Request) {
     let totalBookings = 0
     let totalRevenue = 0
     for (const b of bookingsInRange) {
-      const email = (b.client_email || '').toLowerCase().trim()
-      if (email && emailToLp.get(email) === path) {
+      if (lookupLpByEmail(b.client_email, emailToLp) === path) {
         totalBookings++
         totalRevenue += b.rvc || 0
       }
