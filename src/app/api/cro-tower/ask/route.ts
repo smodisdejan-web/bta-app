@@ -9,7 +9,7 @@
 // Facts: the CroTowerResponse of that period, trimmed (lib/cro-tower-ai.ts), Turkey NOT filtered.
 import { NextRequest, NextResponse } from 'next/server'
 import { buildCroTower, CRO_PERIODS } from '@/lib/cro-tower'
-import { ASK_RULES, callCroModel, clientIp, rateLimit, stripEmDashes, trimCroFacts, PER_DAY, PER_MINUTE, WARM_PER_DAY } from '@/lib/cro-tower-ai'
+import { ASK_RULES, callCroModel, clientIp, rateLimit, stripEmDashes, trimCroFacts, plainLabel, PER_DAY, PER_MINUTE, WARM_PER_DAY } from '@/lib/cro-tower-ai'
 import { CRO_COOKIE, isCroUnlocked } from '@/lib/cro-auth'
 import { hasAnthropicKey } from '@/lib/ai'
 
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
   if (!hasAnthropicKey()) return json({ error: 'ANTHROPIC_API_KEY is not configured on the server' }, 503)
 
   const facts = trimCroFacts(data)
-  const user = `FACTS (Goolets web funnel, period "${data.meta.range.label}", ${data.meta.range.from} to ${data.meta.range.to}):\n\n${JSON.stringify(facts)}\n\nQUESTION: ${question}`
+  const user = `FACTS (Goolets web funnel, period "${plainLabel(data.meta.range.label)}", ${data.meta.range.from} to ${data.meta.range.to}):\n\n${JSON.stringify(facts)}\n\nQUESTION: ${question}`
   try {
     const out = await callCroModel(ASK_RULES, user)
     return json({

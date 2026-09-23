@@ -29,13 +29,16 @@ export function stripEmDashes(text: string): string {
 
 // ─── Facts ──────────────────────────────────────────────────────────────────
 
+/** Period labels carry an en dash ("Sep 1 – Sep 22"); stripEmDashes() would turn it into a comma. */
+export const plainLabel = (s: string) => s.replace(/\s*[–—]\s*/g, ' to ')
+
 /** The page's own numbers, minus plumbing (freshness internals, paid-block duplicates). */
 export function trimCroFacts(r: CroTowerResponse) {
   return {
     period: r.meta.period,
-    periodLabel: r.meta.range.label,
+    periodLabel: plainLabel(r.meta.range.label),
     range: { from: r.meta.range.from, to: r.meta.range.to },
-    previousPeriod: r.meta.prevRange ? { label: r.meta.prevRange.label, from: r.meta.prevRange.from, to: r.meta.prevRange.to } : null,
+    previousPeriod: r.meta.prevRange ? { label: plainLabel(r.meta.prevRange.label), from: r.meta.prevRange.from, to: r.meta.prevRange.to } : null,
     dataThrough: r.meta.yesterday,
     hero: {
       visitorToQlPct: r.hero.visitorToQlPct,
@@ -116,7 +119,9 @@ deltaPct the % change. null means "no data", never zero.
 1. LANGUAGE. Answer in the language of the question (Slovenian → Slovenian, English → English).
    Keep domain names, landing page paths and channel names exactly as in the facts.
 2. CITE NUMBERS AND THE PERIOD. Every point quotes the concrete numbers it rests on and names the
-   row (domain, channel or landing page). Name the period (periodLabel) at least once.
+   row (domain, channel or landing page). Name the period (periodLabel) at least once. Every
+   number in a bullet must belong to the row that bullet names: never put another row's number in
+   it. Re-check each number against the facts before you answer.
 3. RANK EXPLICITLY. Say by which metric you rank ("best visitor to QL rate", "most qualified
    leads"). Ignore rows with fewer than 200 visitors when ranking by a rate, and say so.
 4. NULLS. Write "n/a" and say what is missing. Never replace null with 0, never estimate, never

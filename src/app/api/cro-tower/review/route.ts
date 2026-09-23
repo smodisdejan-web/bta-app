@@ -6,7 +6,7 @@
 // warm instance). Auth: the `cro_unlock` cookie (middleware + re-check here).
 import { NextRequest, NextResponse } from 'next/server'
 import { buildCroTower, CRO_PERIODS } from '@/lib/cro-tower'
-import { REVIEW_RULES, callCroModel, parseReview, trimCroFacts, type ReviewItem } from '@/lib/cro-tower-ai'
+import { REVIEW_RULES, callCroModel, parseReview, trimCroFacts, plainLabel, type ReviewItem } from '@/lib/cro-tower-ai'
 import { CRO_COOKIE, isCroUnlocked } from '@/lib/cro-auth'
 import { hasAnthropicKey } from '@/lib/ai'
 
@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
     if (!p) {
       p = (async () => {
         const facts = trimCroFacts(data)
-        const user = `FACTS (Goolets web funnel, period "${data.meta.range.label}", ${data.meta.range.from} to ${data.meta.range.to}):\n\n${JSON.stringify(facts)}\n\nWrite the review now. JSON only.`
+        const user = `FACTS (Goolets web funnel, period "${plainLabel(data.meta.range.label)}", ${data.meta.range.from} to ${data.meta.range.to}):\n\n${JSON.stringify(facts)}\n\nWrite the review now. JSON only.`
         const out = await callCroModel(REVIEW_RULES, user, 6000)
         return { items: parseReview(out.text), period, range: data.meta.range, model: out.model, generatedAt: new Date().toISOString() }
       })()
