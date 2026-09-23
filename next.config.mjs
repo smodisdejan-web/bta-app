@@ -20,6 +20,7 @@ const nextConfig = {
   },
   outputFileTracingIncludes: {
     '/api/insights/**': ['./src/lib/knowledge/**/*.md'],
+    '/api/cro-tower/**': ['./src/lib/knowledge/**/*.md'],
   },
 };
 

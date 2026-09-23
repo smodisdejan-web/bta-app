@@ -1,0 +1,181 @@
+<header class="phead">
+  <div class="wrap">
+    <span class="mark">Goolets</span>
+    <span class="mark-div"></span>
+    <span class="mark-sub">Web Funnel &middot; CRO</span>
+    <span class="right">
+      <span class="livedot" id="liveDot"></span><span id="asOf">Loading&hellip;</span>
+      <button class="themebtn" id="refreshBtn" type="button" title="Rebuild from the sheets (about 40 s)">Refresh</button>
+      <button class="themebtn" id="themeBtn" type="button">Dark</button>
+    </span>
+  </div>
+</header>
+
+<main class="wrap">
+  <section id="webView" aria-label="Web funnel and CRO">
+
+    <div class="sec">
+      <div class="chips" role="group" aria-label="Period">
+        <button class="chip" type="button" data-p="week" aria-pressed="false">Week</button>
+        <button class="chip" type="button" data-p="month" aria-pressed="true">Month</button>
+        <button class="chip" type="button" data-p="m3" aria-pressed="false">3M</button>
+        <button class="chip" type="button" data-p="m6" aria-pressed="false">6M</button>
+        <button class="chip" type="button" data-p="ytd" aria-pressed="false">2026 YTD</button>
+        <select class="chip" id="monthSel" aria-label="Pick a month" title="Pick a full month"></select>
+      </div>
+      <div class="rangeline">Showing <b id="rangeNow">&hellip;</b> &middot; compared with <b id="rangePrev">&hellip;</b></div>
+      <div class="loaderr" id="loadErr" hidden></div>
+    </div>
+
+    <div id="content" aria-busy="true">
+    <!-- hero -->
+    <div class="card hero sec" style="margin-top:14px">
+      <div>
+        <div class="lab">Visitor &rarr; Qualified Lead CR</div>
+        <div class="bignum" id="heroVal"><span class="skel" style="width:160px;height:52px"></span></div>
+        <div class="herorow">
+          <span id="heroDelta"></span>
+          <span class="src" id="heroQL"></span>
+        </div>
+        <p class="formula"><b>Qualified Leads</b> (Streak AI&ge;50, excl. ASSET, all channels) &divide; <b>Visitors</b> (GA4 sessions, 4 main domains)</p>
+      </div>
+      <div class="sparkbox">
+        <div class="sparkhead"><span>V&rarr;QL CR trend</span><span id="sparkUnit"></span></div>
+        <div class="sparkwrap" id="sparkWrap">
+          <svg id="spark" viewBox="0 0 340 68" role="img" aria-label="Visitor to qualified lead conversion rate trend"></svg>
+          <div class="sptip" id="sparkTip"></div>
+        </div>
+        <div class="sparkfoot">
+          <span>Start <b id="sparkFirst"></b></span>
+          <span id="sparkRange"></span>
+          <span>Now <b id="sparkLast"></b></span>
+        </div>
+        <div class="heromets" id="heroMets"></div>
+      </div>
+    </div>
+
+    <!-- performance strip -->
+    <div class="sec">
+      <div class="sechead">
+        <h2 class="sectitle">Performance</h2>
+        <span class="secmeta">Paid channels &middot; bookings counted in their <b>close</b> month, not the inquiry month</span>
+      </div>
+      <div class="strip" id="strip"></div>
+    </div>
+
+    <!-- funnel -->
+    <div class="sec">
+      <div class="sechead">
+        <h2 class="sectitle">Web funnel</h2>
+        <span class="secmeta">4 main domains &middot; ship micro-sites reported separately</span>
+      </div>
+      <div class="card funnel" id="funnel"></div>
+      <ul class="fflags" id="fflags" aria-label="Notes on this period"></ul>
+    </div>
+
+    <!-- by domain -->
+    <div class="sec">
+      <div class="sechead">
+        <h2 class="sectitle">By domain</h2>
+        <span class="secmeta">GA4 <code>hostName</code> &middot; leads matched back by their first landing host</span>
+      </div>
+      <div class="card">
+        <div class="tscroll">
+          <table class="t" id="tblDomain">
+            <thead><tr>
+              <th>Domain</th><th>Visitors</th><th>Engaged</th><th>Inquiries</th><th>QL</th><th>V&rarr;QL CR</th><th>Bookings</th><th>RVC</th><th title="Change in V&rarr;QL CR vs the previous period">&Delta; CR vs prev</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <p class="tnote" id="domainNote"></p>
+      </div>
+    </div>
+
+    <!-- by channel -->
+    <div class="sec">
+      <div class="sechead">
+        <h2 class="sectitle">By acquisition channel</h2>
+        <span class="secmeta">11 channels from the Acquisition Channel Dashboard &middot; click a column head to sort</span>
+      </div>
+      <div class="card">
+        <div class="tscroll">
+          <table class="t" id="tblChannel">
+            <thead><tr>
+              <th>Channel</th>
+              <th class="sortable" data-k="v" aria-sort="descending">Visitors<span class="ar">&darr;</span></th>
+              <th class="sortable" data-k="i" aria-sort="none">Inquiries<span class="ar">&darr;</span></th>
+              <th class="sortable" data-k="q" aria-sort="none">QL<span class="ar">&darr;</span></th>
+              <th class="sortable" data-k="cr" aria-sort="none">V&rarr;QL CR<span class="ar">&darr;</span></th>
+              <th class="sortable" data-k="sp" aria-sort="none">Spend<span class="ar">&darr;</span></th>
+              <th class="sortable" data-k="bk" aria-sort="none">Bookings<span class="ar">&darr;</span></th>
+              <th class="sortable" data-k="rvc" aria-sort="none">RVC<span class="ar">&darr;</span></th>
+              <th class="sortable" data-k="epl" aria-sort="none">Earn / inquiry<span class="ar">&darr;</span></th>
+              <th class="sortable" data-k="roas" aria-sort="none">ROAS<span class="ar">&darr;</span></th>
+              <th title="Change in V&rarr;QL CR vs the previous period">&Delta; CR</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <p class="tnote" id="channelNote"></p>
+      </div>
+    </div>
+
+    <!-- landing pages -->
+    <div class="sec">
+      <div class="sechead">
+        <h2 class="sectitle">Domain &rarr; Landing page</h2>
+        <span class="secmeta">Top 8 entry pages by visitors</span>
+      </div>
+      <div class="card">
+        <div class="tscroll">
+          <table class="t" id="tblPage">
+            <thead><tr><th>Landing page</th><th>Visitors</th><th>Inquiries</th><th>QL</th><th>V&rarr;QL CR</th><th>Bookings</th><th>RVC</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <p class="tnote" id="pageNote"></p>
+        <p class="tnote" style="border-top:0; padding-top:2px">ASSET pages are excluded from QL by rule &mdash; the Streak AI score is not scored on that form, so the cell reads n/a rather than 0.</p>
+      </div>
+    </div>
+    </div>
+
+    <!-- panels -->
+    <div class="panels">
+      <section class="card panel" aria-label="AI funnel review">
+        <div class="phd">
+          <span class="eyebrow" style="color:var(--gold-ink)">Generated</span>
+          <h2 class="ptitle">AI funnel review</h2>
+        </div>
+        <div class="pbody">
+          <div class="review" id="review"></div>
+        </div>
+        <div class="pfoot" id="reviewFoot">Reviews only steps with data &middot; null steps are skipped</div>
+      </section>
+
+      <section class="card panel" aria-label="Ask the funnel">
+        <div class="phd">
+          <span class="eyebrow" style="color:var(--gold-ink)">Chat</span>
+          <h2 class="ptitle">Ask the funnel</h2>
+        </div>
+        <div class="pbody">
+          <div class="chat" id="chat" aria-live="polite"></div>
+          <div class="sugg" id="sugg"></div>
+          <form class="askrow" id="askForm">
+            <input id="askInput" type="text" autocomplete="off" maxlength="400" placeholder="Ask about a domain, channel or step&hellip;" aria-label="Ask the funnel a question">
+            <button type="submit" id="askBtn">Ask</button>
+          </form>
+        </div>
+        <div class="pfoot">Model: Claude Sonnet 5 &middot; answers only from the loaded funnel data for the selected period</div>
+      </section>
+    </div>
+
+  </section>
+
+  <div class="srcfoot" id="srcfoot">
+    <div><span class="k">Sources:</span> GA4 property <span class="k">311674241</span> split by <code>hostName</code> (sheet tab <code>ga4_host_lp</code>) &middot; HubSpot portal <span class="k">143360943</span> (website forms &rarr; inquiries, <code>hubspot_contacts_all</code>) &middot; Streak AI score &ge;50 for Qualified Leads (<code>streak_all</code>) &middot; Bookings / RVC and paid spend from the same feeds as the paid funnel (<code>bookings_api</code>, Meta + Google Ads API).</div>
+    <div id="exclLine"></div>
+    <div id="freshLine"></div>
+    <div class="warnline">&#9888; Consent Mode v2 not yet implemented &mdash; GA4 numbers will drop when it is enabled.</div>
+  </div>
+</main>

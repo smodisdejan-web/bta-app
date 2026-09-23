@@ -1,0 +1,20 @@
+/* ── additions for the live page (not in the demo) ── */
+body{margin:0; overflow-x:clip}
+.phead .wrap{height:auto; min-height:62px; flex-wrap:wrap; padding-block:10px; row-gap:6px}
+.phead .right{flex-wrap:wrap; justify-content:flex-end}
+.skel{display:block; background:linear-gradient(90deg,var(--surface-3),var(--line-soft),var(--surface-3)); background-size:200% 100%; animation:sk 1.2s infinite; border-radius:4px}
+.bignum .skel{display:inline-block}
+@keyframes sk{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.na{color:var(--muted); cursor:help}
+.fflags{list-style:none; margin:10px 2px 0; padding:0; font-size:11px; color:var(--muted); line-height:1.5}
+.fflags li{padding-left:14px; position:relative; margin-top:3px}
+.fflags li::before{content:'\00B7'; position:absolute; left:4px; color:var(--gold-ink); font-weight:700}
+tr.offrow td{color:var(--muted); font-style:italic}
+tr.offrow td:first-child{color:var(--ink-2)}
+#content.loading{opacity:.55; transition:opacity .2s}
+.loaderr{margin-top:10px; color:var(--bad); font-size:12px}
+.msg.a ul.ans{margin:0; padding-left:16px}
+.msg.a ul.ans li+li{margin-top:4px}
+.msg.a p{margin:0 0 4px}
+.askrow button:disabled{opacity:.5; cursor:wait}
+select.chip{appearance:auto; -webkit-appearance:auto; padding-right:8px}

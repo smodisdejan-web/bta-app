@@ -1,9 +1,39 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import { CRO_COOKIE, isCroUnlocked } from '@/lib/cro-auth'
 
 const AUTH_COOKIE = 'ai_unlock'
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+
+  // ── Web Funnel CRO tower: its OWN gate (cookie cro_unlock ← CRO_TOWER_PASSWORD), checked
+  // before everything else so the BTA ai_unlock gate never applies to it. The plain JSON
+  // /api/cro-tower stays public (like /api/funnel); the page and the AI routes under
+  // /api/cro-tower/* need the cookie. The unlock page + its POST are open.
+  if (pathname === '/cro-tower/unlock' || pathname === '/api/cro-tower/unlock') {
+    const res = NextResponse.next()
+    res.headers.set('Cache-Control', 'no-store')
+    return res
+  }
+  const croPage = pathname === '/cro-tower' || pathname.startsWith('/cro-tower/')
+  const croApi = pathname.startsWith('/api/cro-tower/')
+  if (croPage || croApi) {
+    if (!(await isCroUnlocked(request.cookies.get(CRO_COOKIE)?.value))) {
+      if (croApi) {
+        return NextResponse.json({ error: 'Unauthorized: unlock /cro-tower first' }, { status: 401, headers: { 'Cache-Control': 'no-store' } })
+      }
+      const url = request.nextUrl.clone()
+      url.pathname = '/cro-tower/unlock'
+      url.search = ''
+      url.searchParams.set('next', pathname)
+      const res = NextResponse.redirect(url)
+      res.headers.set('Cache-Control', 'no-store')
+      return res
+    }
+    const res = NextResponse.next()
+    res.headers.set('Cache-Control', 'no-store')
+    return res
+  }
 
   // Allowlist: public assets and the unlock/auth endpoints
   const isPublicAsset =
