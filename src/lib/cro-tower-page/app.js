@@ -41,6 +41,13 @@ function deltaCell(d){
 }
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const dl = s => MONTHS[Number(s.slice(5,7)) - 1] + ' ' + Number(s.slice(8,10));
+/* A 401 from the AI routes means the cro_unlock cookie is stale (password rotated): go to the
+   password page instead of rendering an error. Returns true when it redirected. */
+function authRedirect(res){
+  if (res.status !== 401) return false;
+  location.replace('/cro-tower/unlock?next=' + encodeURIComponent(location.pathname));
+  return true;
+}
 /* **bold** → <b>, after escaping */
 const md = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
 
@@ -334,7 +341,8 @@ async function loadReview(){
   $('reviewFoot').textContent = 'Generating the review for ' + (D ? D.meta.range.label : 'this period') + '…';
   try {
     const q = 'period=' + encodeURIComponent(cur) + (anchor ? '&anchor=' + encodeURIComponent(anchor) : '');
-    const res = await fetch('/api/cro-tower/review?' + q, {credentials:'same-origin'});
+    const res = await fetch('/api/cro-tower/review?' + q, {credentials:'same-origin', cache:'no-store'});
+    if (authRedirect(res)) return;
     const j = await res.json();
     if (my !== reviewSeq) return;
     if (!res.ok) throw new Error(j.error || res.statusText);
@@ -392,6 +400,7 @@ async function ask(q){
   try {
     const res = await fetch('/api/cro-tower/ask', {method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({question:q, period:cur, anchor:anchor || undefined})});
+    if (authRedirect(res)) return;
     const j = await res.json();
     if (!res.ok) throw new Error(j.error || res.statusText);
     a.h = answerHtml(j.answer || 'No answer.');
@@ -408,7 +417,7 @@ $('askForm').addEventListener('submit', e => {
 });
 function prewarm(){
   fetch('/api/cro-tower/ask', {method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({warm:true, period:cur, anchor:anchor || undefined})}).catch(() => {});
+    body: JSON.stringify({warm:true, period:cur, anchor:anchor || undefined})}).then(authRedirect).catch(() => {});
 }
 
 /* ── load + period switching ───────────────────────────────── */

@@ -12,7 +12,11 @@ export async function GET() {
   return new Response(CRO_TOWER_HTML, {
     headers: {
       'Content-Type': 'text/html; charset=utf-8',
-      'Cache-Control': 'no-store',
+      // no-store (+ legacy Pragma/Expires): after a password rotation a stale copy must never be
+      // shown; every load goes through middleware, which checks the cookie.
+      'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+      Pragma: 'no-cache',
+      Expires: '0',
       'X-Robots-Tag': 'noindex, nofollow',
     },
   })
