@@ -4,7 +4,7 @@ import { createContext, useContext, useState, useEffect, useMemo } from 'react'
 import useSWR, { mutate } from 'swr'
 import type { Campaign, Settings, TabData } from '../types'
 import { DEFAULT_WEB_APP_URL, getSheetsUrl } from '../config'
-import { fetchAllTabsData, getCampaigns } from '../sheetsData'
+import { getCampaigns } from '../sheetsData'
 
 export type SettingsContextType = {
   settings: Settings
@@ -32,21 +32,35 @@ const SettingsContext = createContext<SettingsContextType | undefined>(undefined
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<Settings>(defaultSettings)
 
-  // Wrapper to add timeout to fetchAllTabsData
-  const fetchWithTimeout = async (url: string): Promise<TabData> => {
+  /**
+   * The three legacy tabs (`daily`, `searchTerms`, `adGroups`) now come from /api/sheet-tabs.
+   *
+   * This provider sits in the ROOT LAYOUT, so calling fetchAllTabsData() here opened three
+   * Apps Script executions on every page of the app — including the Overview, which reads none
+   * of them. Apps Script allows ~30 at a time and these three take ~5 s together, so they were
+   * three of the eleven concurrent reads that made the Overview sit on its skeleton for minutes.
+   * The route returns the identical object (same fetch, same parsers) and is shared by the edge
+   * for 10 minutes, so nothing downstream changes except who pays for the round trip.
+   */
+  const fetchWithTimeout = async (_url: string): Promise<TabData> => {
     const timeoutMs = 60000 // 60 second timeout - give more time for slow APIs
     let timeoutId: NodeJS.Timeout | null = null
-    
+
     const timeoutPromise = new Promise<TabData>((_, reject) => {
       timeoutId = setTimeout(() => {
         console.warn('Data fetch timeout after 60 seconds')
         reject(new Error('Data fetch timeout after 60 seconds'))
       }, timeoutMs)
     })
-    
-    const fetchPromise = fetchAllTabsData(url).finally(() => {
-      if (timeoutId) clearTimeout(timeoutId)
-    })
+
+    const fetchPromise = fetch('/api/sheet-tabs')
+      .then((res) => {
+        if (!res.ok) throw new Error(`sheet-tabs ${res.status}`)
+        return res.json() as Promise<TabData>
+      })
+      .finally(() => {
+        if (timeoutId) clearTimeout(timeoutId)
+      })
     
     try {
       const result = await Promise.race([fetchPromise, timeoutPromise])

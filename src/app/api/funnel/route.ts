@@ -82,16 +82,28 @@ export const fetchCache = 'default-no-store'
 // ADDITIVE — two extra entries in steps[].channels (after google, before other) and two extra
 // meta.coverage keys. `all` totals now include their spend, leads and QL, which is the point.
 
-const headers = {
+// `public` + an explicit stale-while-revalidate window (2026-09-23): the module-level 15-minute
+// cache inside lib/business-funnel.ts only helps ONE warm lambda, so every new instance paid the
+// full Apps Script round trip again. The edge header shares one build across instances and
+// viewers. Numbers and the fail-loud behaviour are untouched — this only changes who re-reads.
+const CACHE_HEADER = 'public, s-maxage=600, stale-while-revalidate=1800'
+
+const baseHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  'Cache-Control': 's-maxage=900, stale-while-revalidate',
 }
+
+const headers = { ...baseHeaders, 'Cache-Control': CACHE_HEADER }
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
+  // ?nocache=1 — the same escape hatch /api/overview-data has. The in-memory funnel cache is not
+  // bypassed here (that would need a clear); this just stops the CDN handing back a shared copy.
+  const headers = searchParams.get('nocache') === '1'
+    ? { ...baseHeaders, 'Cache-Control': 'no-store' }
+    : { ...baseHeaders, 'Cache-Control': CACHE_HEADER }
   const rangeParam = (searchParams.get('range') || '').trim().toLowerCase()
   const campaign = (searchParams.get('campaign') || 'master').trim().toLowerCase()
   const channelParam = (searchParams.get('channel') || '').trim().toLowerCase()

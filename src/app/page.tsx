@@ -15,17 +15,25 @@ import {
   ChevronRight
 } from 'lucide-react'
 import { Pie, PieChart, ResponsiveContainer, Cell, Tooltip, Legend, ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid } from 'recharts'
-import { fetchFbEnriched, fetchTab, fetchBookings, BookingRecord, StreakLeadRow } from '@/lib/sheetsData'
+import { BookingRecord } from '@/lib/sheetsData'
 // ONE lead loader + ONE day rule + ONE channel rule, shared with /api/funnel and /api/freshness.
 // See lib/streak-leads.ts for why the Overview no longer reads `streak_sync` on its own.
 import {
-  fetchStreakLeadsUnion,
   filterStreakByDay,
   leadChannelOf,
   streakLeadDay,
   type PaidLeadChannel
 } from '@/lib/streak-leads'
-import { getSheetsUrl, SHEETS_TABS } from '@/lib/config'
+// ONE request instead of eight browser-to-Apps-Script tab reads plus /api/dashboard-totals.
+// See lib/overview-payload.ts and app/api/overview-data/route.ts for why.
+import type {
+  DailyRow,
+  FbSpendApiRow,
+  OverviewLeadRow,
+  OverviewPayload,
+  SheetTabMeta
+} from '@/lib/overview-payload'
+import { getSheetsUrl } from '@/lib/config'
 import { bookingChannelOf } from '@/lib/booking-channel'
 import { formatCurrency } from '@/lib/utils'
 import { AiAsk } from '@/components/overview/AiAsk'
@@ -62,20 +70,6 @@ type ChannelCardProps = {
   title: string
   icon: React.ReactNode
   metrics: ChannelMetric[]
-}
-
-type FbSpendApiRow = {
-  date: string
-  campaign: string
-  spend: number
-}
-
-type DailyRow = {
-  date: string
-  cost: number
-  clicks: number
-  conv: number
-  value: number
 }
 
 type SummaryData = {
@@ -126,7 +120,7 @@ type PaidChannel = PaidLeadChannel
  * yet (or a sync that stopped) must read as "no measurement". €0,00 next to real leads would say
  * "these leads were free", which is the freshness-contract lie in its purest form.
  */
-function flatChannelTotals(rows: DailyRow[], leads: StreakLeadRow[], bookings: BookingRecord[]) {
+function flatChannelTotals(rows: DailyRow[], leads: OverviewLeadRow[], bookings: BookingRecord[]) {
   const quality = leads.filter((l) => l.ai_score >= 50).length
   const spend = rows.length ? rows.reduce((sum, r) => sum + (r.cost || 0), 0) : null
   const platformLeads = rows.length ? Math.round(rows.reduce((sum, r) => sum + (r.conv || 0), 0)) : null
@@ -204,10 +198,14 @@ export default function HomePage() {
   // time. The old two-state split (`platform === 'facebook'` / `=== 'google'`) silently threw
   // away every row carrying any other platform value, so this page could not even in principle
   // agree with /api/funnel's master lead count, which counts every paid Streak row.
-  const [streakLeads, setStreakLeads] = useState<StreakLeadRow[]>([])
+  const [streakLeads, setStreakLeads] = useState<OverviewLeadRow[]>([])
   const [aiBullets, setAiBullets] = useState<string[]>([])
   const [prefill, setPrefill] = useState('')
   const [apiTotals, setApiTotals] = useState<any>(null)
+  /** Per-tab provenance from /api/overview-data — which feed was read, when, and what failed. */
+  const [feedMeta, setFeedMeta] = useState<Record<string, SheetTabMeta>>({})
+  /** Bumped by the Refresh button; a non-zero value asks the route for ?nocache=1. */
+  const [refreshTick, setRefreshTick] = useState(0)
 
   const dateBounds = useMemo(() => computeDateBounds(range), [range])
   const days = useMemo(() => {
@@ -215,53 +213,49 @@ export default function HomePage() {
     return Math.max(1, Math.round(ms / 86_400_000) + 1)
   }, [dateBounds])
 
-  // Fetch combined totals from API when range changes
-  useEffect(() => {
-    const startISO = toLocalISODate(dateBounds.start)
-    const endISO = toLocalISODate(dateBounds.end)
-    fetch(`/api/dashboard-totals?start=${startISO}&end=${endISO}`)
-      .then((res) => res.json())
-      .then((data) => setApiTotals(data))
-      .catch((e) => console.error('API totals fetch failed', e))
-  }, [dateBounds])
-
+  /**
+   * ONE request for every feed on this page.
+   *
+   * BEFORE (until 2026-09-23) the browser opened eight `?tab=` requests straight at the Apps
+   * Script web app (daily_api, fb_ads_enriched, streak_full, streak_sync, bookings_api,
+   * fb_ads_api, bing_ads_api, chatgpt_ads_api) and, in a second effect, /api/dashboard-totals —
+   * which re-reads four of those same tabs. Apps Script runs ~30 executions at a time and a fat
+   * tab takes 3-40 s, so two people on the page queued behind each other and the skeleton stayed
+   * up for 50-150 s. The data moves once a day (/gm), Meta roughly weekly.
+   *
+   * AFTER: /api/overview-data reads every tab on the server through the shared 10-minute tab
+   * cache and answers with `s-maxage=600`, so the edge hands one build to everyone. The page
+   * still computes every number itself, from the same rows, with the same mappers.
+   *
+   * NULL STAYS NULL. A feed the route could not read arrives as `null`, not `[]`. Each `?? []`
+   * below therefore lands in exactly the coverage guard that already existed
+   * (fbEnrichedCoversWindow, googleFeedCoversWindow, bookingsFeedState, flatChannelTotals), which
+   * renders n/a. A dead feed must never reach the screen as a measured zero.
+   */
   useEffect(() => {
     const load = async () => {
       setLoading(true)
       setError(null)
       try {
-        const sheetUrl = getSheetsUrl()
-        // A flat-channel tab that does not exist yet answers with the Apps Script error body and
-        // would reject the whole Promise.all, blanking the entire Overview. Catch per tab: the
-        // channel renders n/a (no rows = no measurement), every other channel is unaffected.
-        const emptyTab = () => ({ headers: [] as string[], rows: [] as any[][] })
-        const [{ headers: dailyHeaders, rows: dailyRows }, fbRows, streakAll, bookingRows, fbApi, bingTab, chatgptTab] =
-          await Promise.all([
-            fetchTab('daily_api', sheetUrl), // CUTOVER 2026-06-15: Google Ads API (was Mixed Analytics 'daily')
-            fetchFbEnriched(fetchFbEnrichedSheet, sheetUrl),
-            // streak_full ∪ streak_sync, the SAME set /api/funnel counts. Reading streak_sync
-            // alone (what this call used to do) missed every box the Zapier feed had not
-            // pushed yet: on 21.9. that was 2 Meta leads, so this page printed 997 Meta leads
-            // while the funnel page printed 999 for the identical window.
-            fetchStreakLeadsUnion(fetchFbEnrichedSheet, sheetUrl),
-            fetchBookings(fetchFbEnrichedSheet),
-            // FB spend straight from Meta (code/facebook/sync-fb-ads-api.js). Read on the CLIENT,
-            // not via /api/dashboard-totals: that route re-fetches the same Apps Script web app
-            // while these four calls are in flight, hits the Apps Script concurrency limit and
-            // hangs for minutes, so `apiTotals` stays null and FB spend silently fell back to the
-            // dead `fb_ads_enriched` column -> EUR 0 for September. See 2026-09-08 diagnosis.
-            fetchTab(SHEETS_TABS.FB_SPEND_DAILY, sheetUrl),
-            fetchTab(SHEETS_TABS.BING_DAILY, sheetUrl).catch(emptyTab),
-            fetchTab(SHEETS_TABS.CHATGPT_DAILY, sheetUrl).catch(emptyTab)
-          ])
+        const startISO = toLocalISODate(dateBounds.start)
+        const endISO = toLocalISODate(dateBounds.end)
+        const qs = new URLSearchParams({ start: startISO, end: endISO })
+        if (refreshTick > 0) qs.set('nocache', '1')
+        const res = await fetch(`/api/overview-data?${qs.toString()}`, {
+          cache: refreshTick > 0 ? 'no-store' : 'default'
+        })
+        if (!res.ok) throw new Error(`overview-data ${res.status}`)
+        const data: OverviewPayload = await res.json()
 
-        setFbEnriched(fbRows || [])
-        setStreakLeads(streakAll || [])
-        setBookings(bookingRows || [])
-        setGoogleDaily(mapDailyRows(dailyHeaders, dailyRows))
-        setFbSpendApi(mapFbSpendApiRows(fbApi?.headers || [], fbApi?.rows || []))
-        setBingDaily(mapDailyRows(bingTab?.headers || [], bingTab?.rows || []))
-        setChatgptDaily(mapDailyRows(chatgptTab?.headers || [], chatgptTab?.rows || []))
+        setFeedMeta(data.meta || {})
+        setFbEnriched(data.fbEnriched ?? [])
+        setStreakLeads(data.streakLeads ?? [])
+        setBookings(data.bookings ?? [])
+        setGoogleDaily(data.google ?? [])
+        setFbSpendApi(data.fbSpendApi ?? [])
+        setBingDaily(data.bing ?? [])
+        setChatgptDaily(data.chatgpt ?? [])
+        setApiTotals(data.apiTotals ?? null)
       } catch (e) {
         console.error('Failed to load overview data', e)
         setError('Failed to load data')
@@ -270,11 +264,13 @@ export default function HomePage() {
       }
     }
     load()
-  }, [days])
+  }, [dateBounds, refreshTick])
 
-  const fetchFbEnrichedSheet = async ({ sheetUrl, tab }: { sheetUrl: string; tab: string }) => {
-    return fetchTab(tab, sheetUrl).then((res) => [res.headers, ...res.rows])
-  }
+  /** Which feeds the route could not read at all. Logged so a null never passes silently. */
+  useEffect(() => {
+    const dead = Object.values(feedMeta).filter((m) => m?.error)
+    if (dead.length) console.warn('[bta] feeds unavailable', dead.map((m) => `${m.tab}: ${m.error}`))
+  }, [feedMeta])
 
   const monthRangeLabel = useMemo(() => {
     const { start, end } = dateBounds
@@ -365,8 +361,8 @@ export default function HomePage() {
   const leadsBingFiltered = useMemo(() => leadsFiltered.filter((l) => leadChannelOf(l) === 'bing'), [leadsFiltered])
   const leadsChatgptFiltered = useMemo(() => leadsFiltered.filter((l) => leadChannelOf(l) === 'chatgpt'), [leadsFiltered])
 
-  const qualityCount = (list: StreakLeadRow[]) => list.filter((l) => l.ai_score >= 50).length
-  const avgAiScore = (list: StreakLeadRow[]) => {
+  const qualityCount = (list: OverviewLeadRow[]) => list.filter((l) => l.ai_score >= 50).length
+  const avgAiScore = (list: OverviewLeadRow[]) => {
     const scores = list.map((l) => l.ai_score).filter((s) => s > 0)
     if (!scores.length) return 0
     return Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 10) / 10
@@ -1053,7 +1049,11 @@ export default function HomePage() {
               size="icon"
               className="border-[#e1d8c7] bg-white text-gray-700 hover:bg-[#f2ede3]"
               aria-label="Refresh data"
-              onClick={() => setRange(range)}
+              // setRange(range) was a no-op: React bails out on an identical state value, so this
+              // button never refreshed anything. It now asks /api/overview-data for ?nocache=1,
+              // which bypasses the server tab cache AND the edge copy.
+              onClick={() => setRefreshTick((t) => t + 1)}
+              disabled={loading}
             >
               <RefreshCw className="h-4 w-4" />
             </Button>
@@ -1610,42 +1610,6 @@ export default function HomePage() {
                     </div>
                 </div>
   )
-}
-
-function mapDailyRows(headers: string[], rows: any[][]): DailyRow[] {
-  if (!headers?.length || !rows?.length) return []
-  const norm = (s: any) => String(s || '').trim().toLowerCase()
-  const col = (name: string) => headers.findIndex((h) => norm(h) === name)
-  const idx = {
-    date: col('date') !== -1 ? col('date') : col('day'),
-    cost: col('cost'),
-    clicks: col('clicks'),
-    conv: col('conv'),
-    value: col('value')
-  }
-  return rows.map((r) => ({
-    date: String(r[idx.date] || ''),
-    cost: Number(r[idx.cost]) || 0,
-    clicks: Number(r[idx.clicks]) || 0,
-    conv: Number(r[idx.conv]) || 0,
-    value: Number(r[idx.value]) || 0
-  }))
-}
-
-/** Rows of the `fb_ads_api` tab: one (date, campaign, spend) triple straight from Meta. */
-function mapFbSpendApiRows(headers: string[], rows: any[][]): FbSpendApiRow[] {
-  if (!headers?.length || !rows?.length) return []
-  const norm = (v: any) => String(v || '').trim().toLowerCase()
-  const col = (name: string) => headers.findIndex((h) => norm(h) === name)
-  const idx = { date: col('date'), campaign: col('campaign'), spend: col('spend') }
-  if (idx.date === -1 || idx.spend === -1) return []
-  return rows
-    .map((r) => ({
-      date: String(r[idx.date] || '').slice(0, 10),
-      campaign: idx.campaign === -1 ? '' : String(r[idx.campaign] || ''),
-      spend: Number(r[idx.spend]) || 0
-    }))
-    .filter((r) => /^\d{4}-\d{2}-\d{2}$/.test(r.date))
 }
 
 /** ISO date of the Monday starting this date's local week. */

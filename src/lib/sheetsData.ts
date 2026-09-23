@@ -1635,6 +1635,20 @@ const SHEET_CACHE_TTL_MS = () => {
 const isServer = () => typeof window === 'undefined'
 
 type SheetCacheEntry = { at: number; data: any }
+
+/** How a tab read was answered: straight from Apps Script, from the TTL cache, or a stale copy
+ *  served because the refresh failed. */
+export type SheetServedFrom = 'fresh' | 'cache' | 'stale'
+
+/** Per-tab provenance carried alongside the rows, so a caller can tell "no rows" from "no read". */
+export type SheetTabMeta = {
+  tab: string
+  /** Data rows (header excluded). null = the tab could not be read at all. */
+  rows: number | null
+  fetchedAt: string | null
+  servedFrom: SheetServedFrom | null
+  error: string | null
+}
 const sheetCache = new Map<string, SheetCacheEntry>()
 const sheetInflight = new Map<string, Promise<any>>()
 
@@ -1644,32 +1658,75 @@ export function clearSheetCache() {
   sheetInflight.clear()
 }
 
+// ─── Apps Script retry policy (shared with business-funnel.fetchRows) ───────
+//
+// WHY THESE NUMBERS (2026-09-23). At 08:13 /api/insights/funnel-ask died with a 500 carrying
+// `fb_ads_api: 404 Not Found`. Apps Script had answered HTTP 404 for a tab that exists — a
+// transient Google flake under load; ten minutes later the same tab answered 200 in 3 s. The old
+// loop was 3 attempts at 400/800/1200 ms, i.e. the whole retry budget was 2,4 s, far short of a
+// wobble that lasts seconds. Four attempts at 1 s / 3 s / 6 s (±20 % jitter, so a fleet of
+// lambdas does not re-hit the same 30-execution limit in lockstep) spans ~10 s instead.
+//
+// WHAT IS RETRIED: network errors, HTTP 404 / 408 / 429 / 5xx, and a body that is not JSON
+// (Apps Script serves an HTML error page under some failures). Any other status fails at once.
+//
+// WHAT IS NOT: an Apps Script `{"error": …}` JSON body. That is a real answer about a real
+// problem — a missing or renamed tab — and retrying it only delays the loud failure the
+// freshness contract wants. It is returned as-is; fetchTabJson() refuses to cache it and
+// fetchTabWithMeta() turns it into a null with the error attached.
+const RETRY_BACKOFF_MS = [1000, 3000, 6000]
+const RETRY_STATUS = new Set([404, 408, 429])
+
+const retriableStatus = (status: number) => RETRY_STATUS.has(status) || status >= 500
+
+/** Backoff with ±20 % jitter so parallel readers do not retry in lockstep. */
+const jittered = (ms: number) => Math.round(ms * (0.8 + Math.random() * 0.4))
+
 /** Raw Apps Script body for one tab, with retry. No normalisation, no caching. */
 async function fetchTabBody(sheetUrl: string, tab: string, signal?: AbortSignal): Promise<any> {
   const url = `${sheetUrl}?tab=${encodeURIComponent(tab)}`
-  let response: Response | null = null
   let lastErr: unknown = null
-  for (let attempt = 0; attempt < 3; attempt++) {
+  const attempts = RETRY_BACKOFF_MS.length + 1
+
+  for (let attempt = 0; attempt < attempts; attempt++) {
     if (signal?.aborted) break
+    let reason = ''
+    // Set before throwing anything that must NOT be retried. A network error leaves it false.
+    let fatal = false
     try {
-      response = await fetch(url, { cache: 'no-store', next: { revalidate: 0 }, signal })
-      if (response.ok) break
-      lastErr = new Error(`Failed to fetch ${tab}: ${response.status} ${response.statusText}`)
+      const response = await fetch(url, { cache: 'no-store', next: { revalidate: 0 }, signal })
+      if (!response.ok) {
+        lastErr = new Error(`Failed to fetch ${tab}: ${response.status} ${response.statusText}`)
+        // 401/403 and friends will not fix themselves — fail now instead of in 10 seconds.
+        if (!retriableStatus(response.status)) { fatal = true; throw lastErr }
+        reason = `HTTP ${response.status}`
+      } else {
+        try {
+          // A parsed body — including an Apps Script {"error": …} — is the final answer.
+          return await response.json()
+        } catch (e) {
+          reason = `non-JSON body (${(e as Error).message})`
+          lastErr = new Error(`Failed to fetch ${tab}: ${reason}`)
+        }
+      }
     } catch (e) {
+      if (fatal) throw e
       lastErr = e
+      reason = reason || (e as Error).message || String(e)
     }
-    response = null
+
     // Do not burn the caller's deadline on backoff sleeps once the signal is gone.
     if (signal?.aborted) break
-    await new Promise((r) => setTimeout(r, 400 * (attempt + 1)))
+    const wait = RETRY_BACKOFF_MS[attempt]
+    if (wait == null) break
+    console.warn(`[sheet] retry ${attempt + 1}/${RETRY_BACKOFF_MS.length} ${tab}: ${reason} — waiting ${wait} ms`)
+    await new Promise((r) => setTimeout(r, jittered(wait)))
   }
-  if (signal?.aborted && !response) {
-    throw (lastErr instanceof Error ? lastErr : new Error(`Aborted fetching ${tab}`))
+
+  if (signal?.aborted && !lastErr) {
+    throw new Error(`Aborted fetching ${tab}`)
   }
-  if (!response) {
-    throw (lastErr instanceof Error ? lastErr : new Error(`Failed to fetch ${tab}`))
-  }
-  return response.json()
+  throw (lastErr instanceof Error ? lastErr : new Error(`Failed to fetch ${tab}`))
 }
 
 /**
@@ -1677,13 +1734,16 @@ async function fetchTabBody(sheetUrl: string, tab: string, signal?: AbortSignal)
  * sent it; fetchSheet() and fetchTab() each normalise it their own way and keep their own
  * error contract (fetchSheet throws, fetchTab returns empty).
  */
-async function fetchTabJson(
+async function fetchTabJsonMeta(
   sheetUrl: string,
   tab: string,
   opts: { signal?: AbortSignal; bypassCache?: boolean } = {}
-): Promise<any> {
+): Promise<{ data: any; servedFrom: SheetServedFrom; fetchedAt: string }> {
   const { signal, bypassCache } = opts
-  if (!isServer()) return fetchTabBody(sheetUrl, tab, signal)
+  if (!isServer()) {
+    const data = await fetchTabBody(sheetUrl, tab, signal)
+    return { data, servedFrom: 'fresh', fetchedAt: new Date().toISOString() }
+  }
 
   const key = `${sheetUrl}|${tab}`
   const hit = sheetCache.get(key)
@@ -1691,15 +1751,16 @@ async function fetchTabJson(
 
   if (fresh && !bypassCache) {
     console.log(`[sheet-cache] HIT ${tab}`)
-    return hit!.data
+    return { data: hit!.data, servedFrom: 'cache', fetchedAt: new Date(hit!.at).toISOString() }
   }
 
   // A call with its own deadline never joins or publishes a shared promise.
   if (signal) {
     console.log(`[sheet-cache] MISS ${tab} (signal, unshared)`)
     const data = await fetchTabBody(sheetUrl, tab, signal)
-    if (Array.isArray(data)) sheetCache.set(key, { at: Date.now(), data })
-    return data
+    const at = Date.now()
+    if (Array.isArray(data)) sheetCache.set(key, { at, data })
+    return { data, servedFrom: 'fresh', fetchedAt: new Date(at).toISOString() }
   }
 
   const running = sheetInflight.get(key)
@@ -1715,21 +1776,73 @@ async function fetchTabJson(
       // object body. Caching that would freeze a broken feed in place for 10 minutes, which is
       // the cached-emptiness failure this whole layer is supposed to prevent. Only real row
       // arrays are cached; an error body is returned once and re-asked next time.
-      if (Array.isArray(data)) sheetCache.set(key, { at: Date.now(), data })
+      const at = Date.now()
+      if (Array.isArray(data)) sheetCache.set(key, { at, data })
       else console.warn(`[sheet-cache] NOSTORE ${tab} (non-array body)`)
       sheetInflight.delete(key)
-      return data
+      return { data, servedFrom: 'fresh' as SheetServedFrom, fetchedAt: new Date(at).toISOString() }
     })
     .catch((e) => {
       sheetInflight.delete(key)
       if (hit) {
         console.warn(`[sheet-cache] STALE ${tab} (refresh failed: ${(e as Error).message})`)
-        return hit.data
+        return { data: hit.data, servedFrom: 'stale' as SheetServedFrom, fetchedAt: new Date(hit.at).toISOString() }
       }
       throw e
     })
   sheetInflight.set(key, p)
   return p
+}
+
+/** Back-compat wrapper: the parsed body only, exactly as every existing caller expects. */
+async function fetchTabJson(
+  sheetUrl: string,
+  tab: string,
+  opts: { signal?: AbortSignal; bypassCache?: boolean } = {}
+): Promise<any> {
+  return (await fetchTabJsonMeta(sheetUrl, tab, opts)).data
+}
+
+/**
+ * One tab, normalised to [headers, ...rows] EXACTLY as fetchSheet() does, plus how it was
+ * served. Added 2026-09-23 for /api/overview-data.
+ *
+ * THE CONTRACT: `sheet` is null whenever there is no measurement — a throw with no stale copy,
+ * or the Apps Script `{"error": …}` body (a 200 with an object, which fetchTab() turns into an
+ * empty array and the caller then cannot tell apart from "this tab is genuinely empty"). A
+ * caller that receives null must render n/a, never 0. See the 2026-09-14 Google EUR 0 incident.
+ */
+export async function fetchTabWithMeta(
+  tabName: string,
+  sheetUrl?: string,
+  opts: { bypassCache?: boolean } = {}
+): Promise<{ sheet: any[][] | null; meta: SheetTabMeta }> {
+  const url = sheetUrl || (typeof window !== 'undefined' ? getSheetsUrl() : undefined) || DEFAULT_WEB_APP_URL
+  const base: SheetTabMeta = { tab: tabName, rows: null, fetchedAt: null, servedFrom: null, error: null }
+
+  try {
+    const { data, servedFrom, fetchedAt } = await fetchTabJsonMeta(url, tabName, opts)
+
+    if (!Array.isArray(data)) {
+      const msg = String((data as any)?.error ?? 'non-array body').slice(0, 200)
+      return { sheet: null, meta: { ...base, servedFrom, fetchedAt, error: `${tabName}: ${msg}` } }
+    }
+
+    let sheet: any[][]
+    if (data.length > 0 && typeof data[0] === 'object' && !Array.isArray(data[0])) {
+      const headers = Object.keys(data[0])
+      sheet = [headers, ...data.map((row: any) => headers.map((h) => row[h]))]
+    } else {
+      sheet = data as any[][]
+    }
+
+    return {
+      sheet,
+      meta: { ...base, rows: Math.max(0, sheet.length - 1), fetchedAt, servedFrom, error: null }
+    }
+  } catch (error) {
+    return { sheet: null, meta: { ...base, error: (error as Error).message || String(error) } }
+  }
 }
 
 // Generic fetchSheet helper

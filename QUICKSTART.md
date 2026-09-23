@@ -149,6 +149,38 @@ The endpoint also needs `ANTHROPIC_API_KEY` (server-side, not the `NEXT_PUBLIC_`
 accepts requests whose `Origin` is `https://goolets-content-portal.vercel.app` or
 `http://localhost:*`. Values above are placeholders, never commit real ones.
 
+---
+
+## 🔑 Cache admin env var (`POST /api/cache/clear`)
+
+The Overview (`/api/overview-data`), the funnel (`/api/funnel`) and the legacy tab bundle
+(`/api/sheet-tabs`) read Google Sheets through a 10-15 minute server cache and a 10-minute edge
+cache. That is what keeps the dashboard fast, and it is exactly wrong for the minute right after
+`/gm` has rewritten the sheets. `POST /api/cache/clear` drops both server caches so the next read
+goes back to Apps Script.
+
+```
+# Shared secret the caller sends as the X-Admin-Token header.
+# Not set  -> the endpoint is OFF and answers 503.
+# Wrong    -> 401.
+CACHE_ADMIN_TOKEN=replace-with-a-long-random-string
+```
+
+Set it in `.env.local` for local work and in the Vercel project settings for production. The
+value above is a placeholder — never commit a real one. `code/goolets/refresh-mtd.sh` calls the
+endpoint at the end of a run, reading the token from `$CACHE_ADMIN_TOKEN` or from
+`~/.brain-secrets/goolets-cache-admin-token.txt`; with neither present it skips the step and the
+caches simply expire on their own.
+
+```bash
+curl -X POST -H "X-Admin-Token: $CACHE_ADMIN_TOKEN" \
+  https://gooletsaiagent.vercel.app/api/cache/clear
+```
+
+There is also a per-request escape hatch that needs no token: `?nocache=1` on
+`/api/overview-data`, `/api/funnel` and `/api/sheet-tabs` bypasses the caches for that one call
+and answers `Cache-Control: no-store`. The Overview's Refresh button uses it.
+
 ## 🎓 Next Steps
 
 Once you have AI insights working:

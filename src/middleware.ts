@@ -28,6 +28,7 @@ export function middleware(request: NextRequest) {
     '/api/dalmatincki-kpis', // CEO scoreboard — Last Minute Dalmatinčki funnel (same, cross-origin)
     '/api/live-ads', // Content Bank "Live in ads" badge — flat delivered-ads list (cross-origin)
     '/api/funnel', // Business Health Funnel — master + 6 campaign drill-downs (cross-origin)
+    '/api/cache', // POST /api/cache/clear — gated by the X-Admin-Token header, called by refresh-mtd.sh
     '/favicon.ico',
     '/branding',
     '/fonts'
@@ -37,10 +38,18 @@ export function middleware(request: NextRequest) {
     pathname === path || pathname.startsWith(path + '/')
   )
 
+  // Routes that own their Cache-Control. Stamping `no-store` over an `s-maxage` here is not a
+  // detail: it silently deletes the edge cache those routes exist for. /api/overview-data joined
+  // the list on 2026-09-23 — one shared 10-minute build per window is the entire point of it.
+  const ownsCacheControl =
+    pathname.startsWith('/api/funnel') ||
+    pathname.startsWith('/api/overview-data') ||
+    pathname.startsWith('/api/sheet-tabs')
+
   if (isPublicAsset || isPublicPath) {
     const res = NextResponse.next()
     // /api/funnel sets its own s-maxage so the CDN can absorb the portal's 7 calls per view.
-    if (!pathname.startsWith('/api/funnel')) res.headers.set('Cache-Control', 'no-store')
+    if (!ownsCacheControl) res.headers.set('Cache-Control', 'no-store')
     return res
   }
 
@@ -56,7 +65,7 @@ export function middleware(request: NextRequest) {
   }
 
   const res = NextResponse.next()
-  res.headers.set('Cache-Control', 'no-store')
+  if (!ownsCacheControl) res.headers.set('Cache-Control', 'no-store')
   return res
 }
 

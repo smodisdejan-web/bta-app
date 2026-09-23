@@ -102,7 +102,11 @@ export function unionStreakRows(full: StreakLeadRow[], sync: StreakLeadRow[]): S
 }
 
 /** Leads whose Ljubljana day falls inside [fromIso, toIso], both inclusive, both YYYY-MM-DD. */
-export function filterStreakByDay(rows: StreakLeadRow[], fromIso: string, toIso: string): StreakLeadRow[] {
+export function filterStreakByDay<T extends Pick<StreakLeadRow, 'inquiry_date'>>(
+  rows: T[],
+  fromIso: string,
+  toIso: string
+): T[] {
   return rows.filter((r) => {
     const d = streakLeadDay(r)
     return !!d && d >= fromIso && d <= toIso

@@ -515,44 +515,102 @@ async function cached<T>(key: string, fn: () => Promise<T>): Promise<T> {
   return p
 }
 
+/**
+ * Ops hook: drop this module's memoised tabs so the next funnel build re-reads Apps Script.
+ * Called by POST /api/cache/clear right after /gm has rewritten the sheets, so the dashboard
+ * does not sit on a 15-minute-old copy of data that just changed.
+ *
+ * Safe by construction: it only forgets. The fail-loud contract in fetchRows() (an Apps Script
+ * `{"error": …}` body throws instead of returning []) and the serve-stale behaviour in cached()
+ * are untouched — after a clear there simply is no stale copy to serve, so a failed read fails
+ * loudly, which is the behaviour this dashboard wants.
+ */
+export function clearFunnelCache() {
+  memo.clear()
+  inflight.clear()
+}
+
+// The SAME retry policy as lib/sheetsData.fetchTabBody — see the long note there for why 4
+// attempts at 1 s / 3 s / 6 s (±20 % jitter) and not 3 at 400/800/1200 ms. Short version: on
+// 2026-09-23 Apps Script answered HTTP 404 for `fb_ads_api`, a tab that exists, and the old
+// 2,4 s budget was not enough to ride it out — /api/insights/funnel-ask returned a 500.
+// Duplicated rather than imported on purpose: business-funnel.ts deliberately owns its own
+// reader so its fail-loud contract cannot be changed from under it by the other cache layer.
+const FUNNEL_RETRY_BACKOFF_MS = [1000, 3000, 6000]
+const FUNNEL_RETRY_STATUS = new Set([404, 408, 429])
+const funnelRetriable = (status: number) => FUNNEL_RETRY_STATUS.has(status) || status >= 500
+const funnelJitter = (ms: number) => Math.round(ms * (0.8 + Math.random() * 0.4))
+
 /** Fetch a tab as an array of objects. Handles both response shapes the web app emits. */
 async function fetchRows(tab: string): Promise<any[]> {
   const url = `${SHEET_URL()}?tab=${encodeURIComponent(tab)}`
   let lastErr: unknown = null
-  for (let attempt = 0; attempt < 3; attempt++) {
+  const attempts = FUNNEL_RETRY_BACKOFF_MS.length + 1
+
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    let reason = ''
+    // Set before throwing anything that must NOT be retried (a real answer, or a status that
+    // will never fix itself). A network error leaves it false and gets the backoff.
+    let fatal = false
     try {
       const res = await fetch(url, { cache: 'no-store', next: { revalidate: 0 } })
       if (!res.ok) {
         lastErr = new Error(`${tab}: ${res.status} ${res.statusText}`)
+        if (!funnelRetriable(res.status)) { fatal = true; throw lastErr }
+        reason = `HTTP ${res.status}`
       } else {
-        const data = await res.json()
-        // The Apps Script answers a bad/renamed tab with {"error": "..."} — a 200 with an
-        // object body. Returning [] for that is the silent-zero the freshness contract exists
-        // to prevent: an empty `google` coverage is skipped by the clipping loop, so the funnel
-        // would quietly report Meta-only impressions and spend as if they were the whole
-        // account (seen live 2026-09-09: 36,3M impressions and EUR 343k instead of 46,5M and
-        // EUR 490k, ROAS 5,58x instead of 3,92x). Fail loudly instead.
-        if (data && !Array.isArray(data) && typeof data === 'object') {
-          lastErr = new Error(`${tab}: ${String((data as any).error ?? JSON.stringify(data)).slice(0, 200)}`)
-          continue
+        let data: any
+        try {
+          data = await res.json()
+        } catch (e) {
+          // Apps Script serves an HTML error page under some failures. That is a flake, not an
+          // answer — retry it.
+          lastErr = new Error(`${tab}: non-JSON body (${(e as Error).message})`)
+          reason = 'non-JSON body'
+          data = undefined
         }
-        if (!Array.isArray(data) || data.length === 0) return []
-        if (Array.isArray(data[0])) {
-          const header = (data[0] as any[]).map((h) => String(h))
-          return (data as any[][]).slice(1).map((r) => {
-            const o: Record<string, any> = {}
-            header.forEach((h, i) => (o[h] = r[i]))
-            return o
-          })
+        if (data !== undefined) {
+          // The Apps Script answers a bad/renamed tab with {"error": "..."} — a 200 with an
+          // object body. Returning [] for that is the silent-zero the freshness contract exists
+          // to prevent: an empty `google` coverage is skipped by the clipping loop, so the funnel
+          // would quietly report Meta-only impressions and spend as if they were the whole
+          // account (seen live 2026-09-09: 36,3M impressions and EUR 343k instead of 46,5M and
+          // EUR 490k, ROAS 5,58x instead of 3,92x). Fail loudly instead — and IMMEDIATELY: this
+          // is a real answer about a real problem, so retrying it only delays the loud failure.
+          if (data && !Array.isArray(data) && typeof data === 'object') {
+            fatal = true
+            throw new Error(`${tab}: ${String((data as any).error ?? JSON.stringify(data)).slice(0, 200)}`)
+          }
+          if (!Array.isArray(data) || data.length === 0) return []
+          if (Array.isArray(data[0])) {
+            const header = (data[0] as any[]).map((h) => String(h))
+            return (data as any[][]).slice(1).map((r) => {
+              const o: Record<string, any> = {}
+              header.forEach((h, i) => (o[h] = r[i]))
+              return o
+            })
+          }
+          return data as any[]
         }
-        return data as any[]
       }
     } catch (e) {
+      if (fatal) throw e
       lastErr = e
+      reason = reason || (e as Error).message || String(e)
     }
-    await new Promise((r) => setTimeout(r, 400 * (attempt + 1)))
+
+    const wait = FUNNEL_RETRY_BACKOFF_MS[attempt]
+    if (wait == null) break
+    console.warn(`[funnel] retry ${attempt + 1}/${FUNNEL_RETRY_BACKOFF_MS.length} ${tab}: ${reason} — waiting ${wait} ms`)
+    await new Promise((r) => setTimeout(r, funnelJitter(wait)))
   }
   throw lastErr instanceof Error ? lastErr : new Error(`Failed to fetch ${tab}`)
+}
+
+/** Test hook for scripts/check-sheet-retry.ts — the raw tab reader, so the retry/fail-loud
+ *  policy above can be asserted against a mocked fetch. Not used by the app. */
+export function __fetchRowsForTests(tab: string): Promise<any[]> {
+  return fetchRows(tab)
 }
 
 /** Find a column key by regex across the whole row object (feeds use dotted API paths). */
