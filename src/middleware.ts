@@ -3,8 +3,27 @@ import { CRO_COOKIE, isCroUnlocked } from '@/lib/cro-auth'
 
 const AUTH_COOKIE = 'ai_unlock'
 
+// Clean alias for Tadej: on these hosts ONLY the CRO tower exists. /cro-tower*, /api/cro-tower*
+// and the page icon pass through; every other path (/, /overview, /api/funnel …) is rewritten to
+// /cro-tower, so no other BTA route is reachable there and nothing 404s. Redirects are built from
+// request.nextUrl, so they stay on the alias host. The cro_unlock cookie has no Domain attribute,
+// so it is simply scoped to whichever host set it.
+const CRO_ALIAS_HOSTS = new Set(['goolets-cro.vercel.app'])
+
 export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl
+  let { pathname } = request.nextUrl
+  const host = (request.headers.get('host') || '').toLowerCase().split(':')[0]
+  let croRewrite = false
+  if (CRO_ALIAS_HOSTS.has(host)) {
+    if (pathname === '/icon.svg' || pathname === '/favicon.ico') return NextResponse.next()
+    const croPath =
+      pathname === '/cro-tower' || pathname.startsWith('/cro-tower/') ||
+      pathname === '/api/cro-tower' || pathname.startsWith('/api/cro-tower/')
+    if (!croPath) {
+      pathname = '/cro-tower'
+      croRewrite = true
+    }
+  }
 
   // ── Web Funnel CRO tower: its OWN gate (cookie cro_unlock ← CRO_TOWER_PASSWORD), checked
   // before everything else so the BTA ai_unlock gate never applies to it. The plain JSON
@@ -30,7 +49,15 @@ export async function middleware(request: NextRequest) {
       res.headers.set('Cache-Control', 'no-store')
       return res
     }
-    const res = NextResponse.next()
+    let res: NextResponse
+    if (croRewrite) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/cro-tower'
+      url.search = ''
+      res = NextResponse.rewrite(url)
+    } else {
+      res = NextResponse.next()
+    }
     res.headers.set('Cache-Control', 'no-store')
     return res
   }
