@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
+import { getFunnel } from '@/lib/funnel-cache'
 import {
-  loadBusinessFunnel,
   resolveRange,
   CAMPAIGNS,
   RANGE_KEYS,
@@ -149,14 +149,13 @@ export async function GET(request: Request) {
   }
 
   try {
-    const data = await loadBusinessFunnel({
-      start: range.from,
-      end: range.to,
-      campaign,
-      channel,
-      range,
-    })
-    return NextResponse.json(data, { headers })
+    // Shared Data Cache (2026-09-24, lib/funnel-cache.ts): one build per from+to+campaign+channel
+    // for every instance and viewer; the 05:45 cron and cache/clear keep it warm. ?nocache=1
+    // forces a rebuild only when the cached build is older than an hour. meta.range is
+    // re-stamped with what THIS request asked for (the entry is shared across range names).
+    const data = await getFunnel({ range, campaign, channel }, searchParams.get('nocache') === '1')
+    const out = (data as any)?.meta?.range ? { ...data, meta: { ...(data as any).meta, range } } : data
+    return NextResponse.json(out, { headers })
   } catch (err) {
     console.error('[funnel] failed', err)
     return NextResponse.json(

@@ -87,6 +87,7 @@ export async function middleware(request: NextRequest) {
     '/api/funnel', // Business Health Funnel — master + 6 campaign drill-downs (cross-origin)
     '/api/cro-tower', // Web Funnel CRO tower for Tadej — portal "Web funnel · CRO" section (cross-origin)
     '/api/cache', // POST /api/cache/clear — gated by the X-Admin-Token header, called by refresh-mtd.sh
+    '/api/cron', // GET /api/cron/warm — Vercel cron (Bearer CRON_SECRET) or X-Admin-Token; sequential cache warm-up
     '/favicon.ico',
     '/branding',
     '/fonts'

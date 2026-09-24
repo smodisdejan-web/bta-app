@@ -463,7 +463,7 @@ async function load(nocache){
   $('content').setAttribute('aria-busy', 'true');
   $('content').classList.add('loading');
   $('loadErr').hidden = true;
-  if (nocache) $('asOf').textContent = 'Refreshing… (about 40 s)';
+  if (nocache) $('asOf').textContent = 'Refreshing… (up to a minute if the data is older than an hour)';
   try {
     const q = 'period=' + encodeURIComponent(cur) + (anchor ? '&anchor=' + encodeURIComponent(anchor) : '') + (nocache ? '&nocache=1' : '');
     const res = await fetch('/api/cro-tower?' + q, {credentials:'same-origin', cache: nocache ? 'no-store' : 'default'});
@@ -473,7 +473,16 @@ async function load(nocache){
     D = j;
     PRE.set(qKey, j);
     render();
+    if (nocache && j.meta && j.meta.refresh === 'fresh'){
+      // The server only rebuilds when the cached build is older than an hour (one build at a
+      // time keeps Apps Script alive); a younger build comes back as-is.
+      const mins = Math.max(0, Math.round((Date.now() - Date.parse(j.meta.generatedAt)) / 60000));
+      $('asOf').textContent += ' · built ' + mins + ' min ago, already fresh';
+    }
     loadReview();
+    // The "Ask the funnel" warm-up reads the same cached build, so it runs AFTER the data is
+    // here — never in parallel with a possible cold build (24.9.: parallel = Apps Script 404s).
+    prewarm();
     setTimeout(prefetchAll, 1500);
   } catch (e) {
     if (my !== reqSeq) return;
@@ -492,7 +501,7 @@ document.querySelectorAll('.chip[data-p]').forEach(c => {
     cur = c.dataset.p; anchor = '';
     $('monthSel').value = '';
     setChip(cur);
-    load(false); prewarm();
+    load(false);
   });
 });
 (function monthPicker(){
@@ -508,7 +517,7 @@ document.querySelectorAll('.chip[data-p]').forEach(c => {
     if (!sel.value) return;
     cur = 'month'; anchor = sel.value;
     setChip('');
-    load(false); prewarm();
+    load(false);
   });
 })();
 $('refreshBtn').addEventListener('click', () => load(true));
@@ -533,4 +542,3 @@ $('themeBtn').addEventListener('click', () => {
 
 renderChat();
 load(false);
-prewarm();
