@@ -8,7 +8,7 @@
     "currency": "EUR",
     "combinedFollowerBase": 32800000,
     "marketValue": "$300-500K",
-    "lastRefreshed": "2026-09-22T04:54:38.108Z",
+    "lastRefreshed": "2026-09-24T04:08:44.847Z",
     "modashCampaignId": "6a07a46318211e4bbdb25adf",
     "totalContentPieces": 60,
     "notes": "10 creators trackani v Modash (10 IG + Dobrik & Adam tudi YT = 12 channel entries). Jeff/Bruce/Suzy iz originalnega plana so OUT (niso v Modash campaign-u). Data ~47 od 60 items v Modash; 13 pending pull.",
@@ -1543,37 +1543,37 @@
         "channelId": "UCJi8ZtNRy07_IEaEew1-xgw",
         "source": "YouTube Analytics API",
         "current": 12700,
-        "asOf": "2026-09-22T04:54:34.693Z",
+        "asOf": "2026-09-23T04:37:31.846Z",
         "trip": {
           "startDate": "2026-05-12",
-          "endDate": "2026-09-22",
-          "days": 134,
-          "views": 2117304,
-          "subscribersGained": 437,
-          "subscribersLost": 187,
-          "netSubscribers": 250,
-          "minutesWatched": 788404,
+          "endDate": "2026-09-23",
+          "days": 135,
+          "views": 2132713,
+          "subscribersGained": 447,
+          "subscribersLost": 188,
+          "netSubscribers": 259,
+          "minutesWatched": 794646,
           "averageViewDuration": 47
         },
         "baseline": {
-          "startDate": "2025-12-29",
+          "startDate": "2025-12-28",
           "endDate": "2026-05-12",
-          "days": 134,
-          "views": 5022921,
+          "days": 135,
+          "views": 5031552,
           "subscribersGained": 174,
           "subscribersLost": 172,
           "netSubscribers": 2,
-          "minutesWatched": 1323354
+          "minutesWatched": 1325366
         },
         "deltas": {
-          "views": -2905617,
-          "subscribersGained": 263,
-          "netSubscribers": 248,
-          "minutesWatched": -534950
+          "views": -2898839,
+          "subscribersGained": 273,
+          "netSubscribers": 257,
+          "minutesWatched": -530720
         },
-        "tripDelta": 437,
-        "tripNetDelta": 250,
-        "tripLiftVsBaseline": 263,
+        "tripDelta": 447,
+        "tripNetDelta": 259,
+        "tripLiftVsBaseline": 273,
         "dailySeries": [
           {
             "date": "2026-05-12",
@@ -2473,14 +2473,14 @@
           },
           {
             "date": "2026-09-17",
-            "views": 7883,
+            "views": 7837,
             "subscribersGained": 2,
             "subscribersLost": 0,
             "netSubscribers": 2
           },
           {
             "date": "2026-09-18",
-            "views": 8238,
+            "views": 9793,
             "subscribersGained": 0,
             "subscribersLost": 3,
             "netSubscribers": -3
@@ -2491,69 +2491,76 @@
             "subscribersGained": 4,
             "subscribersLost": 2,
             "netSubscribers": 2
+          },
+          {
+            "date": "2026-09-20",
+            "views": 9094,
+            "subscribersGained": 9,
+            "subscribersLost": 1,
+            "netSubscribers": 8
           }
         ],
         "trafficSources": {
           "trip": [
             {
               "source": "ADVERTISING",
-              "views": 2027452,
-              "minutesWatched": 737045
+              "views": 2036870,
+              "minutesWatched": 740874
             },
             {
               "source": "SHORTS",
-              "views": 46509,
-              "minutesWatched": 5060
+              "views": 47315,
+              "minutesWatched": 5142
             },
             {
               "source": "EXT_URL",
-              "views": 14083,
-              "minutesWatched": 19143
+              "views": 14217,
+              "minutesWatched": 19306
             },
             {
               "source": "YT_SEARCH",
-              "views": 12957,
-              "minutesWatched": 9315
+              "views": 13085,
+              "minutesWatched": 9417
             },
             {
               "source": "SUBSCRIBER",
-              "views": 6922,
-              "minutesWatched": 4324
+              "views": 6954,
+              "minutesWatched": 4342
             },
             {
               "source": "NO_LINK_OTHER",
-              "views": 4913,
-              "minutesWatched": 7220
+              "views": 4940,
+              "minutesWatched": 7270
             },
             {
               "source": "YT_CHANNEL",
-              "views": 4048,
-              "minutesWatched": 2382
+              "views": 4082,
+              "minutesWatched": 2404
             },
             {
               "source": "RELATED_VIDEO",
-              "views": 1915,
-              "minutesWatched": 3701
+              "views": 1939,
+              "minutesWatched": 3745
             },
             {
               "source": "YT_OTHER_PAGE",
-              "views": 1008,
-              "minutesWatched": 711
+              "views": 1037,
+              "minutesWatched": 716
             },
             {
               "source": "NOTIFICATION",
-              "views": 855,
-              "minutesWatched": 369
+              "views": 866,
+              "minutesWatched": 372
             },
             {
               "source": "SOUND_PAGE",
-              "views": 558,
-              "minutesWatched": 54
+              "views": 562,
+              "minutesWatched": 55
             },
             {
               "source": "PLAYLIST",
-              "views": 539,
-              "minutesWatched": 830
+              "views": 541,
+              "minutesWatched": 833
             },
             {
               "source": "SHORTS_CONTENT_LINKS",
@@ -2579,48 +2586,48 @@
           "baseline": [
             {
               "source": "ADVERTISING",
-              "views": 4935474,
-              "minutesWatched": 1287911
+              "views": 4943699,
+              "minutesWatched": 1289652
             },
             {
               "source": "SHORTS",
-              "views": 57077,
-              "minutesWatched": 6004
+              "views": 57310,
+              "minutesWatched": 6032
             },
             {
               "source": "EXT_URL",
-              "views": 9327,
-              "minutesWatched": 11202
+              "views": 9372,
+              "minutesWatched": 11272
             },
             {
               "source": "YT_SEARCH",
-              "views": 7387,
-              "minutesWatched": 6459
+              "views": 7425,
+              "minutesWatched": 6499
             },
             {
               "source": "YT_CHANNEL",
-              "views": 4359,
-              "minutesWatched": 1865
+              "views": 4372,
+              "minutesWatched": 1870
             },
             {
               "source": "NO_LINK_OTHER",
-              "views": 3083,
-              "minutesWatched": 3993
+              "views": 3102,
+              "minutesWatched": 4044
             },
             {
               "source": "SUBSCRIBER",
-              "views": 2000,
-              "minutesWatched": 1726
+              "views": 2021,
+              "minutesWatched": 1753
             },
             {
               "source": "RELATED_VIDEO",
-              "views": 1278,
-              "minutesWatched": 2613
+              "views": 1311,
+              "minutesWatched": 2660
             },
             {
               "source": "YT_OTHER_PAGE",
-              "views": 888,
-              "minutesWatched": 504
+              "views": 891,
+              "minutesWatched": 505
             },
             {
               "source": "PLAYLIST",
@@ -2629,7 +2636,7 @@
             },
             {
               "source": "NOTIFICATION",
-              "views": 834,
+              "views": 835,
               "minutesWatched": 193
             },
             {
@@ -2673,9 +2680,9 @@
         "note": null
       },
       "halo": {
-        "organicTrip": 3257,
-        "organicBaseline": 2254,
-        "organicLift": 1003,
+        "organicTrip": 3283,
+        "organicBaseline": 2258,
+        "organicLift": 1025,
         "breakdown": [
           {
             "source": "AI_REFERRALS",
@@ -2686,29 +2693,29 @@
           },
           {
             "source": "DIRECT_TRAFFIC",
-            "trip": 1682,
-            "baseline": 1412,
-            "delta": 270,
+            "trip": 1702,
+            "baseline": 1414,
+            "delta": 288,
             "organic": true
           },
           {
             "source": "EMAIL_MARKETING",
-            "trip": 6,
+            "trip": 11,
             "baseline": 3,
-            "delta": 3,
+            "delta": 8,
             "organic": false
           },
           {
             "source": "OFFLINE",
-            "trip": 1460,
-            "baseline": 335,
-            "delta": 1125,
+            "trip": 1466,
+            "baseline": 337,
+            "delta": 1129,
             "organic": false
           },
           {
             "source": "ORGANIC_SEARCH",
-            "trip": 361,
-            "baseline": 206,
+            "trip": 362,
+            "baseline": 207,
             "delta": 155,
             "organic": true
           },
@@ -2721,119 +2728,119 @@
           },
           {
             "source": "PAID_SEARCH",
-            "trip": 1297,
-            "baseline": 374,
-            "delta": 923,
+            "trip": 1315,
+            "baseline": 375,
+            "delta": 940,
             "organic": false
           },
           {
             "source": "PAID_SOCIAL",
-            "trip": 6055,
-            "baseline": 2841,
-            "delta": 3214,
+            "trip": 6154,
+            "baseline": 2916,
+            "delta": 3238,
             "organic": false
           },
           {
             "source": "REFERRALS",
-            "trip": 5,
+            "trip": 6,
             "baseline": 7,
-            "delta": -2,
+            "delta": -1,
             "organic": true
           },
           {
             "source": "SOCIAL_MEDIA",
-            "trip": 899,
-            "baseline": 421,
-            "delta": 478,
+            "trip": 903,
+            "baseline": 422,
+            "delta": 481,
             "organic": true
           }
         ],
         "tripStart": "2026-05-12",
-        "baselineStart": "2025-12-29T00:00:00.000Z",
-        "tripDays": 134,
+        "baselineStart": "2025-12-27T00:00:00.000Z",
+        "tripDays": 136,
         "source": "HubSpot organic channels (ORGANIC_SEARCH + SOCIAL_MEDIA + DIRECT + REFERRALS + OTHER_CAMPAIGNS): trip vs equal pre-trip baseline. Paid social/search + offline excluded as Dobrik-unattributable."
       },
-      "asOf": "2026-09-22T04:54:38.108Z"
+      "asOf": "2026-09-24T04:08:44.847Z"
     },
     "visits": {
       "source": "GA4 (property 311674241) trip vs equal pre-trip baseline",
       "trip": {
         "startDate": "2026-05-12",
-        "endDate": "2026-09-22",
-        "sessions": 610285,
-        "users": 513014
+        "endDate": "2026-09-24",
+        "sessions": 624727,
+        "users": 524190
       },
       "baseline": {
-        "startDate": "2025-12-29",
+        "startDate": "2025-12-27",
         "endDate": "2026-05-11",
-        "sessions": 280056,
-        "users": 231609
+        "sessions": 281992,
+        "users": 233089
       },
-      "organicTrip": 151983,
-      "organicBaseline": 128670,
-      "organicLift": 23313,
+      "organicTrip": 154949,
+      "organicBaseline": 129903,
+      "organicLift": 25046,
       "breakdown": [
         {
           "category": "ORGANIC_SEARCH",
-          "trip": 53679,
-          "baseline": 40600,
-          "delta": 13079,
+          "trip": 54377,
+          "baseline": 41143,
+          "delta": 13234,
           "organic": true
         },
         {
           "category": "ORGANIC_SOCIAL",
-          "trip": 22905,
-          "baseline": 10096,
-          "delta": 12809,
+          "trip": 23143,
+          "baseline": 10167,
+          "delta": 12976,
           "organic": true
         },
         {
           "category": "DIRECT",
-          "trip": 72947,
-          "baseline": 74969,
-          "delta": -2022,
+          "trip": 74940,
+          "baseline": 75569,
+          "delta": -629,
           "organic": true
         },
         {
           "category": "OTHER_REFERRAL",
-          "trip": 2452,
-          "baseline": 3005,
-          "delta": -553,
+          "trip": 2489,
+          "baseline": 3024,
+          "delta": -535,
           "organic": true
         },
         {
           "category": "EMAIL",
-          "trip": 5731,
-          "baseline": 5594,
-          "delta": 137,
+          "trip": 5763,
+          "baseline": 5648,
+          "delta": 115,
           "organic": false
         },
         {
           "category": "PAID_SEARCH",
-          "trip": 58476,
-          "baseline": 23972,
-          "delta": 34504,
+          "trip": 59205,
+          "baseline": 24044,
+          "delta": 35161,
           "organic": false
         },
         {
           "category": "PAID_SOCIAL",
-          "trip": 368708,
-          "baseline": 111335,
-          "delta": 257373,
+          "trip": 378936,
+          "baseline": 111884,
+          "delta": 267052,
           "organic": false
         },
         {
           "category": "OTHER_PAID",
-          "trip": 1051,
-          "baseline": 466,
-          "delta": 585,
+          "trip": 1156,
+          "baseline": 469,
+          "delta": 687,
           "organic": false
         },
         {
           "category": "OTHER",
-          "trip": 24336,
-          "baseline": 10019,
-          "delta": 14317,
+          "trip": 24718,
+          "baseline": 10044,
+          "delta": 14674,
           "organic": false
         }
       ],
@@ -3500,16 +3507,26 @@
         },
         {
           "date": "20260921",
-          "sessions": 6649,
+          "sessions": 6659,
           "users": 6375
         },
         {
           "date": "20260922",
-          "sessions": 765,
-          "users": 754
+          "sessions": 6362,
+          "users": 5889
+        },
+        {
+          "date": "20260923",
+          "sessions": 6298,
+          "users": 5863
+        },
+        {
+          "date": "20260924",
+          "sessions": 743,
+          "users": 736
         }
       ],
-      "asOf": "2026-09-22T04:54:38.066Z"
+      "asOf": "2026-09-24T04:08:44.808Z"
     },
     "dobrikLandingPage": {
       "path": "/dobrik-smart-yachting-croatia",

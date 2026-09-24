@@ -1,0 +1,15 @@
+ALE-001 — Alessandro I: Smarter Way vs Discount Angle - LP
+Predpostavka: test bo v vrstici 8 (J8 = Start Date). Če je druga vrstica, zamenjaj J8 → Jn.
+
+=============================================================
+KPI A (Smarter Way) — prilepi v stolpec KPI A, vrstica 8
+=============================================================
+
+=IFERROR(SUMPRODUCT((fb_ads_enriched!A2:A1600="Alessandro I - The Smarter Way - CBO - New")*(fb_ads_enriched!C2:C1600>=J8)*(fb_ads_enriched!D2:D1600<1000)*(fb_ads_enriched!D2:D1600+0))/SUMPRODUCT((LEFT(streak_sync!B2:B5000;18)="alessandro_smarter")*(streak_sync!C2:C5000>=50)*(streak_sync!A2:A5000>=J8));"")
+
+
+=============================================================
+KPI B (Discount LP) — prilepi v stolpec KPI B, vrstica 8
+=============================================================
+
+=IFERROR(SUMPRODUCT((fb_ads_enriched!A2:A1600="Alessandro I Discount - CBO - New")*(fb_ads_enriched!C2:C1600>=J8)*(fb_ads_enriched!D2:D1600<1000)*(fb_ads_enriched!D2:D1600+0))/SUMPRODUCT((LEFT(streak_sync!B2:B5000;15)="alessandro_tier")*(streak_sync!C2:C5000>=50)*(streak_sync!A2:A5000>=J8));"")
