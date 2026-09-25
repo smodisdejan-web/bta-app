@@ -64,6 +64,9 @@ export const SHEETS_TABS = {
   // so their spend must never reach adSlug()/orphanSpend or it would break umbrellas + unattributed = master.
   BING_DAILY: 'bing_ads_api', // Microsoft Advertising, live 2026-09-04 (12-week test)
   CHATGPT_DAILY: 'chatgpt_ads_api', // OpenAI Ads Manager, oCPC campaign live 2026-09-14
+  // 2026-09-25: HubSpot paid contacts per (day, channel) + misrouted ChatGPT/Bing leads
+  // (code/hubspot/sync-goolets-paid-reconcile.js). /api/freshness compares it to Streak.
+  LEAD_RECONCILE: 'lead_reconcile',
 } as const
 
 // Sheets URL configuration with fallback support

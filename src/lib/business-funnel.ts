@@ -973,9 +973,11 @@ async function loadStreak(): Promise<{ rows: LeadRow[]; coverage: Coverage }> {
     const sync = parse(syncRaw)
     if (!full.rows.length) return sync
     if (!sync.rows.length) return full
-    const rows = full.rows.concat(
-      sync.rows.filter((r) => r.day < full.coverage.min || r.day > full.coverage.max)
-    )
+    // streak_full's last day is partial (the scan stops mid-day) — it comes from streak_sync.
+    // Same rule as unionStreakRows() in lib/streak-leads.ts; see the measurement there.
+    const rows = full.rows
+      .filter((r) => r.day < full.coverage.max)
+      .concat(sync.rows.filter((r) => r.day < full.coverage.min || r.day >= full.coverage.max))
     return { rows, coverage: coverageOf(rows.map((r) => r.day)) }
   })
 }

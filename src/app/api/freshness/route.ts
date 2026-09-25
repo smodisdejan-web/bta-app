@@ -455,6 +455,112 @@ export async function GET(request: Request) {
     totalCrmLeads = windowLeads.length
   }
 
+  // -- HubSpot ↔ Streak paid-lead reconcile + channel misroutes (2026-09-25) --
+  //
+  // Streak boxes are CREATED by the HubSpot → Streak automation. When it stopped on 10. 9. 2026,
+  // leads silently went missing and every tile above stayed green, because they all read Streak.
+  // lead_reconcile holds HubSpot's own count (createdate + original source, paid only — measured
+  // 1.–23. 9.: meta 1129/1137, google 204/204, bing 9/9, chatgpt 4/4), so drift shows here.
+  // Compared days: today-8 … today-2. Today and yesterday are skipped: the automation lags.
+  // Also: a lead that came from ChatGPT / Bing but is counted under another channel (a campaign
+  // whose utm_campaign lacks the `chatgpt` / `ms - ` prefix) is red — its CPQL lands on Google.
+  const RECONCILE_CHANNELS = ['meta', 'google', 'bing', 'chatgpt'] as const
+  const recFrom = shiftIso(today, -8)
+  const recTo = shiftIso(today, -2)
+  const dR = deadline()
+  try {
+    const rows = await fetchSheet({ sheetUrl: url, tab: SHEETS_TABS.LEAD_RECONCILE, signal: dR.signal, bypassCache: true })
+    const [header = [], ...data] = rows || []
+    const H = normalizeHeaders(header as any[])
+    const iKind = pickIdx(H, ['kind'])
+    const iDay = pickIdx(H, ['day', 'date'])
+    const iCh = pickIdx(H, ['channel'])
+    const iN = pickIdx(H, ['n', 'count'])
+    const iDetail = pickIdx(H, ['detail'])
+    const hub: Record<string, number> = {}
+    let maxDate: string | null = null
+    for (const r of data) {
+      const kind = String(r[iKind] ?? '')
+      const day = toIsoDay(r[iDay])
+      if (!day) continue
+      if (kind === 'count') {
+        if (!maxDate || day > maxDate) maxDate = day
+        if (day >= recFrom && day <= recTo) {
+          const ch = String(r[iCh] ?? '')
+          hub[ch] = (hub[ch] || 0) + Number(r[iN] || 0)
+        }
+      } else if (kind === 'misroute') {
+        violations.push({
+          rule: 'channel_misroute_hubspot',
+          severity: 'red',
+          detail: `${day}: lead z ${r[iCh]} URL-jem je štet pod drug kanal — ${String(r[iDetail] ?? '')}. Popravi utm_campaign (mora se začeti s "chatgpt" oz. "ms - ").`,
+        })
+      }
+    }
+    // lead_reconcile's last day is yesterday; the /gm sync writes it daily.
+    const staleDays = maxDate ? daysBetween(maxDate, today) - 1 : null
+    feeds.push({
+      name: 'HubSpot paid leads (reconcile)',
+      tab: SHEETS_TABS.LEAD_RECONCILE,
+      maxDate,
+      rowCount: data.length,
+      staleDays,
+      status: dailyStatus(staleDays),
+      note: 'code/hubspot/sync-goolets-paid-reconcile.js (/gm). Neodvisen števec za primerjavo s Streakom.',
+    })
+    if (streakReadOk && maxDate && maxDate >= recTo) {
+      const streakWin = filterStreakByDay(unionStreakRows(streakFullLeads, streakSyncLeads), recFrom, recTo)
+      const st: Record<string, number> = {}
+      for (const l of streakWin) {
+        const ch = leadChannelOf(l)
+        if (ch) st[ch] = (st[ch] || 0) + 1
+      }
+      for (const ch of RECONCILE_CHANNELS) {
+        const h = hub[ch] || 0
+        const s2 = st[ch] || 0
+        const tol = Math.max(2, Math.round(h * 0.05))
+        if (Math.abs(h - s2) > tol) {
+          violations.push({
+            rule: 'hubspot_streak_mismatch',
+            severity: 'red',
+            detail: `${ch}: HubSpot ${h} plačanih leadov, Streak ${s2} (${recFrom} – ${recTo}, toleranca ±${tol}). ${s2 < h ? 'Streak jih ima premalo — preveri avtomatiko HubSpot → Streak.' : 'Streak jih ima več kot HubSpot — preveri podvojene boxe ali vir.'}`,
+          })
+        }
+      }
+    }
+  } catch (e) {
+    feeds.push({
+      name: 'HubSpot paid leads (reconcile)',
+      tab: SHEETS_TABS.LEAD_RECONCILE,
+      maxDate: null,
+      rowCount: 0,
+      staleDays: null,
+      status: failStatus(dR),
+      error: e instanceof Error ? e.message : String(e),
+      note: dR.signal.aborted ? TIMEOUT_NOTE : undefined,
+    })
+  } finally {
+    dR.clear()
+  }
+
+  // Streak side of the misroute check: a SOURCE DETAIL that names ChatGPT or Bing but does not
+  // carry the prefix leadChannelOf() keys on — e.g. "cga all …" or "bing - search - …".
+  if (streakReadOk) {
+    const recent = filterStreakByDay(unionStreakRows(streakFullLeads, streakSyncLeads), shiftIso(today, -14), today)
+    for (const l of recent) {
+      const d = String(l.source_detail || '').toLowerCase()
+      const ch = leadChannelOf(l)
+      const claims = /chatgpt|openai|^cga[\s_-]/.test(d) ? 'chatgpt' : /^ms[\s_-]|bing|microsoft/.test(d) ? 'bing' : null
+      if (claims && claims !== ch) {
+        violations.push({
+          rule: 'channel_misroute_streak',
+          severity: 'red',
+          detail: `${streakLeadDay(l)}: Streak SOURCE DETAIL "${l.source_detail}" kaže na ${claims}, štet pa je kot ${ch ?? 'nič'}. Popravi utm_campaign ali pravilo v lib/streak-leads.ts.`,
+        })
+      }
+    }
+  }
+
   // -- 4/5  fb_ads_enriched — KNOWN DEAD since 2026-08-09 --------------------
   // Capped at amber on purpose: it is a stale feed we have already replaced for
   // spend, but leads and LP views still come from it, so it must not vanish from

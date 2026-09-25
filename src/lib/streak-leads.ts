@@ -93,12 +93,22 @@ export function unionStreakRows(full: StreakLeadRow[], sync: StreakLeadRow[]): S
   if (!sync.length) return full
   const cov = streakCoverage(full)
   if (!cov.min || !cov.max) return sync
-  return full.concat(
-    sync.filter((r) => {
+  // streak_full's LAST day is partial: the scan stops mid-day. Measured 25. 9. 2026: the scan run
+  // on 21. 9. early morning left 21. 9. with 10 FB leads against 53 in streak_sync, and because
+  // the union handed that whole day to streak_full, the Overview showed 21. 9. at 19 leads and MTD
+  // FB ~32 leads short. So streak_full owns only the days strictly before its last day; its last
+  // day and everything after come from streak_sync (Zapier, always current).
+  return full
+    .filter((r) => {
       const d = streakLeadDay(r)
-      return !!d && (d < cov.min || d > cov.max)
+      return !!d && d < cov.max
     })
-  )
+    .concat(
+      sync.filter((r) => {
+        const d = streakLeadDay(r)
+        return !!d && (d < cov.min || d >= cov.max)
+      })
+    )
 }
 
 /** Leads whose Ljubljana day falls inside [fromIso, toIso], both inclusive, both YYYY-MM-DD. */
