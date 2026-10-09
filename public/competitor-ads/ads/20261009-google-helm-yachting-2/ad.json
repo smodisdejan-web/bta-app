@@ -1,0 +1,38 @@
+{
+  "id": "20261009-google-helm-yachting-2",
+  "platform": "google",
+  "format": "Search (text)",
+  "advertiser": "Helm Yachting",
+  "headline": "BVI Crewed Yacht Charters - All-Inclusive BVI Charters - All-inclusive… (cut off)",
+  "primaryText": "All-inclusive BVI crewed charter from $20k. One price covers captain, chef, meals & toys. The best crewed BVI yachts go early. Peak 2026/27 season is filling — start planning no… (cut off)",
+  "displayUrl": "www.helm.yt/crewed-yacht/bvis",
+  "lastShown": "2026-10-08",
+  "hooks": [
+    "Result / outcome",
+    "Curiosity"
+  ],
+  "offer": "Limited time",
+  "styles": [
+    "Product shot",
+    "Photography"
+  ],
+  "objective": "Lead gen",
+  "industry": "Luxury yacht charters",
+  "whyItWorks": "A clear starting price of $20k filters out unqualified clicks and sets expectations, while the one-price framing removes the worry about hidden extras. Scarcity around the peak season pushes high-intent travelers to act early. Sitelinks to itineraries and charter types let people self-select their next step, and the turquoise aerial photo sells the destination at a glance.",
+  "sourceUrl": "https://adstransparency.google.com/advertiser/AR06078723770158153729/creative/CR13774641334444883969?region=anywhere",
+  "libraryId": "CR13774641334444883969",
+  "images": [
+    "1.png"
+  ],
+  "savedAt": "2026-10-09 12:00:56",
+  "collection": "goolets-competitors",
+  "competitorPageId": "AR06078723770158153729",
+  "competitorPageName": "Harrison Morgan Limited",
+  "competitorTier": 2,
+  "startedRunning": "2022-04-01",
+  "landingPages": [
+    "https://www.helm.yt/"
+  ],
+  "landingShot": "landing.jpg",
+  "landingFinalUrl": "https://www.helm.yt/"
+}

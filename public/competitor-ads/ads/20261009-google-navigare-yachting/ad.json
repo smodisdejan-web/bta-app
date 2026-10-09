@@ -1,0 +1,38 @@
+{
+  "id": "20261009-google-navigare-yachting",
+  "platform": "google",
+  "format": "Search (text)",
+  "advertiser": "Navigare Yachting",
+  "headline": "Navigare Yachting - Sitio web oficial ®",
+  "primaryText": "Empresa líder mundial en alquiler y venta de yates. Elija entre uno de nuestros 10 destinos y más de 300 barcos. Sitio web oficial. Flexible.",
+  "displayUrl": "www.navigare-yachting.com/es",
+  "lastShown": "2026-10-08",
+  "hooks": [
+    "Bold claim",
+    "Social proof"
+  ],
+  "offer": "No offer",
+  "styles": [
+    "Minimal / text-only",
+    "Branded template"
+  ],
+  "objective": "Lead gen",
+  "industry": "Yacht charter",
+  "whyItWorks": "It targets people already searching for yacht charter and claims to be the world leader, backed by concrete scale (10 destinations, 300+ boats) that builds trust fast. Calling itself the official site separates it from resellers and comparison sites. Sitelinks for contact, Spain charters and all destinations give several low-friction paths to act, depending on how ready the searcher is.",
+  "sourceUrl": "https://adstransparency.google.com/advertiser/AR15239349959770767361/creative/CR01628857808613015553?region=anywhere",
+  "libraryId": "CR01628857808613015553",
+  "images": [
+    "1.png"
+  ],
+  "savedAt": "2026-10-09 12:02:26",
+  "collection": "goolets-competitors",
+  "competitorPageId": "AR15239349959770767361",
+  "competitorPageName": "Navigare Yachting d.o.o.",
+  "competitorTier": 2,
+  "startedRunning": "2025-04-25",
+  "landingPages": [
+    "https://www.navigare-yachting.com/"
+  ],
+  "landingShot": "landing.jpg",
+  "landingFinalUrl": "https://www.navigare-yachting.com/en"
+}

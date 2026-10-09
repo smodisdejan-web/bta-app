@@ -1,0 +1,38 @@
+{
+  "id": "20261009-google-sail-croatia",
+  "platform": "google",
+  "format": "Search (text)",
+  "advertiser": "Sail Croatia",
+  "headline": "Croatia Bike Holidays - Split & Dubrovnik Departures",
+  "primaryText": "Keep the wheels spinning and explore the most amazing trails with Bike Croatia Cruise. Join a Croatia Bike Cruise & pedal through the stunning islands of Hvar... (cut off)",
+  "description": "4 Cycling Itineraries | Sailing & Cycling Croatia | Tips for Cycling Abroad | 13.000+ 5* Reviews",
+  "displayUrl": "www.sail-croatia.com/bike&boat/croatia-2026-27",
+  "lastShown": "2026-10-08",
+  "hooks": [
+    "Social proof",
+    "Identity / belonging"
+  ],
+  "offer": "No offer",
+  "styles": [
+    "Minimal / text-only"
+  ],
+  "objective": "Traffic",
+  "industry": "Travel / bike and boat tours",
+  "whyItWorks": "The headline names the exact activity and the departure cities, so a searcher with matching intent sees an immediate fit. The sitelinks add a trust signal through the review count and give several routes into the site, from itineraries to planning tips. The URL path points to the 2026-27 season, which tells the searcher the trip dates are current.",
+  "sourceUrl": "https://adstransparency.google.com/advertiser/AR03965821927515226113/creative/CR09652125565313875969?region=anywhere",
+  "libraryId": "CR09652125565313875969",
+  "images": [
+    "1.png"
+  ],
+  "savedAt": "2026-10-09 12:01:50",
+  "collection": "goolets-competitors",
+  "competitorPageId": "AR03965821927515226113",
+  "competitorPageName": "Sail Croatia Adventures LTD",
+  "competitorTier": 2,
+  "startedRunning": "2021-10-25",
+  "landingPages": [
+    "https://www.sail-croatia.com/"
+  ],
+  "landingShot": "landing.jpg",
+  "landingFinalUrl": "https://www.sail-croatia.com/"
+}

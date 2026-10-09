@@ -1,0 +1,37 @@
+{
+  "id": "20261009-google-northrop-johnson",
+  "platform": "google",
+  "format": "Search (text)",
+  "advertiser": "Northrop & Johnson",
+  "headline": "Sunseeker Yachts For Sale - Luxury Yachts for Sale",
+  "primaryText": "Sunseeker yacht sales experts standing by schedule your private showing today. Experience how yacht buying should be award-winning customer service. Global sales record. The Yachting Authority. Buy or Sell Your Yacht. Luxury Superyacht Experts. Consult a Ya… (cut off)",
+  "displayUrl": "www.northropandjohnson.com/",
+  "lastShown": "2026-10-08",
+  "hooks": [
+    "Bold claim",
+    "Social proof"
+  ],
+  "offer": "Demo or consultation",
+  "styles": [
+    "Minimal / text-only"
+  ],
+  "objective": "Lead gen",
+  "industry": "Luxury yacht brokerage",
+  "whyItWorks": "The headline matches what a high-intent buyer types in, naming a specific brand (Sunseeker) so the ad feels relevant right away. Authority claims like award-winning service and a global sales record build trust for a very high-value purchase. The offer of a private showing gives a low-pressure next step, and sitelinks to related yacht categories let different buyers click through to what fits them.",
+  "sourceUrl": "https://adstransparency.google.com/advertiser/AR18420564220815867905/creative/CR09643048547070771201?region=anywhere",
+  "libraryId": "CR09643048547070771201",
+  "images": [
+    "1.png"
+  ],
+  "savedAt": "2026-10-09 12:03:46",
+  "collection": "goolets-competitors",
+  "competitorPageId": "AR18420564220815867905",
+  "competitorPageName": "NORTHROP & JOHNSON YACHTS-SHIPS LLC",
+  "competitorTier": 2,
+  "startedRunning": "2021-10-25",
+  "landingPages": [
+    "https://www.northropandjohnson.com/"
+  ],
+  "landingShot": "landing.jpg",
+  "landingFinalUrl": "https://www.northropandjohnson.com/"
+}

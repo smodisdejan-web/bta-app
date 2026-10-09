@@ -1,5 +1,568 @@
 [
   {
+    "id": "20261009-google-northrop-johnson",
+    "platform": "google",
+    "format": "Search (text)",
+    "advertiser": "Northrop & Johnson",
+    "headline": "Sunseeker Yachts For Sale - Luxury Yachts for Sale",
+    "primaryText": "Sunseeker yacht sales experts standing by schedule your private showing today. Experience how yacht buying should be award-winning customer service. Global sales record. The Yachting Authority. Buy or Sell Your Yacht. Luxury Superyacht Experts. Consult a Ya… (cut off)",
+    "displayUrl": "www.northropandjohnson.com/",
+    "lastShown": "2026-10-08",
+    "hooks": [
+      "Bold claim",
+      "Social proof"
+    ],
+    "offer": "Demo or consultation",
+    "styles": [
+      "Minimal / text-only"
+    ],
+    "objective": "Lead gen",
+    "industry": "Luxury yacht brokerage",
+    "whyItWorks": "The headline matches what a high-intent buyer types in, naming a specific brand (Sunseeker) so the ad feels relevant right away. Authority claims like award-winning service and a global sales record build trust for a very high-value purchase. The offer of a private showing gives a low-pressure next step, and sitelinks to related yacht categories let different buyers click through to what fits them.",
+    "sourceUrl": "https://adstransparency.google.com/advertiser/AR18420564220815867905/creative/CR09643048547070771201?region=anywhere",
+    "libraryId": "CR09643048547070771201",
+    "images": [
+      "1.png"
+    ],
+    "savedAt": "2026-10-09 12:03:46",
+    "collection": "goolets-competitors",
+    "competitorPageId": "AR18420564220815867905",
+    "competitorPageName": "NORTHROP & JOHNSON YACHTS-SHIPS LLC",
+    "competitorTier": 2,
+    "startedRunning": "2021-10-25",
+    "landingPages": [
+      "https://www.northropandjohnson.com/"
+    ],
+    "landingShot": "landing.jpg",
+    "landingFinalUrl": "https://www.northropandjohnson.com/",
+    "daysRunning": 1809
+  },
+  {
+    "id": "20261009-google-peter-sommer-travels-2",
+    "platform": "google",
+    "format": "Display / image",
+    "advertiser": "Peter Sommer Travels",
+    "headline": "Discover Historical Sites",
+    "primaryText": "Experience personalized attention and unforgettable memories on our guided tours.",
+    "cta": "Open",
+    "lastShown": "2026-07-26",
+    "hooks": [
+      "Bold claim"
+    ],
+    "offer": "No offer",
+    "styles": [
+      "Bold headline",
+      "Photography",
+      "Minimal / text-only"
+    ],
+    "objective": "Traffic",
+    "industry": "Guided travel tours",
+    "whyItWorks": "The oversized headline names the destination type in a few plain words, so a history-minded traveler knows at once whether it is for them. The photo of a wooden sailing boat off a rocky coast adds a sense of place and adventure that the text only hints at. The promise of personal attention sets a small guided tour apart from mass tourism, and the single Open button keeps the next step easy.",
+    "sourceUrl": "https://adstransparency.google.com/advertiser/AR03608388014633385985/creative/CR02375863010636857345?region=anywhere",
+    "libraryId": "CR02375863010636857345",
+    "images": [
+      "1.png"
+    ],
+    "savedAt": "2026-10-09 12:03:29",
+    "collection": "goolets-competitors",
+    "competitorPageId": "AR03608388014633385985",
+    "competitorPageName": "Peter Sommer Travels Ltd.",
+    "competitorTier": 2,
+    "startedRunning": "2026-07-01",
+    "daysRunning": 25
+  },
+  {
+    "id": "20261009-google-peter-sommer-travels",
+    "platform": "google",
+    "format": "Search (text)",
+    "advertiser": "Peter Sommer Travels",
+    "headline": "Now Taking Bookings for 2025 - Expert-Led Archaeol (cut off)",
+    "primaryText": "At the heart of our tours are archaeolog (cut off) in the company of expert guides.",
+    "displayUrl": "www.petersommer.com/gulet/cru… (cut off)",
+    "lastShown": "2026-02-01",
+    "hooks": [
+      "Bold claim",
+      "Identity / belonging"
+    ],
+    "offer": "No offer",
+    "styles": [
+      "Product shot",
+      "Photography"
+    ],
+    "objective": "Lead gen",
+    "industry": "Archaeological and cultural travel tours",
+    "whyItWorks": "The headline opens with timely booking language that signals real availability and nudges early action. The promise of expert guides and a scenic gulet photo sells credibility and a specific kind of trip to curious, culture-minded travellers. The thumbnail image makes the text ad stand out in a results page full of plain links.",
+    "sourceUrl": "https://adstransparency.google.com/advertiser/AR03608388014633385985/creative/CR05422794543646900225?region=anywhere",
+    "libraryId": "CR05422794543646900225",
+    "images": [
+      "1.png"
+    ],
+    "savedAt": "2026-10-09 12:03:10",
+    "collection": "goolets-competitors",
+    "competitorPageId": "AR03608388014633385985",
+    "competitorPageName": "Peter Sommer Travels Ltd.",
+    "competitorTier": 2,
+    "startedRunning": "2023-11-27",
+    "landingPages": [
+      "https://www.petersommer.com/"
+    ],
+    "landingShot": "landing.jpg",
+    "landingFinalUrl": "https://www.petersommer.com/",
+    "daysRunning": 797
+  },
+  {
+    "id": "20261009-google-navigare-yachting-2",
+    "platform": "google",
+    "format": "Display / image",
+    "advertiser": "Navigare Yachting",
+    "headline": "Rent a Yacht in BVI",
+    "primaryText": "Choose your perfect catamaran charter and sail the beautiful British Virgin Islands.",
+    "cta": "Book Now",
+    "lastShown": "2026-10-08",
+    "hooks": [
+      "Bold claim"
+    ],
+    "offer": "No offer",
+    "styles": [
+      "Photography",
+      "Lifestyle",
+      "Branded template"
+    ],
+    "objective": "Sales",
+    "industry": "Yacht charter / travel",
+    "whyItWorks": "The aerial shot of a turquoise bay full of moored boats sells the destination at a glance, so the viewer pictures the trip before reading anything. The headline names the exact product and place, which filters for people already considering a BVI sailing holiday. A single clear button with a direct booking verb keeps the next step simple.",
+    "sourceUrl": "https://adstransparency.google.com/advertiser/AR15239349959770767361/creative/CR12253587582918590465?region=anywhere",
+    "libraryId": "CR12253587582918590465",
+    "images": [
+      "1.png"
+    ],
+    "savedAt": "2026-10-09 12:02:43",
+    "collection": "goolets-competitors",
+    "competitorPageId": "AR15239349959770767361",
+    "competitorPageName": "Navigare Yachting d.o.o.",
+    "competitorTier": 2,
+    "startedRunning": "2025-11-28",
+    "daysRunning": 314
+  },
+  {
+    "id": "20261009-google-navigare-yachting",
+    "platform": "google",
+    "format": "Search (text)",
+    "advertiser": "Navigare Yachting",
+    "headline": "Navigare Yachting - Sitio web oficial ®",
+    "primaryText": "Empresa líder mundial en alquiler y venta de yates. Elija entre uno de nuestros 10 destinos y más de 300 barcos. Sitio web oficial. Flexible.",
+    "displayUrl": "www.navigare-yachting.com/es",
+    "lastShown": "2026-10-08",
+    "hooks": [
+      "Bold claim",
+      "Social proof"
+    ],
+    "offer": "No offer",
+    "styles": [
+      "Minimal / text-only",
+      "Branded template"
+    ],
+    "objective": "Lead gen",
+    "industry": "Yacht charter",
+    "whyItWorks": "It targets people already searching for yacht charter and claims to be the world leader, backed by concrete scale (10 destinations, 300+ boats) that builds trust fast. Calling itself the official site separates it from resellers and comparison sites. Sitelinks for contact, Spain charters and all destinations give several low-friction paths to act, depending on how ready the searcher is.",
+    "sourceUrl": "https://adstransparency.google.com/advertiser/AR15239349959770767361/creative/CR01628857808613015553?region=anywhere",
+    "libraryId": "CR01628857808613015553",
+    "images": [
+      "1.png"
+    ],
+    "savedAt": "2026-10-09 12:02:26",
+    "collection": "goolets-competitors",
+    "competitorPageId": "AR15239349959770767361",
+    "competitorPageName": "Navigare Yachting d.o.o.",
+    "competitorTier": 2,
+    "startedRunning": "2025-04-25",
+    "landingPages": [
+      "https://www.navigare-yachting.com/"
+    ],
+    "landingShot": "landing.jpg",
+    "landingFinalUrl": "https://www.navigare-yachting.com/en",
+    "daysRunning": 531
+  },
+  {
+    "id": "20261009-google-sail-croatia-2",
+    "platform": "google",
+    "format": "Search (text)",
+    "advertiser": "Sail Croatia",
+    "headline": "Sail Croatia® Official Site - Navigator Party Cruises - Don't miss out",
+    "primaryText": "7 Day Navigator Party Cruises and Croatia Island Hopping for 18-35's Exclusive Access to the Hottest Clubs & Festivals on Hvar, Zrce, Split, Dubrovnik and more. Fully Stocked… (cut off)",
+    "displayUrl": "www.sail-croatia.com/",
+    "lastShown": "2026-10-08",
+    "hooks": [
+      "Identity / belonging",
+      "Social proof",
+      "Bold claim"
+    ],
+    "offer": "Discount or code",
+    "styles": [
+      "Photography",
+      "Lifestyle"
+    ],
+    "objective": "Sales",
+    "industry": "Travel / Party cruises",
+    "whyItWorks": "It speaks directly to 18-35 year olds who want a party trip, so the right people feel it is made for them. Sitelinks like Traveling Solo? and Group Travel cover different buyer situations, and the review count builds trust right on the results page. The 10% cabin discount gives a small nudge to book, and it was still showing as of the last-shown date.",
+    "sourceUrl": "https://adstransparency.google.com/advertiser/AR03965821927515226113/creative/CR16543934816958021633?region=anywhere",
+    "libraryId": "CR16543934816958021633",
+    "images": [
+      "1.png"
+    ],
+    "savedAt": "2026-10-09 12:02:09",
+    "collection": "goolets-competitors",
+    "competitorPageId": "AR03965821927515226113",
+    "competitorPageName": "Sail Croatia Adventures LTD",
+    "competitorTier": 2,
+    "startedRunning": "2021-10-25",
+    "landingPages": [
+      "https://www.sail-croatia.com/"
+    ],
+    "landingShot": "landing.jpg",
+    "landingFinalUrl": "https://www.sail-croatia.com/",
+    "daysRunning": 1809
+  },
+  {
+    "id": "20261009-google-sail-croatia",
+    "platform": "google",
+    "format": "Search (text)",
+    "advertiser": "Sail Croatia",
+    "headline": "Croatia Bike Holidays - Split & Dubrovnik Departures",
+    "primaryText": "Keep the wheels spinning and explore the most amazing trails with Bike Croatia Cruise. Join a Croatia Bike Cruise & pedal through the stunning islands of Hvar... (cut off)",
+    "description": "4 Cycling Itineraries | Sailing & Cycling Croatia | Tips for Cycling Abroad | 13.000+ 5* Reviews",
+    "displayUrl": "www.sail-croatia.com/bike&boat/croatia-2026-27",
+    "lastShown": "2026-10-08",
+    "hooks": [
+      "Social proof",
+      "Identity / belonging"
+    ],
+    "offer": "No offer",
+    "styles": [
+      "Minimal / text-only"
+    ],
+    "objective": "Traffic",
+    "industry": "Travel / bike and boat tours",
+    "whyItWorks": "The headline names the exact activity and the departure cities, so a searcher with matching intent sees an immediate fit. The sitelinks add a trust signal through the review count and give several routes into the site, from itineraries to planning tips. The URL path points to the 2026-27 season, which tells the searcher the trip dates are current.",
+    "sourceUrl": "https://adstransparency.google.com/advertiser/AR03965821927515226113/creative/CR09652125565313875969?region=anywhere",
+    "libraryId": "CR09652125565313875969",
+    "images": [
+      "1.png"
+    ],
+    "savedAt": "2026-10-09 12:01:50",
+    "collection": "goolets-competitors",
+    "competitorPageId": "AR03965821927515226113",
+    "competitorPageName": "Sail Croatia Adventures LTD",
+    "competitorTier": 2,
+    "startedRunning": "2021-10-25",
+    "landingPages": [
+      "https://www.sail-croatia.com/"
+    ],
+    "landingShot": "landing.jpg",
+    "landingFinalUrl": "https://www.sail-croatia.com/",
+    "daysRunning": 1809
+  },
+  {
+    "id": "20261009-google-hud-d-o-o",
+    "platform": "google",
+    "format": "Display / image",
+    "advertiser": "Croatia Gulet",
+    "headline": "Discover Croatia's Best-Kept Secrets on a Private Gulet",
+    "primaryText": "TOP Gulets\nFull-Service Planning\nUnparalleled Local Expertise",
+    "cta": "INQUIRE NOW",
+    "lastShown": "2026-10-09",
+    "hooks": [
+      "Curiosity",
+      "Bold claim"
+    ],
+    "offer": "Demo or consultation",
+    "styles": [
+      "Photography",
+      "Branded template",
+      "Bold headline"
+    ],
+    "objective": "Lead gen",
+    "industry": "Travel / private yacht charter",
+    "whyItWorks": "The 'best-kept secrets' framing teases insider access and exclusivity, which pulls in people dreaming of a Croatian holiday. Three short benefit lines with icons make the service easy to scan in a narrow banner, and the sunlit gulet photo sells the experience at a glance. The inquiry button suits a high-ticket purchase where buyers want to talk before booking.",
+    "sourceUrl": "https://adstransparency.google.com/advertiser/AR00621790696138866689/creative/CR05464337958414843905?region=anywhere",
+    "libraryId": "CR05464337958414843905",
+    "images": [
+      "1.png"
+    ],
+    "savedAt": "2026-10-09 12:01:33",
+    "collection": "goolets-competitors",
+    "competitorPageId": "AR00621790696138866689",
+    "competitorPageName": "HUD d.o.o.",
+    "competitorTier": 2,
+    "startedRunning": "2025-07-23",
+    "daysRunning": 443
+  },
+  {
+    "id": "20261009-google-yacht-charter-croatia",
+    "platform": "google",
+    "format": "Search (text)",
+    "advertiser": "Yacht Charter Croatia",
+    "headline": "Private Yacht Charters Croatia - 5-Star Yacht Experience",
+    "description": "Explore Croatia's coast with private yachts, breathtaking views, and VIP comfort. Enjoy all-inclusive yacht experiences with modern fleets and personalized routes. Yachts Selling… (cut off)",
+    "cta": "View Our Yachts",
+    "displayUrl": "www.yachtchartercroatia.com/",
+    "lastShown": "2026-10-08",
+    "hooks": [
+      "Bold claim",
+      "Curiosity"
+    ],
+    "offer": "No offer",
+    "styles": [
+      "Photography",
+      "Product shot"
+    ],
+    "objective": "Lead gen",
+    "industry": "Yacht charter / Travel",
+    "whyItWorks": "The headline puts the destination and the premium tier up front, so a person searching for a Croatia charter sees an exact match and a high-end promise at once. The copy sells an easy, all-inclusive luxury experience, and the harbour photo with white yachts makes the trip feel real. Sitelink buttons such as View Our Yachts and Luxury Yachts let people go straight to the page they care about.",
+    "sourceUrl": "https://adstransparency.google.com/advertiser/AR00621790696138866689/creative/CR08818237134851801089?region=anywhere",
+    "libraryId": "CR08818237134851801089",
+    "images": [
+      "1.png"
+    ],
+    "savedAt": "2026-10-09 12:01:13",
+    "collection": "goolets-competitors",
+    "competitorPageId": "AR00621790696138866689",
+    "competitorPageName": "HUD d.o.o.",
+    "competitorTier": 2,
+    "startedRunning": "2025-02-15",
+    "landingPages": [
+      "https://www.yachtchartercroatia.com/"
+    ],
+    "landingShot": "landing.jpg",
+    "landingFinalUrl": "https://yachtchartercroatia.com/",
+    "daysRunning": 600
+  },
+  {
+    "id": "20261009-google-helm-yachting-2",
+    "platform": "google",
+    "format": "Search (text)",
+    "advertiser": "Helm Yachting",
+    "headline": "BVI Crewed Yacht Charters - All-Inclusive BVI Charters - All-inclusive… (cut off)",
+    "primaryText": "All-inclusive BVI crewed charter from $20k. One price covers captain, chef, meals & toys. The best crewed BVI yachts go early. Peak 2026/27 season is filling — start planning no… (cut off)",
+    "displayUrl": "www.helm.yt/crewed-yacht/bvis",
+    "lastShown": "2026-10-08",
+    "hooks": [
+      "Result / outcome",
+      "Curiosity"
+    ],
+    "offer": "Limited time",
+    "styles": [
+      "Product shot",
+      "Photography"
+    ],
+    "objective": "Lead gen",
+    "industry": "Luxury yacht charters",
+    "whyItWorks": "A clear starting price of $20k filters out unqualified clicks and sets expectations, while the one-price framing removes the worry about hidden extras. Scarcity around the peak season pushes high-intent travelers to act early. Sitelinks to itineraries and charter types let people self-select their next step, and the turquoise aerial photo sells the destination at a glance.",
+    "sourceUrl": "https://adstransparency.google.com/advertiser/AR06078723770158153729/creative/CR13774641334444883969?region=anywhere",
+    "libraryId": "CR13774641334444883969",
+    "images": [
+      "1.png"
+    ],
+    "savedAt": "2026-10-09 12:00:56",
+    "collection": "goolets-competitors",
+    "competitorPageId": "AR06078723770158153729",
+    "competitorPageName": "Harrison Morgan Limited",
+    "competitorTier": 2,
+    "startedRunning": "2022-04-01",
+    "landingPages": [
+      "https://www.helm.yt/"
+    ],
+    "landingShot": "landing.jpg",
+    "landingFinalUrl": "https://www.helm.yt/",
+    "daysRunning": 1651
+  },
+  {
+    "id": "20261009-google-helm-yachting",
+    "platform": "google",
+    "format": "Search (text)",
+    "advertiser": "Helm Yachting",
+    "headline": "BVI Catamaran Charter - Handpicked by BVI… (cut off)",
+    "primaryText": "The BVIs suit catamarans perfectly — s… calm anchorages, easy island hops. Exp… handpick… (cut off)",
+    "description": "Search BVI Catamarans · BVI Sample Itinerary",
+    "displayUrl": "go.helm.yt/catamarans/bvis",
+    "lastShown": "2026-10-08",
+    "hooks": [
+      "Bold claim",
+      "Curiosity"
+    ],
+    "offer": "No offer",
+    "styles": [
+      "Photography",
+      "Product shot"
+    ],
+    "objective": "Traffic",
+    "industry": "Yacht charter / travel",
+    "whyItWorks": "The ad matches a specific search intent (BVI catamaran charter) and backs it with an inviting photo of catamarans anchored in turquoise water, which makes the trip feel real. The copy gives reasons the location suits catamarans, and the sitelinks let people choose a next step such as browsing boats or viewing a sample itinerary. It was still showing on Oct 8, 2026, which suggests it is an active campaign.",
+    "sourceUrl": "https://adstransparency.google.com/advertiser/AR06078723770158153729/creative/CR11553335444963852289?region=anywhere",
+    "libraryId": "CR11553335444963852289",
+    "images": [
+      "1.png"
+    ],
+    "savedAt": "2026-10-09 12:00:40",
+    "collection": "goolets-competitors",
+    "competitorPageId": "AR06078723770158153729",
+    "competitorPageName": "Harrison Morgan Limited",
+    "competitorTier": 2,
+    "startedRunning": "2022-04-01",
+    "landingPages": [
+      "https://www.helm.yt/"
+    ],
+    "landingShot": "landing.jpg",
+    "landingFinalUrl": "https://www.helm.yt/",
+    "daysRunning": 1651
+  },
+  {
+    "id": "20261009-google-burgess-2",
+    "platform": "google",
+    "format": "Display / image",
+    "advertiser": "Burgess",
+    "headline": "Explore your options",
+    "primaryText": "Going the extra mile to find your perfect yacht.",
+    "cta": "Enquire now",
+    "lastShown": "2026-10-08",
+    "hooks": [
+      "Bold claim"
+    ],
+    "offer": "Demo or consultation",
+    "styles": [
+      "Branded template",
+      "Photography",
+      "Product shot"
+    ],
+    "objective": "Lead gen",
+    "industry": "Luxury yachts",
+    "whyItWorks": "The big yacht photo shows the product at its most desirable and filters for the right high-end audience at a glance. The copy promises personal, tailored service rather than a price, which suits a purchase this large. The single clear enquiry button gives interested buyers an easy next step, and the carousel arrows let them browse more boats without leaving the ad.",
+    "sourceUrl": "https://adstransparency.google.com/advertiser/AR18410372349321805825/creative/CR14089217907573653505?region=anywhere",
+    "libraryId": "CR14089217907573653505",
+    "images": [
+      "1.png"
+    ],
+    "savedAt": "2026-10-09 12:00:19",
+    "collection": "goolets-competitors",
+    "competitorPageId": "AR18410372349321805825",
+    "competitorPageName": "Nigel Burgess Limited",
+    "competitorTier": 2,
+    "startedRunning": "2026-09-28",
+    "daysRunning": 10
+  },
+  {
+    "id": "20261009-google-burgess",
+    "platform": "google",
+    "format": "Display / image",
+    "advertiser": "Burgess",
+    "headline": "Explore your options",
+    "primaryText": "Going the extra mile to find your perfect yacht.",
+    "cta": "Enquire now",
+    "lastShown": "2026-10-08",
+    "hooks": [
+      "Bold claim"
+    ],
+    "offer": "Demo or consultation",
+    "styles": [
+      "Branded template",
+      "Photography",
+      "Minimal / text-only"
+    ],
+    "objective": "Lead gen",
+    "industry": "Luxury yacht brokerage",
+    "whyItWorks": "A large superyacht photo on a calm sea signals the premium lifestyle at a glance, while the dark teal panel and bright logo keep the brand easy to spot. The promise of personal effort speaks to buyers who expect a concierge-level service. A single low-pressure enquiry button gives high-value prospects an easy first step, and the ad was still being shown the day before capture.",
+    "sourceUrl": "https://adstransparency.google.com/advertiser/AR18410372349321805825/creative/CR11475019061373435905?region=anywhere",
+    "libraryId": "CR11475019061373435905",
+    "images": [
+      "1.png"
+    ],
+    "savedAt": "2026-10-09 11:59:59",
+    "collection": "goolets-competitors",
+    "competitorPageId": "AR18410372349321805825",
+    "competitorPageName": "Nigel Burgess Limited",
+    "competitorTier": 2,
+    "startedRunning": "2026-09-28",
+    "daysRunning": 10
+  },
+  {
+    "id": "20261009-google-fraser-yachts-2",
+    "platform": "google",
+    "format": "Search (text)",
+    "advertiser": "Fraser Yachts",
+    "headline": "{KeyWord:Fraser Yachts Monaco}",
+    "primaryText": "Fraser Monaco office is home to a dedicated team, in the heart of Monaco's Port Hercules.",
+    "cta": "Website",
+    "displayUrl": "fraseryachts.com",
+    "lastShown": "2026-10-08",
+    "hooks": [
+      "Identity / belonging"
+    ],
+    "offer": "No offer",
+    "styles": [
+      "Photography",
+      "Product shot"
+    ],
+    "objective": "Traffic",
+    "industry": "Luxury yachts / yacht brokerage",
+    "whyItWorks": "Striking sunset photos of a superyacht and a speeding yacht signal luxury and place the brand in an aspirational setting before any text is read. The local Monaco address and the Website, Call and Directions buttons give high-intent searchers several easy ways to make contact. The unfilled template placeholders in the headline suggest a sloppy setup, but the ad was still being shown recently.",
+    "sourceUrl": "https://adstransparency.google.com/advertiser/AR08642547254181232641/creative/CR04451952645636096001?region=anywhere",
+    "libraryId": "CR04451952645636096001",
+    "images": [
+      "1.png"
+    ],
+    "savedAt": "2026-10-09 11:59:40",
+    "collection": "goolets-competitors",
+    "competitorPageId": "AR08642547254181232641",
+    "competitorPageName": "FRASER WORLDWIDE",
+    "competitorTier": 2,
+    "startedRunning": "2023-07-13",
+    "landingPages": [
+      "https://fraseryachts.com/"
+    ],
+    "landingShot": "landing.jpg",
+    "landingFinalUrl": "https://www.fraseryachts.com/",
+    "daysRunning": 1183
+  },
+  {
+    "id": "20261009-google-fraser-yachts",
+    "platform": "google",
+    "format": "Search (text)",
+    "advertiser": "Fraser Yachts",
+    "headline": "{KeyWord:Fraser Yachts}",
+    "primaryText": "Indulge in the ultimate, luxury yachting experience with Fraser Yachts.",
+    "cta": "Website",
+    "displayUrl": "fraseryachts.com",
+    "lastShown": "2026-10-08",
+    "hooks": [
+      "Bold claim"
+    ],
+    "offer": "No offer",
+    "styles": [
+      "Photography",
+      "Product shot"
+    ],
+    "objective": "Traffic",
+    "industry": "Luxury yacht brokerage and charter",
+    "whyItWorks": "The ad leans on aspirational language and striking yacht photography to signal exclusivity and appeal to high-end buyers and charter clients. Location details plus Website, Call and Directions buttons give several low-friction ways to get in touch. The headline shows an unfilled keyword template ({KeyWord:Fraser Yachts}) and placeholder text, which suggests a location-extension setup that was not fully rendered, so it is a weak sign of polish.",
+    "sourceUrl": "https://adstransparency.google.com/advertiser/AR08642547254181232641/creative/CR09139632441009373185?region=anywhere",
+    "libraryId": "CR09139632441009373185",
+    "images": [
+      "1.png"
+    ],
+    "savedAt": "2026-10-09 11:59:22",
+    "collection": "goolets-competitors",
+    "competitorPageId": "AR08642547254181232641",
+    "competitorPageName": "FRASER WORLDWIDE",
+    "competitorTier": 2,
+    "startedRunning": "2023-07-12",
+    "landingPages": [
+      "https://fraseryachts.com/"
+    ],
+    "landingShot": "landing.jpg",
+    "landingFinalUrl": "https://www.fraseryachts.com/",
+    "daysRunning": 1184
+  },
+  {
     "id": "20261009-meta-navigare-yachting-2",
     "platform": "meta",
     "format": "Single image",

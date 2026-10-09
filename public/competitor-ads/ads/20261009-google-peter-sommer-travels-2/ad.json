@@ -1,0 +1,33 @@
+{
+  "id": "20261009-google-peter-sommer-travels-2",
+  "platform": "google",
+  "format": "Display / image",
+  "advertiser": "Peter Sommer Travels",
+  "headline": "Discover Historical Sites",
+  "primaryText": "Experience personalized attention and unforgettable memories on our guided tours.",
+  "cta": "Open",
+  "lastShown": "2026-07-26",
+  "hooks": [
+    "Bold claim"
+  ],
+  "offer": "No offer",
+  "styles": [
+    "Bold headline",
+    "Photography",
+    "Minimal / text-only"
+  ],
+  "objective": "Traffic",
+  "industry": "Guided travel tours",
+  "whyItWorks": "The oversized headline names the destination type in a few plain words, so a history-minded traveler knows at once whether it is for them. The photo of a wooden sailing boat off a rocky coast adds a sense of place and adventure that the text only hints at. The promise of personal attention sets a small guided tour apart from mass tourism, and the single Open button keeps the next step easy.",
+  "sourceUrl": "https://adstransparency.google.com/advertiser/AR03608388014633385985/creative/CR02375863010636857345?region=anywhere",
+  "libraryId": "CR02375863010636857345",
+  "images": [
+    "1.png"
+  ],
+  "savedAt": "2026-10-09 12:03:29",
+  "collection": "goolets-competitors",
+  "competitorPageId": "AR03608388014633385985",
+  "competitorPageName": "Peter Sommer Travels Ltd.",
+  "competitorTier": 2,
+  "startedRunning": "2026-07-01"
+}
