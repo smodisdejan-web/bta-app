@@ -30,7 +30,6 @@ const navItems = [
   { label: 'Dobrik Trip', href: '/dobrik-trip' },
   // Static export in public/competitor-ads/ (weekly, code/ad-swipe-watch/weekly.cjs). Not a Next
   // route, so a plain <a> (the external branch); same ai_unlock password via middleware.
-  { label: 'Competitor Ads', href: '/competitor-ads/index.html', external: true },
   { label: 'Reports', href: 'https://goolets-reports.vercel.app/', external: true },
   { label: 'Content Portal', href: 'https://goolets-content-portal.vercel.app/', external: true }
 ] as const

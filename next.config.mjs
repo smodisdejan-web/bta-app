@@ -24,7 +24,6 @@ const nextConfig = {
   // real file instead; the middleware still gates it behind the ai_unlock password.
   async redirects() {
     return [
-      { source: '/competitor-ads', destination: '/competitor-ads/index.html', permanent: false },
     ];
   },
   outputFileTracingIncludes: {
