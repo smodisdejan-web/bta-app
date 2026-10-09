@@ -1,0 +1,39 @@
+{
+  "id": "20261009-meta-helm-2",
+  "platform": "meta",
+  "format": "Single image",
+  "advertiser": "Helm",
+  "headline": "The Mediterranean, Curated",
+  "primaryText": "With exceptional yachts and personalised itineraries, HELM transforms travel into something truly unforgettable.",
+  "description": "Extraordinary journeys begin here.",
+  "cta": "Learn More",
+  "startedRunning": "2026-08-10",
+  "hooks": [
+    "Curiosity",
+    "Identity / belonging"
+  ],
+  "offer": "No offer",
+  "styles": [
+    "Photography",
+    "Lifestyle",
+    "Branded template"
+  ],
+  "objective": "Traffic",
+  "industry": "Yacht charter",
+  "whyItWorks": "A striking aerial shot of a white yacht beside dramatic sea cliffs sells the dream before any copy is read. The overlaid line about where to go next works as a soft prompt that invites the viewer to picture their own trip. The ad has run for about two months, and its premium tone and single low-pressure click through to a destination page suit a high-consideration purchase.",
+  "sourceUrl": "https://www.facebook.com/ads/library/?id=1743311910228971",
+  "libraryId": "1743311910228971",
+  "landingPages": [
+    "https://www.helm.yt/yacht-charter/mediterranean-sea"
+  ],
+  "images": [
+    "1.png"
+  ],
+  "savedAt": "2026-10-09 10:35:55",
+  "collection": "goolets-competitors",
+  "competitorPageId": "381635525369223",
+  "competitorPageName": "Helm",
+  "competitorTier": 1,
+  "landingShot": "landing.jpg",
+  "landingFinalUrl": "https://www.helm.yt/yacht-charter/mediterranean-sea"
+}
