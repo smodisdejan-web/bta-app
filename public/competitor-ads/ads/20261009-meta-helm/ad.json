@@ -35,5 +35,6 @@
   "competitorPageName": "Helm",
   "competitorTier": 1,
   "landingShot": "landing.jpg",
-  "landingFinalUrl": "https://www.helm.yt/"
+  "landingFinalUrl": "https://www.helm.yt/",
+  "language": "en"
 }

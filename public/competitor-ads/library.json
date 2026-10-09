@@ -1,5 +1,507 @@
 [
   {
+    "id": "20261009-google-goolets-4",
+    "platform": "google",
+    "format": "Search (text)",
+    "advertiser": "Goolets",
+    "headline": "Luxury Made Affordable - Private Chef & Crew - Start Planning Today",
+    "primaryText": "Luxury Yachting for Groups up to 36 – Without the Unreachable Price Tag Experience the Adriatic’s Hidden Gems on a Private, All-Inclusive Yacht. Tailored-made offer. Professional crew. Smart way of yachting.",
+    "displayUrl": "www.goolets.net/",
+    "lastShown": "2026-10-08",
+    "hooks": [
+      "Bold claim",
+      "Pain point"
+    ],
+    "offer": "No offer",
+    "styles": [
+      "Photography",
+      "Lifestyle",
+      "Product shot"
+    ],
+    "objective": "Lead gen",
+    "industry": "Yacht charter / Travel",
+    "whyItWorks": "It tackles the main objection to yacht travel, that it's out of reach for most people, by pairing luxury with affordability right in the headline. The group size and all-inclusive framing speak to a specific buyer who wants a simple, shared trip. Three bright photos of different vessels make the product feel real and let people picture a trip, and the sitelinks send different kinds of shoppers to the right page.",
+    "language": "en",
+    "sourceUrl": "https://adstransparency.google.com/advertiser/AR13888064995461169153/creative/CR15248996250159153153?region=anywhere",
+    "libraryId": "CR15248996250159153153",
+    "landingPages": [
+      "https://www.goolets.net/"
+    ],
+    "landingFinalUrl": "https://goolets.net/",
+    "images": [
+      "1.png"
+    ],
+    "savedAt": "2026-10-09 14:04:36",
+    "landingShot": "landing.jpg",
+    "collection": "goolets-competitors",
+    "competitorPageId": "AR13888064995461169153",
+    "competitorPageName": "Goolets",
+    "competitorTier": 1,
+    "own": true,
+    "startedRunning": "2025-05-21",
+    "daysRunning": 505
+  },
+  {
+    "id": "20261009-google-goolets-3",
+    "platform": "google",
+    "format": "Search (text)",
+    "advertiser": "Goolets",
+    "headline": "Luxury Made Affordable - Private Chef & Crew",
+    "primaryText": "Experience the Adriatic's Hidden Gems on a Private, All-Inclusive Yacht Luxury Yachting for Groups up to 36 – Without the Unreachable Price Tag. No hidden fees.",
+    "displayUrl": "www.goolets.net/",
+    "lastShown": "2026-10-08",
+    "hooks": [
+      "Bold claim",
+      "Result / outcome"
+    ],
+    "offer": "No offer",
+    "styles": [
+      "Photography",
+      "Product shot"
+    ],
+    "objective": "Lead gen",
+    "industry": "Yacht charter / Travel",
+    "whyItWorks": "It pairs luxury with affordability, which removes the usual objection to chartering a yacht. Clear group size and all-inclusive pricing with no hidden fees make the offer concrete and low-risk. Sitelinks such as a yacht quiz give interested people an easy, low-commitment way to engage.",
+    "language": "en",
+    "sourceUrl": "https://adstransparency.google.com/advertiser/AR13888064995461169153/creative/CR11260342998052896769?region=anywhere",
+    "libraryId": "CR11260342998052896769",
+    "landingPages": [
+      "https://www.goolets.net/"
+    ],
+    "landingFinalUrl": "https://goolets.net/",
+    "images": [
+      "1.png"
+    ],
+    "savedAt": "2026-10-09 14:04:10",
+    "landingShot": "landing.jpg",
+    "collection": "goolets-competitors",
+    "competitorPageId": "AR13888064995461169153",
+    "competitorPageName": "Goolets",
+    "competitorTier": 1,
+    "own": true,
+    "startedRunning": "2025-05-16",
+    "daysRunning": 510
+  },
+  {
+    "id": "20261009-google-goolets-2",
+    "platform": "google",
+    "format": "Search (text)",
+    "advertiser": "Goolets",
+    "headline": "Private Gulet Charter Turkey - Curated Luxury Gulet Fleet",
+    "primaryText": "Tailor-made private gulet charters in Turkey, curated for your dates, guests, and style. Professional crew... (cut off)",
+    "displayUrl": "www.goolets.net/",
+    "lastShown": "2026-10-08",
+    "hooks": [
+      "Bold claim"
+    ],
+    "offer": "No offer",
+    "styles": [
+      "Photography",
+      "Product shot"
+    ],
+    "objective": "Lead gen",
+    "industry": "Luxury yacht charter / travel",
+    "whyItWorks": "The headline puts the exact search term first, so it matches what a high-intent traveller typed, and 'curated luxury' signals a premium tier. The description stresses personalisation around dates, guests and style, which lowers the worry that a charter is one-size-fits-all. The photo of a gulet in clear turquoise water sells the experience, and the sitelinks (yachts and prices, destinations, plan your charter) give several easy next steps for different stages of research.",
+    "language": "en",
+    "sourceUrl": "https://adstransparency.google.com/advertiser/AR13888064995461169153/creative/CR08481565574915162113?region=anywhere",
+    "libraryId": "CR08481565574915162113",
+    "landingPages": [
+      "https://www.goolets.net/"
+    ],
+    "landingFinalUrl": "https://goolets.net/",
+    "images": [
+      "1.png"
+    ],
+    "savedAt": "2026-10-09 14:03:36",
+    "landingShot": "landing.jpg",
+    "collection": "goolets-competitors",
+    "competitorPageId": "AR13888064995461169153",
+    "competitorPageName": "Goolets",
+    "competitorTier": 1,
+    "own": true,
+    "startedRunning": "2025-04-07",
+    "daysRunning": 549
+  },
+  {
+    "id": "20261009-google-goolets",
+    "platform": "google",
+    "format": "Search (text)",
+    "advertiser": "Goolets",
+    "headline": "Goolets - Luxury Yacht Charter Experts",
+    "primaryText": "Croatia and Turkey specialists with offices in 5 countries. Full concierge included. Private crewed yacht charters. 30,000+ guests served. MYBA member. Get a proposal. 20+ Years Experience.",
+    "displayUrl": "www.goolets.net/",
+    "lastShown": "2026-10-08",
+    "hooks": [
+      "Social proof",
+      "Bold claim"
+    ],
+    "offer": "Demo or consultation",
+    "styles": [
+      "Minimal / text-only",
+      "Stat / data"
+    ],
+    "objective": "Lead gen",
+    "industry": "Yacht charter / luxury travel",
+    "whyItWorks": "It stacks credibility signals such as guest count, years in business, an industry membership and a multi-country footprint, so a high-ticket buyer feels safe before clicking. The sitelinks split intent by destination and by audience (Greece, Croatia, families), letting searchers jump straight to what matches them. The low-pressure proposal request fits a considered purchase.",
+    "language": "en",
+    "sourceUrl": "https://adstransparency.google.com/advertiser/AR13888064995461169153/creative/CR11099457130917265409?region=anywhere",
+    "libraryId": "CR11099457130917265409",
+    "landingPages": [
+      "https://www.goolets.net/"
+    ],
+    "landingFinalUrl": "https://goolets.net/",
+    "images": [
+      "1.png"
+    ],
+    "savedAt": "2026-10-09 14:03:10",
+    "landingShot": "landing.jpg",
+    "collection": "goolets-competitors",
+    "competitorPageId": "AR13888064995461169153",
+    "competitorPageName": "Goolets",
+    "competitorTier": 1,
+    "own": true,
+    "startedRunning": "2025-03-14",
+    "daysRunning": 573
+  },
+  {
+    "id": "20261009-meta-goolets-8",
+    "platform": "meta",
+    "format": "Video",
+    "advertiser": "Goolets",
+    "headline": "Led by the Captain Who Helped Build Her",
+    "primaryText": "You are not driven across an ocean. You sail across it.\n\nOguz Khan is a private 50-meter sailing yacht, and she crosses at the speed the wind gives you. Her captain, Ümit Yıldırım, helped build her. He knows her from the keel up, he has crossed the Atlantic before, and he decides the route, the timing and the speed. That leaves your group free to enjoy the crossing. (cut off)",
+    "description": "He Has Crossed the Atlantic",
+    "cta": "Learn more",
+    "startedRunning": "2026-10-04",
+    "hooks": [
+      "Bold claim",
+      "Contrarian / hot take",
+      "Story"
+    ],
+    "offer": "No offer",
+    "styles": [
+      "Lifestyle",
+      "Photography",
+      "Bold headline"
+    ],
+    "objective": "Lead gen",
+    "industry": "Luxury yacht charter",
+    "whyItWorks": "The opening line reframes an ocean crossing as an experience rather than transport, which makes a scroller stop and reread. The captain's personal link to the boat and his earlier crossing build trust for a very expensive purchase. The sunset video with the on-screen line about 15 years at sea adds credibility and aspiration, and the soft call to request details suits a high-ticket enquiry.",
+    "language": "en",
+    "sourceUrl": "https://www.facebook.com/ads/library/?id=1419297077060277",
+    "libraryId": "1419297077060277",
+    "landingPages": [
+      "https://goolets.net/cross-the-atlantic-on-a-private-50-metre-sailing-yacht/"
+    ],
+    "landingFinalUrl": "https://goolets.net/cross-the-atlantic-on-a-private-50-metre-sailing-yacht/",
+    "images": [
+      "1.png"
+    ],
+    "savedAt": "2026-10-09 14:02:44",
+    "landingShot": "landing.jpg",
+    "collection": "goolets-competitors",
+    "competitorPageId": "131832243560124",
+    "competitorPageName": "Goolets",
+    "competitorTier": 1,
+    "own": true,
+    "daysRunning": 6
+  },
+  {
+    "id": "20261009-meta-goolets-7",
+    "platform": "meta",
+    "format": "Video",
+    "advertiser": "Goolets",
+    "headline": "2 Crossings, 1 Group Each Way",
+    "primaryText": "Oguz Khan crosses the Atlantic twice this season, and each crossing carries 1 group.\n\nThere are 2 crossings this season, 1 group each way. Once a direction is reserved, it is gone for this season.\n\nWestbound: leaves Bodrum around 1 November 2026 and the Canary Islands around 13 November.\nEastbound: leaves Antigua around 15 April 2027.\n\nWithin 2 working days we send you a written outline of the routes, the itemised costs and the conditions. If the crossing suits your group, we can hold your dates on a conditional priority reservation.\n\nFrom €180,000 for the whole yacht, plus catering and taxes.\n\nRequest the crossing details below.",
+    "description": "Reply Within 2 Working Days",
+    "cta": "Learn more",
+    "startedRunning": "2026-10-04",
+    "hooks": [
+      "Bold claim",
+      "Curiosity"
+    ],
+    "offer": "Limited time",
+    "styles": [
+      "Bold headline",
+      "Lifestyle",
+      "Photography"
+    ],
+    "objective": "Lead gen",
+    "industry": "Luxury yacht charter",
+    "whyItWorks": "The video opens with a short, vertical text overlay promising something out of the ordinary, set over footage of a yacht cutting through open sea. The ad makes the scarcity concrete with exact departure dates, a fixed number of slots and a starting price, which filters out casual browsers and speaks to serious buyers. The low-friction next step (a written outline within two working days) makes enquiring feel easy for a high-ticket purchase.",
+    "language": "en",
+    "sourceUrl": "https://www.facebook.com/ads/library/?id=1139307928527226",
+    "libraryId": "1139307928527226",
+    "landingPages": [
+      "https://goolets.net/cross-the-atlantic-on-a-private-50-metre-sailing-yacht/"
+    ],
+    "landingFinalUrl": "https://goolets.net/cross-the-atlantic-on-a-private-50-metre-sailing-yacht/",
+    "images": [
+      "1.png"
+    ],
+    "savedAt": "2026-10-09 14:02:24",
+    "landingShot": "landing.jpg",
+    "collection": "goolets-competitors",
+    "competitorPageId": "131832243560124",
+    "competitorPageName": "Goolets",
+    "competitorTier": 1,
+    "own": true,
+    "daysRunning": 6
+  },
+  {
+    "id": "20261009-meta-goolets-6",
+    "platform": "meta",
+    "format": "Video",
+    "advertiser": "Goolets",
+    "headline": "For Groups Who Want to Cross an Ocean",
+    "primaryText": "This is not a charter week. It is the Atlantic, crossed under sail.\n\nOguz Khan is a private 50-meter sailing yacht, and each crossing carries 1 group. It suits friends or family who live well together in a small space and care more about the achievement than the itinerary.\n\nStand a night watch under a sky with no city lights. Sit in on the weather and navigation briefings. Fish, watch for wildlife, or simply enjoy the quiet. 10 crew look after up to 12 guests, all the way across.\n\nFrom €180,000 for the whole yacht, plus catering and taxes. Westbound in November 2026, eastbound in April 2027.\n\nRequest the crossing details below.",
+    "description": "10 Crew, Up to 12 Guests",
+    "cta": "Learn more",
+    "startedRunning": "2026-10-04",
+    "hooks": [
+      "Contrarian / hot take",
+      "Identity / belonging",
+      "Bold claim"
+    ],
+    "offer": "Demo or consultation",
+    "styles": [
+      "Photography",
+      "Lifestyle",
+      "Bold headline"
+    ],
+    "objective": "Lead gen",
+    "industry": "Luxury yacht charter / ocean crossings",
+    "whyItWorks": "It opens by rejecting the ordinary charter idea, which sets up the crossing as a rare achievement rather than a holiday. It speaks to a specific kind of group and sets a clear price anchor, so only serious, well-off buyers respond. The sunset video with big text 'Open Ocean' adds a vivid sense of escape. It is only days old with very low impressions, so there is no performance signal yet.",
+    "language": "en",
+    "sourceUrl": "https://www.facebook.com/ads/library/?id=1628469368722429",
+    "libraryId": "1628469368722429",
+    "landingPages": [
+      "https://goolets.net/cross-the-atlantic-on-a-private-50-metre-sailing-yacht/"
+    ],
+    "landingFinalUrl": "https://goolets.net/cross-the-atlantic-on-a-private-50-metre-sailing-yacht/",
+    "images": [
+      "1.png"
+    ],
+    "savedAt": "2026-10-09 14:02:05",
+    "landingShot": "landing.jpg",
+    "collection": "goolets-competitors",
+    "competitorPageId": "131832243560124",
+    "competitorPageName": "Goolets",
+    "competitorTier": 1,
+    "own": true,
+    "daysRunning": 6
+  },
+  {
+    "id": "20261009-meta-goolets-5",
+    "platform": "meta",
+    "format": "Single image",
+    "advertiser": "Goolets",
+    "headline": "Antigua to St Barth by Yacht",
+    "primaryText": "A brand new 50 metre superyacht is spending her first winter in the Caribbean, and she is available for private charter.\n\nOguz Khan was launched in 2026 and is crossing the Atlantic for the first time. Be among the first guests on board for her first Caribbean season.\n\n50.5 metres, 6 cabins, up to 12 guests, 1 group.\n\nRates for the 2026/27 season are published, from €125,100 per week on eligible dates. APA, VAT and applicable charges are explained in the written proposal.\n\nRequest availability for your dates and group size.",
+    "description": "From €125,100 per week",
+    "cta": "Learn More",
+    "startedRunning": "2026-09-17",
+    "hooks": [
+      "Bold claim",
+      "Curiosity",
+      "Identity / belonging"
+    ],
+    "offer": "No offer",
+    "styles": [
+      "Photography",
+      "Lifestyle"
+    ],
+    "objective": "Lead gen",
+    "industry": "Luxury yacht charter",
+    "whyItWorks": "The ad leads with novelty, a brand new superyacht on her first Caribbean season, which gives a reason to act now and the appeal of being among the first guests. Stating the size, cabins and a starting weekly price up front filters for serious, high-budget buyers and sets expectations before they click. The photo of the yacht at anchor with a paddleboarder sells the lifestyle, and the ad is only a few weeks old, so there is no long-run signal yet.",
+    "language": "en",
+    "sourceUrl": "https://www.facebook.com/ads/library/?id=1631739605221912",
+    "libraryId": "1631739605221912",
+    "landingPages": [
+      "https://goolets.net/oguz-khan-the-caribbean-at-your-door/"
+    ],
+    "landingFinalUrl": "https://goolets.net/oguz-khan-the-caribbean-at-your-door/",
+    "images": [
+      "1.png"
+    ],
+    "savedAt": "2026-10-09 14:01:42",
+    "landingShot": "landing.jpg",
+    "collection": "goolets-competitors",
+    "competitorPageId": "131832243560124",
+    "competitorPageName": "Goolets",
+    "competitorTier": 1,
+    "own": true,
+    "daysRunning": 23
+  },
+  {
+    "id": "20261009-meta-goolets-4",
+    "platform": "meta",
+    "format": "Carousel",
+    "advertiser": "Goolets",
+    "headline": "50.5 Metres, 1 Group, Whole Yacht",
+    "primaryText": "A brand new 50 metre superyacht is spending her first winter in the Caribbean, and she is available for private charter.\n\nOguz Khan was launched in 2026 and is crossing the Atlantic for the first time. Be among the first guests on board for her first Caribbean season.\n\n50.5 metres, 6 cabins, up to 12 guests, 1 group.\n\nRates for the 2026/27 season are published, from €125,100 per week on eligible dates. APA, VAT and applicable charges are explained in the written proposal.\n\nRequest availability for your dates and group size.",
+    "description": "6 cabins, up to 12 guests",
+    "cta": "Learn More",
+    "startedRunning": "2026-09-17",
+    "hooks": [
+      "Bold claim",
+      "Identity / belonging",
+      "Curiosity"
+    ],
+    "offer": "No offer",
+    "styles": [
+      "Photography",
+      "Lifestyle",
+      "Product shot"
+    ],
+    "objective": "Lead gen",
+    "industry": "Luxury yacht charter",
+    "whyItWorks": "The opening line sells novelty and exclusivity: a brand new yacht, her first season in the Caribbean, and a chance to be among the first guests. Showing the real price up front filters out casual browsers, so the clicks that come in are from serious, high-budget buyers. The carousel cards show the deck, the water toys and the crew, which lets a viewer picture the holiday before asking for availability.",
+    "language": "en",
+    "sourceUrl": "https://www.facebook.com/ads/library/?id=1109238501792158",
+    "libraryId": "1109238501792158",
+    "landingPages": [
+      "https://goolets.net/oguz-khan-the-caribbean-at-your-door/"
+    ],
+    "landingFinalUrl": "https://goolets.net/oguz-khan-the-caribbean-at-your-door/",
+    "images": [
+      "1.png"
+    ],
+    "savedAt": "2026-10-09 14:01:19",
+    "landingShot": "landing.jpg",
+    "collection": "goolets-competitors",
+    "competitorPageId": "131832243560124",
+    "competitorPageName": "Goolets",
+    "competitorTier": 1,
+    "own": true,
+    "daysRunning": 23
+  },
+  {
+    "id": "20261009-meta-goolets-3",
+    "platform": "meta",
+    "format": "Single image",
+    "advertiser": "Goolets",
+    "headline": "Antigua to St Barth by Yacht",
+    "primaryText": "A brand new 50 metre superyacht is spending her first winter in the Caribbean, and she is available for private charter.\n\nOguz Khan was launched in 2026 and is crossing the Atlantic for the first time. Be among the first guests on board for her first Caribbean season.\n\n50.5 metres, 6 cabins, up to 12 guests, 1 group.",
+    "description": "From €125,100 per week",
+    "cta": "Learn More",
+    "startedRunning": "2026-09-17",
+    "hooks": [
+      "Bold claim",
+      "Curiosity"
+    ],
+    "offer": "No offer",
+    "styles": [
+      "Photography",
+      "Lifestyle"
+    ],
+    "objective": "Lead gen",
+    "industry": "Luxury yacht charter",
+    "whyItWorks": "The ad leans on novelty and scarcity: a brand new yacht on her first Caribbean season lets guests be among the first aboard. Concrete specs and a clear starting price filter for serious high-budget buyers, and the photo of the yacht at anchor with a paddleboarder sells the lifestyle. The call to request availability gives a low-friction next step.",
+    "language": "en",
+    "sourceUrl": "https://www.facebook.com/ads/library/?id=1101471268951019",
+    "libraryId": "1101471268951019",
+    "landingPages": [
+      "https://goolets.net/oguz-khan-the-caribbean-at-your-door/"
+    ],
+    "landingFinalUrl": "https://goolets.net/oguz-khan-the-caribbean-at-your-door/",
+    "images": [
+      "1.png"
+    ],
+    "savedAt": "2026-10-09 14:00:55",
+    "landingShot": "landing.jpg",
+    "collection": "goolets-competitors",
+    "competitorPageId": "131832243560124",
+    "competitorPageName": "Goolets",
+    "competitorTier": 1,
+    "own": true,
+    "daysRunning": 23
+  },
+  {
+    "id": "20261009-meta-goolets-2",
+    "platform": "meta",
+    "format": "Video",
+    "advertiser": "Goolets",
+    "primaryText": "Be among the first onboard Oguz Khan. She is crossing the Atlantic for her first Caribbean season, and her calendar is still open.\n\nShe was launched in 2026 and this is her first winter in the Caribbean. 50.5 metres, 6 cabins, up to 12 guests, 1 group.\n\nThe first 5 confirmed Caribbean charters open the season, from €125,100 per wee (cut off)",
+    "headline": "Be Among the First Onboard",
+    "description": "6 cabins, 12 guests",
+    "cta": "Contact us",
+    "startedRunning": "2026-09-17",
+    "hooks": [
+      "Identity / belonging",
+      "Bold claim",
+      "Curiosity"
+    ],
+    "offer": "Limited time",
+    "styles": [
+      "Lifestyle",
+      "Photography",
+      "Product in use"
+    ],
+    "objective": "Lead gen",
+    "industry": "Luxury yacht charter",
+    "whyItWorks": "It sells exclusivity and first-mover status, framing the opening week as something that can only be claimed once. Concrete specs and a starting price qualify buyers quickly, so only serious high-end prospects respond. The aerial footage of a tender and wake gives a taste of the lifestyle, and the soft call to share dates keeps the ask low-pressure.",
+    "language": "en",
+    "sourceUrl": "https://www.facebook.com/ads/library/?id=1399396541659881",
+    "libraryId": "1399396541659881",
+    "landingPages": [
+      "https://goolets.net/oguz-khan-the-caribbean-at-your-door/"
+    ],
+    "landingFinalUrl": "https://goolets.net/oguz-khan-the-caribbean-at-your-door/",
+    "images": [
+      "1.png"
+    ],
+    "savedAt": "2026-10-09 14:00:38",
+    "landingShot": "landing.jpg",
+    "collection": "goolets-competitors",
+    "competitorPageId": "131832243560124",
+    "competitorPageName": "Goolets",
+    "competitorTier": 1,
+    "own": true,
+    "daysRunning": 23
+  },
+  {
+    "id": "20261009-meta-goolets",
+    "platform": "meta",
+    "format": "Video",
+    "advertiser": "Goolets",
+    "headline": "Her First Caribbean Winter Season",
+    "primaryText": "A brand new 50 metre superyacht is spending her first winter in the Caribbean, and she is available for private charter.\n\nOguz Khan was launched in 2026 and is crossing the Atlantic for the first time. Be among the first guests on board for her first Caribbean season.\n\n50.5 metres, 6 cabins, up to 12 guests, 1 group.\n\nRates for the 2026/27 season are published, from €125,100 per week on eligible dates. APA, VAT and applicable charges are explained in the written proposal.\n\nRequest availability for your dates and group size.",
+    "description": "From €125,100 per week",
+    "cta": "Learn more",
+    "startedRunning": "2026-09-17",
+    "hooks": [
+      "Bold claim",
+      "Curiosity"
+    ],
+    "offer": "No offer",
+    "styles": [
+      "Lifestyle",
+      "Photography"
+    ],
+    "objective": "Lead gen",
+    "industry": "Luxury yacht charter",
+    "whyItWorks": "Novelty and scarcity do the work: a brand new vessel on her first Caribbean season lets a wealthy buyer be among the first aboard. Publishing a starting weekly rate up front filters out unqualified clicks, so the leads that arrive can afford it. The calm sunset video of the yacht at anchor sells the lifestyle without any hard pitch.",
+    "language": "en",
+    "sourceUrl": "https://www.facebook.com/ads/library/?id=1612339377268941",
+    "libraryId": "1612339377268941",
+    "landingPages": [
+      "https://goolets.net/oguz-khan-a-50-metre-superyacht/"
+    ],
+    "landingFinalUrl": "https://goolets.net/oguz-khan-a-50-metre-superyacht/",
+    "images": [
+      "1.png"
+    ],
+    "savedAt": "2026-10-09 14:00:17",
+    "landingShot": "landing.jpg",
+    "collection": "goolets-competitors",
+    "competitorPageId": "131832243560124",
+    "competitorPageName": "Goolets",
+    "competitorTier": 1,
+    "own": true,
+    "daysRunning": 23
+  },
+  {
     "id": "20261009-google-northrop-johnson",
     "platform": "google",
     "format": "Search (text)",
@@ -35,6 +537,7 @@
     ],
     "landingShot": "landing.jpg",
     "landingFinalUrl": "https://www.northropandjohnson.com/",
+    "language": "en",
     "daysRunning": 1809
   },
   {
@@ -69,6 +572,7 @@
     "competitorPageName": "Peter Sommer Travels Ltd.",
     "competitorTier": 2,
     "startedRunning": "2026-07-01",
+    "language": "en",
     "daysRunning": 25
   },
   {
@@ -142,6 +646,7 @@
     "competitorPageName": "Navigare Yachting d.o.o.",
     "competitorTier": 2,
     "startedRunning": "2025-11-28",
+    "language": "en",
     "daysRunning": 314
   },
   {
@@ -181,6 +686,8 @@
     ],
     "landingShot": "landing.jpg",
     "landingFinalUrl": "https://www.navigare-yachting.com/en",
+    "language": "es",
+    "translationEn": "Headline: Navigare Yachting - Official website ®\nText: World-leading company in yacht rental and sales. Choose from one of our 10 destinations and more than 300 boats. Official website. Flexible.",
     "daysRunning": 531
   },
   {
@@ -221,6 +728,7 @@
     ],
     "landingShot": "landing.jpg",
     "landingFinalUrl": "https://www.sail-croatia.com/",
+    "language": "en",
     "daysRunning": 1809
   },
   {
@@ -260,6 +768,7 @@
     ],
     "landingShot": "landing.jpg",
     "landingFinalUrl": "https://www.sail-croatia.com/",
+    "language": "en",
     "daysRunning": 1809
   },
   {
@@ -295,6 +804,7 @@
     "competitorPageName": "HUD d.o.o.",
     "competitorTier": 2,
     "startedRunning": "2025-07-23",
+    "language": "en",
     "daysRunning": 443
   },
   {
@@ -335,6 +845,7 @@
     ],
     "landingShot": "landing.jpg",
     "landingFinalUrl": "https://yachtchartercroatia.com/",
+    "language": "en",
     "daysRunning": 600
   },
   {
@@ -374,6 +885,7 @@
     ],
     "landingShot": "landing.jpg",
     "landingFinalUrl": "https://www.helm.yt/",
+    "language": "en",
     "daysRunning": 1651
   },
   {
@@ -414,6 +926,7 @@
     ],
     "landingShot": "landing.jpg",
     "landingFinalUrl": "https://www.helm.yt/",
+    "language": "en",
     "daysRunning": 1651
   },
   {
@@ -448,6 +961,7 @@
     "competitorPageName": "Nigel Burgess Limited",
     "competitorTier": 2,
     "startedRunning": "2026-09-28",
+    "language": "en",
     "daysRunning": 10
   },
   {
@@ -482,6 +996,7 @@
     "competitorPageName": "Nigel Burgess Limited",
     "competitorTier": 2,
     "startedRunning": "2026-09-28",
+    "language": "en",
     "daysRunning": 10
   },
   {
@@ -560,6 +1075,7 @@
     ],
     "landingShot": "landing.jpg",
     "landingFinalUrl": "https://www.fraseryachts.com/",
+    "language": "en",
     "daysRunning": 1184
   },
   {
@@ -600,7 +1116,8 @@
     "competitorTier": 2,
     "landingShot": "landing.jpg",
     "landingFinalUrl": "https://hubspot.navigare-yachting.com/charter-a-yacht-in-croatia-meta",
-    "daysRunning": 39
+    "language": "en",
+    "daysRunning": 40
   },
   {
     "id": "20261009-meta-dream-yacht-worldwide",
@@ -640,7 +1157,9 @@
     "competitorTier": 2,
     "landingShot": "landing.jpg",
     "landingFinalUrl": "https://www.dreamyachtcharter.com/fr/landings/fr_cabine_B/",
-    "daysRunning": 87
+    "language": "fr",
+    "translationEn": "Headline: A worry-free sailing experience\nText: Would you like to discover life aboard a sailboat, but you have no sailing experience?\nOur cabin cruises are the ideal solution. Choose your destination, book your private cabin, and everything will be taken care of for you on board.\nDescription: No sailing experience required",
+    "daysRunning": 88
   },
   {
     "id": "20261009-meta-croatia-yachting",
@@ -678,7 +1197,8 @@
     "competitorTier": 2,
     "landingShot": "landing.jpg",
     "landingFinalUrl": "https://www.croatia-yachting-charter.com/en/charter-specials/last-minute",
-    "daysRunning": 61
+    "language": "en",
+    "daysRunning": 62
   },
   {
     "id": "20261009-meta-navigare-yachting",
@@ -717,7 +1237,8 @@
     "competitorTier": 2,
     "landingShot": "landing.jpg",
     "landingFinalUrl": "https://hubspot.navigare-yachting.com/charter-a-yacht-in-the-british-virgin-islands-meta",
-    "daysRunning": 38
+    "language": "en",
+    "daysRunning": 39
   },
   {
     "id": "20261009-meta-yacht-getaways",
@@ -757,7 +1278,7 @@
     "competitorTier": 2,
     "landingShot": "landing.jpg",
     "landingFinalUrl": "https://www.yachtgetaways.com/landing-page-group-sailing-holidays-promo",
-    "daysRunning": 2
+    "daysRunning": 3
   },
   {
     "id": "20261009-meta-the-moorings",
@@ -796,7 +1317,7 @@
     "competitorTier": 2,
     "landingShot": "landing.jpg",
     "landingFinalUrl": "https://www.moorings.com/destinations/caribbean/british-virgin-islands-yacht-charters",
-    "daysRunning": 2
+    "daysRunning": 3
   },
   {
     "id": "20261009-meta-sail-croatia",
@@ -837,7 +1358,7 @@
     "competitorTier": 2,
     "landingShot": "landing.jpg",
     "landingFinalUrl": "https://www.sail-croatia.com/croatia-cruises/active-croatia/hike-croatia",
-    "daysRunning": 12
+    "daysRunning": 13
   },
   {
     "id": "20261009-meta-peter-sommer-travels-2",
@@ -877,7 +1398,8 @@
     "competitorTier": 1,
     "landingShot": "landing.jpg",
     "landingFinalUrl": "https://www.petersommer.com/",
-    "daysRunning": 221
+    "language": "en",
+    "daysRunning": 222
   },
   {
     "id": "20261009-meta-peter-sommer-travels",
@@ -917,7 +1439,8 @@
     "competitorTier": 1,
     "landingShot": "landing.jpg",
     "landingFinalUrl": "https://www.petersommer.com/tours/crete-tour-greece",
-    "daysRunning": 296
+    "language": "en",
+    "daysRunning": 297
   },
   {
     "id": "20261009-meta-swisspath-yachting",
@@ -997,7 +1520,7 @@
     "competitorTier": 1,
     "landingShot": "landing.jpg",
     "landingFinalUrl": "https://vernicosyachts.com/crewed-yacht/",
-    "daysRunning": 49
+    "daysRunning": 50
   },
   {
     "id": "20261009-meta-vernicos-yachts",
@@ -1037,7 +1560,7 @@
     "competitorTier": 1,
     "landingShot": "landing.jpg",
     "landingFinalUrl": "https://vernicosyachts.com/bareboat-yacht/",
-    "daysRunning": 86
+    "daysRunning": 87
   },
   {
     "id": "20261009-meta-helm-2",
@@ -1077,7 +1600,8 @@
     "competitorTier": 1,
     "landingShot": "landing.jpg",
     "landingFinalUrl": "https://www.helm.yt/yacht-charter/mediterranean-sea",
-    "daysRunning": 60
+    "language": "en",
+    "daysRunning": 61
   },
   {
     "id": "20261009-meta-helm",
@@ -1117,7 +1641,8 @@
     "competitorTier": 1,
     "landingShot": "landing.jpg",
     "landingFinalUrl": "https://www.helm.yt/",
-    "daysRunning": 80
+    "language": "en",
+    "daysRunning": 81
   },
   {
     "id": "20261009-meta-moncada-yachts",
@@ -1155,7 +1680,8 @@
     "competitorTier": 1,
     "landingShot": "landing.jpg",
     "landingFinalUrl": "https://www.moncadayb.com/destinations/luxury-yacht-charter-leeward-islands/",
-    "daysRunning": 17
+    "language": "en",
+    "daysRunning": 18
   },
   {
     "id": "20261009-meta-dma-yachting-3",
@@ -1194,7 +1720,8 @@
     "competitorTier": 1,
     "landingShot": "landing.jpg",
     "landingFinalUrl": "https://dmayachting.com/superyacht-charter",
-    "daysRunning": 1
+    "language": "en",
+    "daysRunning": 2
   },
   {
     "id": "20261009-meta-dma-yachting-2",
@@ -1234,7 +1761,8 @@
     "competitorTier": 1,
     "landingShot": "landing.jpg",
     "landingFinalUrl": "https://dmayachting.com/",
-    "daysRunning": 18
+    "language": "en",
+    "daysRunning": 19
   },
   {
     "id": "20261009-meta-dma-yachting",
@@ -1273,7 +1801,8 @@
     "competitorTier": 1,
     "landingShot": "landing.jpg",
     "landingFinalUrl": "https://dmayachting.com/",
-    "daysRunning": 18
+    "language": "en",
+    "daysRunning": 19
   },
   {
     "id": "20261009-meta-luxury-yacht-charter-croatia-3",
@@ -1313,7 +1842,8 @@
     "competitorTier": 1,
     "landingShot": "landing.jpg",
     "landingFinalUrl": "https://yachtchartercroatia.com/",
-    "daysRunning": 88
+    "language": "en",
+    "daysRunning": 89
   },
   {
     "id": "20261009-meta-luxury-yacht-charter-croatia-2",
@@ -1353,7 +1883,8 @@
     "competitorTier": 1,
     "landingShot": "landing.jpg",
     "landingFinalUrl": "https://yachtchartercroatia.com/",
-    "daysRunning": 70
+    "language": "en",
+    "daysRunning": 71
   },
   {
     "id": "20261009-meta-luxury-yacht-charter-croatia",
@@ -1393,7 +1924,8 @@
     "competitorTier": 1,
     "landingShot": "landing.jpg",
     "landingFinalUrl": "https://yachtchartercroatia.com/",
-    "daysRunning": 121
+    "language": "en",
+    "daysRunning": 122
   },
   {
     "id": "20261009-meta-croatia-gulet-3",
@@ -1434,7 +1966,8 @@
     "competitorTier": 1,
     "landingShot": "landing.jpg",
     "landingFinalUrl": "https://croatia-gulet.com/",
-    "daysRunning": 135
+    "language": "en",
+    "daysRunning": 136
   },
   {
     "id": "20261009-meta-croatia-gulet-2",
@@ -1474,7 +2007,8 @@
     "competitorTier": 1,
     "landingShot": "landing.jpg",
     "landingFinalUrl": "https://croatia-gulet.com/",
-    "daysRunning": 122
+    "language": "en",
+    "daysRunning": 123
   },
   {
     "id": "20261009-meta-croatia-gulet",
@@ -1514,7 +2048,8 @@
     "competitorTier": 1,
     "landingShot": "landing.jpg",
     "landingFinalUrl": "https://croatia-gulet.com/",
-    "daysRunning": 135
+    "language": "en",
+    "daysRunning": 136
   },
   {
     "id": "20261009-meta-croatiayachts-com",
@@ -1554,6 +2089,8 @@
     "competitorTier": 2,
     "landingShot": "landing.jpg",
     "landingFinalUrl": "https://croatiayachts.com/de",
-    "daysRunning": 1
+    "language": "de",
+    "translationEn": "Headline: Now is the best time to book for 2027\nText: Are you already planning your yacht vacation for 2027? Then now is the right time to book. ⛵\n\nBenefit from a greater selection of yachts and catamarans, secure your preferred dates and save up to 35% with our early booking offers.\n\nThe most popular summer weeks won't stay available for long. 🌊\nDescription: Tailor-made yacht charters in Croatia designed for luxury, privacy, and unforgettable experiences.",
+    "daysRunning": 2
   }
 ]

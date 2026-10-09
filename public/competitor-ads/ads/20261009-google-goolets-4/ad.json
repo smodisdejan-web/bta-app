@@ -1,0 +1,41 @@
+{
+  "id": "20261009-google-goolets-4",
+  "platform": "google",
+  "format": "Search (text)",
+  "advertiser": "Goolets",
+  "headline": "Luxury Made Affordable - Private Chef & Crew - Start Planning Today",
+  "primaryText": "Luxury Yachting for Groups up to 36 – Without the Unreachable Price Tag Experience the Adriatic’s Hidden Gems on a Private, All-Inclusive Yacht. Tailored-made offer. Professional crew. Smart way of yachting.",
+  "displayUrl": "www.goolets.net/",
+  "lastShown": "2026-10-08",
+  "hooks": [
+    "Bold claim",
+    "Pain point"
+  ],
+  "offer": "No offer",
+  "styles": [
+    "Photography",
+    "Lifestyle",
+    "Product shot"
+  ],
+  "objective": "Lead gen",
+  "industry": "Yacht charter / Travel",
+  "whyItWorks": "It tackles the main objection to yacht travel, that it's out of reach for most people, by pairing luxury with affordability right in the headline. The group size and all-inclusive framing speak to a specific buyer who wants a simple, shared trip. Three bright photos of different vessels make the product feel real and let people picture a trip, and the sitelinks send different kinds of shoppers to the right page.",
+  "language": "en",
+  "sourceUrl": "https://adstransparency.google.com/advertiser/AR13888064995461169153/creative/CR15248996250159153153?region=anywhere",
+  "libraryId": "CR15248996250159153153",
+  "landingPages": [
+    "https://www.goolets.net/"
+  ],
+  "landingFinalUrl": "https://goolets.net/",
+  "images": [
+    "1.png"
+  ],
+  "savedAt": "2026-10-09 14:04:36",
+  "landingShot": "landing.jpg",
+  "collection": "goolets-competitors",
+  "competitorPageId": "AR13888064995461169153",
+  "competitorPageName": "Goolets",
+  "competitorTier": 1,
+  "own": true,
+  "startedRunning": "2025-05-21"
+}

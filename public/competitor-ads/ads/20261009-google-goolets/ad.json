@@ -1,0 +1,40 @@
+{
+  "id": "20261009-google-goolets",
+  "platform": "google",
+  "format": "Search (text)",
+  "advertiser": "Goolets",
+  "headline": "Goolets - Luxury Yacht Charter Experts",
+  "primaryText": "Croatia and Turkey specialists with offices in 5 countries. Full concierge included. Private crewed yacht charters. 30,000+ guests served. MYBA member. Get a proposal. 20+ Years Experience.",
+  "displayUrl": "www.goolets.net/",
+  "lastShown": "2026-10-08",
+  "hooks": [
+    "Social proof",
+    "Bold claim"
+  ],
+  "offer": "Demo or consultation",
+  "styles": [
+    "Minimal / text-only",
+    "Stat / data"
+  ],
+  "objective": "Lead gen",
+  "industry": "Yacht charter / luxury travel",
+  "whyItWorks": "It stacks credibility signals such as guest count, years in business, an industry membership and a multi-country footprint, so a high-ticket buyer feels safe before clicking. The sitelinks split intent by destination and by audience (Greece, Croatia, families), letting searchers jump straight to what matches them. The low-pressure proposal request fits a considered purchase.",
+  "language": "en",
+  "sourceUrl": "https://adstransparency.google.com/advertiser/AR13888064995461169153/creative/CR11099457130917265409?region=anywhere",
+  "libraryId": "CR11099457130917265409",
+  "landingPages": [
+    "https://www.goolets.net/"
+  ],
+  "landingFinalUrl": "https://goolets.net/",
+  "images": [
+    "1.png"
+  ],
+  "savedAt": "2026-10-09 14:03:10",
+  "landingShot": "landing.jpg",
+  "collection": "goolets-competitors",
+  "competitorPageId": "AR13888064995461169153",
+  "competitorPageName": "Goolets",
+  "competitorTier": 1,
+  "own": true,
+  "startedRunning": "2025-03-14"
+}
