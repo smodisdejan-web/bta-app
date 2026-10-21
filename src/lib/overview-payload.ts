@@ -61,8 +61,9 @@ export type OverviewApiTotals = {
 }
 
 export type OverviewPayload = {
-  /** The window the caller asked for; only `apiTotals` depends on it, the tabs are whole. */
-  range: { start: string; end: string }
+  /** The window actually served. `end` is capped at the last day every live spend feed reaches
+   *  (≤ `requestedEnd`); only `apiTotals` depends on it, the tabs are whole. */
+  range: { start: string; end: string; requestedEnd?: string }
   generatedAt: string
   /** true when the caller passed ?nocache=1 — the tab cache was bypassed for this build. */
   nocache: boolean

@@ -586,7 +586,7 @@ export async function GET(request: Request) {
       status: live ? 'green' : 'amber',
       note: live
         ? undefined
-        : 'Znano mrtev feed (zadnje vrstice 9.8.2026). Spend je že prevzel fb_ads_api; leads in LP views tu še vedno manjkajo. Amber, ne red — je znano stanje, ne novica.',
+        : `Znano mrtev feed (stale, sporadične vrstice; zadnja ${maxDate || '—'}). Spend je že prevzel fb_ads_api; leads in LP views tu še vedno manjkajo. Amber, ne red — je znano stanje, ne novica.`,
     })
   } catch (e) {
     feeds.push({

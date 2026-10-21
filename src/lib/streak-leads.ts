@@ -5,8 +5,8 @@
 // WHY THIS EXISTS (2026-09-21)
 // Two pages of the same dashboard disagreed about how many leads September had:
 //   /api/funnel        — `streak_full` (the full daily Streak API scan) UNIONed with
-//                        `streak_sync`, days bucketed with toDay() (+4h, so a 22:00Z stamp
-//                        lands on the right Ljubljana day)  →  Meta 999 / Google 184
+//                        `streak_sync`, days bucketed with toDay() (Europe/Ljubljana day, so a 22:00Z
+//                        stamp lands on the right Ljubljana day)  →  Meta 999 / Google 184
 //   / (Overview) and /api/freshness
 //                      — `streak_sync` ALONE (the Zapier-fed tab, which was missing boxes
 //                        Streak had not pushed yet), days bucketed with toIsoDay() (plain

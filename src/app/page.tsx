@@ -207,7 +207,29 @@ export default function HomePage() {
   /** Bumped by the Refresh button; a non-zero value asks the route for ?nocache=1. */
   const [refreshTick, setRefreshTick] = useState(0)
 
-  const dateBounds = useMemo(() => computeDateBounds(range), [range])
+  /** The window the selector asks for (end = today for every rolling range). Only the fetch uses it. */
+  const requestBounds = useMemo(() => computeDateBounds(range), [range])
+  /** The window /api/overview-data actually served: its end is capped at the last day EVERY live
+   *  spend feed reaches (2026-10-21: Google/Bing had a partial 21.10, Meta/ChatGPT stopped at
+   *  20.10, so Total Spend mixed two windows). */
+  const [servedRange, setServedRange] = useState<OverviewPayload['range'] | null>(null)
+  /** ONE window for the whole page: spend, leads, trend, channel cards all read this. */
+  const dateBounds = useMemo(() => {
+    const reqStart = toLocalISODate(requestBounds.start)
+    const reqEnd = toLocalISODate(requestBounds.end)
+    if (
+      servedRange &&
+      servedRange.start === reqStart &&
+      servedRange.requestedEnd === reqEnd &&
+      /^\d{4}-\d{2}-\d{2}$/.test(servedRange.end) &&
+      servedRange.end >= reqStart &&
+      servedRange.end < reqEnd
+    ) {
+      const [y, m, d] = servedRange.end.split('-').map(Number)
+      return { start: requestBounds.start, end: new Date(y, m - 1, d, 23, 59, 59, 999) }
+    }
+    return requestBounds
+  }, [requestBounds, servedRange])
   const days = useMemo(() => {
     const ms = dateBounds.end.getTime() - dateBounds.start.getTime()
     return Math.max(1, Math.round(ms / 86_400_000) + 1)
@@ -237,8 +259,8 @@ export default function HomePage() {
       setLoading(true)
       setError(null)
       try {
-        const startISO = toLocalISODate(dateBounds.start)
-        const endISO = toLocalISODate(dateBounds.end)
+        const startISO = toLocalISODate(requestBounds.start)
+        const endISO = toLocalISODate(requestBounds.end)
         const qs = new URLSearchParams({ start: startISO, end: endISO })
         if (refreshTick > 0) qs.set('nocache', '1')
         const res = await fetch(`/api/overview-data?${qs.toString()}`, {
@@ -248,6 +270,7 @@ export default function HomePage() {
         const data: OverviewPayload = await res.json()
 
         setFeedMeta(data.meta || {})
+        setServedRange(data.range ?? null)
         setFbEnriched(data.fbEnriched ?? [])
         setStreakLeads(data.streakLeads ?? [])
         setBookings(data.bookings ?? [])
@@ -264,7 +287,7 @@ export default function HomePage() {
       }
     }
     load()
-  }, [dateBounds, refreshTick])
+  }, [requestBounds, refreshTick])
 
   /** Which feeds the route could not read at all. Logged so a null never passes silently. */
   useEffect(() => {
@@ -278,6 +301,14 @@ export default function HomePage() {
     if (range === 'mtd' || range === 'lastMonth') return fmt(start)
     return `${fmt(start)} - ${fmt(end)}`
   }, [dateBounds, range])
+  /** The exact day window every number on the page reads, e.g. "1.–20. 10." */
+  const windowDaysLabel = useMemo(() => {
+    const { start, end } = dateBounds
+    const sameMonth = start.getFullYear() === end.getFullYear() && start.getMonth() === end.getMonth()
+    return sameMonth
+      ? `${start.getDate()}.–${end.getDate()}. ${end.getMonth() + 1}.`
+      : `${start.getDate()}. ${start.getMonth() + 1}.–${end.getDate()}. ${end.getMonth() + 1}.`
+  }, [dateBounds])
 
   // Bookings honour the SAME day window as spend and leads. They used to be bucketed by whole
   // CALENDAR MONTH (getMonthsInRange: 7d -> 1 month, 30d -> 2, 60d -> 3, 90d -> 4), so "7 Days"
@@ -376,27 +407,32 @@ export default function HomePage() {
     })
   }, [fbEnriched, dateBounds])
 
+  // ISO string compares on the local window days. `new Date('YYYY-MM-DD')` is UTC midnight, which
+  // in CEST is 02:00 local and only happened to land inside the window.
   const googleDailyFiltered = useMemo(() => {
-    const { start, end } = dateBounds
+    const s0 = toLocalISODate(dateBounds.start)
+    const e0 = toLocalISODate(dateBounds.end)
     return googleDaily.filter((r) => {
-      const d = new Date(r.date)
-      return d >= start && d <= end
+      const d = String(r.date || '').slice(0, 10)
+      return d >= s0 && d <= e0
     })
   }, [googleDaily, dateBounds])
 
   const bingDailyFiltered = useMemo(() => {
-    const { start, end } = dateBounds
+    const s0 = toLocalISODate(dateBounds.start)
+    const e0 = toLocalISODate(dateBounds.end)
     return bingDaily.filter((r) => {
-      const d = new Date(r.date)
-      return d >= start && d <= end
+      const d = String(r.date || '').slice(0, 10)
+      return d >= s0 && d <= e0
     })
   }, [bingDaily, dateBounds])
 
   const chatgptDailyFiltered = useMemo(() => {
-    const { start, end } = dateBounds
+    const s0 = toLocalISODate(dateBounds.start)
+    const e0 = toLocalISODate(dateBounds.end)
     return chatgptDaily.filter((r) => {
-      const d = new Date(r.date)
-      return d >= start && d <= end
+      const d = String(r.date || '').slice(0, 10)
+      return d >= s0 && d <= e0
     })
   }, [chatgptDaily, dateBounds])
 
@@ -516,7 +552,9 @@ export default function HomePage() {
     // LEADS = Streak CRM, the same set QL / QL% / CPQL are counted from. The platform-reported
     // count is a different measuring system and is kept separate, never as a QL denominator.
     const totalLeads = leadsFiltered.length
-    const platformLeads = apiTotals?.combined?.leads ?? 0
+    // Platform-reported = only channels whose feed covers the window (the route already drops dead
+    // fb_ads_enriched); whole leads, because Google conversions arrive fractional (228.27 on 21.10).
+    const platformLeads = Math.round(apiTotals?.combined?.leads ?? 0)
     const totalQuality = qualityCount(leadsFiltered)
     const avgAi = avgAiScore(leadsFiltered)
     const bookingsCount = filteredBookings.length
@@ -600,7 +638,10 @@ export default function HomePage() {
     // truthfully carry spend with zero clicks AND zero LP views AND zero leads, so when all four
     // enriched-derived fields are empty the feed did not cover the window and the tile says n/a.
     // Display only — platformLeads itself is untouched.
+    // 2026-10-21: the old "clicks + LP views + leads > 0" test let the dead feed's 18 rows dated
+    // 1.10. (40 leads) through for every October window. The feed must cover the window.
     const platformLeadsMeasured =
+      fbEnrichedCoversWindow &&
       ((apiTotals?.fb?.clicks || 0) + (apiTotals?.fb?.lpViews || 0) + platformLeads) > 0
     const qRate = leadsCount > 0 ? Math.round((quality / leadsCount) * 100) : 0
     const bookingsFb = filteredBookings.filter((b) => bookingChannelOf(b) === 'meta')
@@ -620,7 +661,7 @@ export default function HomePage() {
       revenue: revenueFb,
       roas
     }
-  }, [apiTotals, leadsFbFiltered, filteredBookings, fbSpend, fbSpendFromApi])
+  }, [apiTotals, leadsFbFiltered, filteredBookings, fbSpend, fbSpendFromApi, fbEnrichedCoversWindow])
 
   const channelGoogle = useMemo(() => {
     const quality = qualityCount(leadsGoogleFiltered)
@@ -1018,7 +1059,7 @@ export default function HomePage() {
             <div className="mt-2 flex items-center gap-3">
               <span className="h-px w-8 bg-[#B39262]" />
               <p className="text-sm text-muted-foreground">
-                Paid marketing intelligence · {monthRangeLabel}
+                Paid marketing intelligence · {monthRangeLabel} · {windowDaysLabel}
               </p>
             </div>
           </div>

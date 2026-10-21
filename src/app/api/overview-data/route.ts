@@ -169,6 +169,44 @@ export async function GET(request: Request) {
       ? null
       : unionStreakRows(streakFull || [], streakSync || []).map(slimLead)
 
+  // ONE WINDOW (2026-10-21). The requested end is "today", but the spend feeds land on different
+  // days: Google/Bing carried a partial 21.10 while fb_ads_api and ChatGPT stopped at 20.10, so
+  // Total Spend mixed two windows (EUR 310.99 of 21.10 next to nothing from Meta). Cap the end at
+  // the last day EVERY live spend feed reaches. A feed with no rows in the window, or one more than
+  // STALE_FEED_DAYS behind the requested end, is a stale/dead feed (freshness flags it) and must
+  // not clip everyone else's window — it reads n/a on its own tile instead.
+  const STALE_FEED_DAYS = 3
+  const shiftIso = (iso: string, days: number) => {
+    const d = new Date(`${iso}T00:00:00Z`)
+    d.setUTCDate(d.getUTCDate() + days)
+    return d.toISOString().slice(0, 10)
+  }
+  const feedMaxInWindow = (rows: { date: string }[] | null): string => {
+    let max = ''
+    for (const r of rows || []) {
+      const d = String(r.date || '').slice(0, 10)
+      if (d >= start && d <= requestedEnd && d > max) max = d
+    }
+    return max
+  }
+  const requestedEnd = end
+  const staleBefore = shiftIso(requestedEnd, -STALE_FEED_DAYS)
+  const spendFeedEnds = [daily, fbSpendApi, bing, chatgpt]
+    .map(feedMaxInWindow)
+    .filter((d) => d && d >= staleBefore)
+  const cappedEnd = spendFeedEnds.length ? spendFeedEnds.reduce((a, b) => (b < a ? b : a)) : requestedEnd
+  const effectiveEnd = cappedEnd >= start ? cappedEnd : requestedEnd
+
+  // fb_ads_enriched is the only source of FB platform leads and it is dead (sporadic rows, last
+  // 2026-10-01). The same coverage rule page.tsx applies (fbEnrichedCoversWindow): the feed must
+  // reach the window end, one day of lag allowed. Otherwise its leads stay OUT of combined.leads.
+  let fbEnrichedMax = ''
+  for (const r of (fbEnriched || []) as any[]) {
+    const d = String(r.date_iso || r.date_start || '').slice(0, 10)
+    if (d && d > fbEnrichedMax) fbEnrichedMax = d
+  }
+  const fbEnrichedCovers = !!fbEnrichedMax && fbEnrichedMax >= shiftIso(effectiveEnd, -1)
+
   // /api/dashboard-totals, computed here from the SAME helpers and the SAME cached tabs
   // (fb_ads_enriched + streak_sync + fb_ads_api for FB, daily_api + streak_sync for Google), so
   // the client no longer opens a second round of Apps Script executions while these are in
@@ -177,7 +215,7 @@ export async function GET(request: Request) {
   try {
     const rangeStart = new Date(start)
     rangeStart.setHours(0, 0, 0, 0)
-    const rangeEnd = new Date(end)
+    const rangeEnd = new Date(effectiveEnd)
     rangeEnd.setHours(23, 59, 59, 999)
     const inRange = (d: string) => {
       if (!d) return false
@@ -191,7 +229,11 @@ export async function GET(request: Request) {
       fb: fbTotals as any,
       google: gaTotals as any,
       combined: {
-        leads: (fbTotals.fbFormLeads || 0) + (fbTotals.landingLeads || 0) + (gaTotals.conversions || 0),
+        // Only channels whose feed covers the window; whole leads (Google conversions are fractional).
+        leads: Math.round(
+          (fbEnrichedCovers ? (fbTotals.fbFormLeads || 0) + (fbTotals.landingLeads || 0) : 0) +
+            (gaTotals.conversions || 0)
+        ),
         spend: (fbTotals.spend || 0) + (gaTotals.spend || 0)
       }
     }
@@ -202,7 +244,7 @@ export async function GET(request: Request) {
   }
 
   const payload: OverviewPayload = {
-    range: { start, end },
+    range: { start, end: effectiveEnd, requestedEnd },
     generatedAt: new Date().toISOString(),
     nocache,
     meta,

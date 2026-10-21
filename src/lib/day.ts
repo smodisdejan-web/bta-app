@@ -15,6 +15,13 @@
  * fb_ads_raw stores `date_start` as the previous day at 22:00Z — the same +2h offset the
  * enriched tab already resolves into `date_iso`, so we resolve it identically here.
  */
+const LJ_DAY = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Europe/Ljubljana',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+})
+
 export function toDay(v: any): string {
   if (v == null || v === '') return ''
   if (typeof v === 'number' && Number.isFinite(v)) {
@@ -27,9 +34,11 @@ export function toDay(v: any): string {
   if (s.includes('T')) {
     const d = new Date(s)
     if (Number.isNaN(+d)) return s.slice(0, 10)
-    // 22:00Z / 23:00Z means "the next day, Ljubljana". +4h lands any such stamp on the
-    // right calendar day without disturbing midnight-based stamps.
-    return new Date(+d + 4 * 3600_000).toISOString().slice(0, 10)
+    // Real Europe/Ljubljana calendar day (CEST +2 / CET +1, DST-aware). A 22:00Z / 23:00Z
+    // midnight stamp lands on the next day, midnight-based stamps stay put. The old fixed +4h
+    // pushed real Streak timestamps from 20:00-21:59Z onto the next day (2026-10-21: 3 phantom
+    // leads double-counted by the streak_full/streak_sync union).
+    return LJ_DAY.format(d)
   }
   const d = new Date(s)
   return Number.isNaN(+d) ? '' : d.toISOString().slice(0, 10)
