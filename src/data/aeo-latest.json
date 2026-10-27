@@ -1,105 +1,116 @@
 {
   "_capture": {
-    "capturedAt": "2026-08-14",
-    "capturedBy": "Claude (Chrome MCP, ročno branje — AEO nima javnega API-ja)",
+    "capturedAt": "2026-10-27",
+    "capturedBy": "Claude (Chrome MCP, ročno branje — HubSpot MCP ima AEO orodja, a uporabnik nima AEO dovoljenja prek konektorja)",
     "source": "https://app-eu1.hubspot.com/ai-visibility/143360943",
     "portal": "143360943",
-    "window": "2026-07-17..2026-08-14",
-    "windowNote": "AEO poroča drseče 4-tedensko okno z tedensko granularnostjo, NE koledarski mesec. Zaporedni snapshoti se rahlo prekrivajo — ne beri kot koledarske mesece.",
+    "window": "2026-09-29..2026-10-27",
+    "windowNote": "AEO poroča drseče 4-tedensko okno z tedensko granularnostjo, NE koledarski mesec. Zajem zamujen (cilj 1. 10.); 2026-09 ni bil zajet in ga ni mogoče rekonstruirati iz UI.",
     "engines": ["ChatGPT", "Gemini", "Perplexity"],
     "plan": "Marketing Hub Professional",
     "promptsUsed": 13,
     "promptsLimit": 25,
     "partial": [
-      "shareOfVoice: zajeta samo 1. stran (top 5 od 2 strani) — spodnji del lestvice ni zajet",
-      "ownedCitations / topCitationsOverall / topDomains: zajeta samo 1. stran (top 5 od 5 strani)",
-      "sentimentAnalysis: zavihek ni bil odprt"
+      "prompts: na zavihku Prompts vidnih 12 od 13 sledenih promptov — 13. ni bil zajet",
+      "brandVisibility: po-engine vrednosti niso bile prebrane (samo graf)",
+      "ownedCitations / topCitationsOverall: zajeta samo 1. stran (top 5 od 5 strani); topDomains zajetih 50",
+      "recommendations: vidnih 21 od 37 aktivnih — byStatus, assigned in topByLift so iz teh 21",
+      "sentimentAnalysis: zavihek ni bil odprt",
+      "prompt 'change': stolpec Change v UI ne pokaže predznaka → ni zapisan"
     ]
   },
 
   "brandVisibility": {
-    "value": 9.08,
+    "value": 11.23,
     "unit": "percent",
-    "note": "Gemini nas vidi bolje (~25 %) kot ChatGPT (nižje). Perplexity najnižje."
+    "note": "Avg. 3 engine, 13 promptov. Avgust: 9,08 % (okno 17.7.–14.8.) → +2,15 pt. Po-engine razčlenitev ni zajeta."
   },
 
   "shareOfVoice": [
-    { "company": "Northrop & Johnson", "share": 28, "isUs": false },
-    { "company": "Fraser",             "share": 25, "isUs": false },
-    { "company": "Burgess",            "share": 24, "isUs": false },
-    { "company": "Camper & Nicholsons","share": 11, "isUs": false },
-    { "company": "Goolets",            "share": 10, "isUs": true }
+    { "company": "Northrop & Johnson",  "share": 29, "isUs": false },
+    { "company": "Burgess",             "share": 22, "isUs": false },
+    { "company": "Fraser",              "share": 20, "isUs": false },
+    { "company": "Goolets",             "share": 15, "isUs": true },
+    { "company": "Camper & Nicholsons", "share": 12, "isUs": false },
+    { "company": "Master Charter",      "share": 2,  "isUs": false },
+    { "company": "Wondergulets Group",  "share": 0,  "isUs": false },
+    { "company": "Y co",                "share": 0,  "isUs": false },
+    { "company": "dma yachting",        "share": 0,  "isUs": false },
+    { "company": "my croatia charter",  "share": 0,  "isUs": false },
+    { "company": "yacht charter fleet", "share": 0,  "isUs": false }
   ],
 
   "prompts": [
-    { "prompt": "What are the top superyacht charter companies for large groups in Croatia?", "visibility": 51, "product": "Superyacht charters for larger groups in Croatia", "phase": "Consideration", "location": "United States" },
-    { "prompt": "Which crewed yacht charters are best for Croatia itineraries?",              "visibility": 35, "product": "Crewed Yacht Charters", "phase": "Consideration", "location": "United States" },
+    { "prompt": "What are the top superyacht charter companies for large groups in Croatia?", "visibility": 82, "product": "Superyacht charters for larger groups in Croatia", "phase": "Consideration", "location": "United States" },
     { "prompt": "What is the best crewed yacht charter for Turkey cruises?",                  "visibility": 22, "product": "Crewed Yacht Charters", "phase": "Consideration", "location": "United States" },
-    { "prompt": "Which mega yacht charters in Croatia best accommodate over 12 guests?",      "visibility": 12, "product": "Superyacht charters for larger groups in Croatia", "phase": "Consideration", "location": "United Kingdom" },
-    { "prompt": "What are the top luxury crewed yacht charter options in the Mediterranean?", "visibility": 12, "product": "Crewed Yacht Charters", "phase": "Consideration", "location": "United States" },
-    { "prompt": "What makes planning Mediterranean crewed yacht charters so complicated?",    "visibility": 8,  "product": "Crewed Yacht Charters", "phase": "Awareness", "location": "United States" },
-    { "prompt": "How do crewed yacht charters handle fully personalized itineraries?",        "visibility": 5,  "product": "Crewed Yacht Charters", "phase": "Awareness", "location": "United States" },
-    { "prompt": "What is the best crewed yacht charter for families?",                        "visibility": 0,  "product": "Crewed Yacht Charters", "phase": "Consideration", "location": "United States" },
-    { "prompt": "What crewed yacht charters do high-end travelers usually book?",             "visibility": 0,  "product": "Crewed Yacht Charters", "phase": "Consideration", "location": "United States" },
+    { "prompt": "Which crewed yacht charters are best for Croatia itineraries?",              "visibility": 21, "product": "Crewed Yacht Charters", "phase": "Consideration", "location": "United States" },
+    { "prompt": "Which mega yacht charters in Croatia best accommodate over 12 guests?",      "visibility": 8,  "product": "Superyacht charters for larger groups in Croatia", "phase": "Consideration", "location": "United Kingdom" },
+    { "prompt": "What are the top luxury crewed yacht charter options in the Mediterranean?", "visibility": 6,  "product": "Crewed Yacht Charters", "phase": "Consideration", "location": "United States" },
+    { "prompt": "Which crewed yacht charters specialize in Greece island hopping?",          "visibility": 3,  "product": "Crewed Yacht Charters", "phase": "Consideration", "location": "United States" },
+    { "prompt": "Why do luxury travelers struggle to choose crewed yacht charters?",         "visibility": 0,  "product": "Crewed Yacht Charters", "phase": "Awareness", "location": "United States" },
+    { "prompt": "Which crewed yacht charters offer the most personalized service?",          "visibility": 0,  "product": "Crewed Yacht Charters", "phase": "Consideration", "location": "United States" },
+    { "prompt": "What makes planning Mediterranean crewed yacht charters so complicated?",    "visibility": 0,  "product": "Crewed Yacht Charters", "phase": "Awareness", "location": "United States" },
     { "prompt": "What are the top Mediterranean crewed yacht charter companies?",             "visibility": 0,  "product": "Crewed Yacht Charters", "phase": "Consideration", "location": "United States" },
-    { "prompt": "Which crewed yacht charters offer the most personalized service?",           "visibility": 0,  "product": "Crewed Yacht Charters", "phase": "Consideration", "location": "United States" },
-    { "prompt": "Which crewed yacht charters specialize in Greece island hopping?",           "visibility": 0,  "product": "Crewed Yacht Charters", "phase": "Consideration", "location": "United States" },
-    { "prompt": "Why do luxury travelers struggle to choose crewed yacht charters?",          "visibility": 0,  "product": "Crewed Yacht Charters", "phase": "Awareness", "location": "United States" }
+    { "prompt": "How do crewed yacht charters handle fully personalized itineraries?",        "visibility": 0,  "product": "Crewed Yacht Charters", "phase": "Awareness", "location": "United States" },
+    { "prompt": "What crewed yacht charters do high‑end travelers usually book?",            "visibility": 0,  "product": "Crewed Yacht Charters", "phase": "Consideration", "location": "United States" }
   ],
 
   "promptPattern": {
-    "nicheAvg": 30.0,
-    "nicheNote": "Prompti, ki imenujejo Hrvaško ali Turčijo: 51 / 35 / 22 / 12 → povprečje ~30 %",
-    "genericAvg": 2.8,
-    "genericNote": "Generični prompti (Mediteran, družine, Grčija, personalized): 12 / 8 / 5 / 0 / 0 / 0 / 0 / 0 / 0 → povprečje 2,8 %",
-    "ratio": 10.7,
-    "ratioNote": "Nišni prompti so ~10,7× bolj vidni od generičnih (30,0 % vs 2,8 %).",
-    "conclusion": "Vidnost je vezana na nišo (Croatia/Turkey + velike skupine), ne na kategorijo. Dejstvo o pozicioniranju, ne napaka."
+    "nicheAvg": 33.3,
+    "nicheNote": "Prompti, ki imenujejo Hrvaško ali Turčijo: 82 / 22 / 21 / 8 → povprečje 33,3 % (avg 30,0 %)",
+    "genericAvg": 1.1,
+    "genericNote": "Generični prompti (Mediteran, Grčija, personalized, high-end): 6 / 3 / 0 / 0 / 0 / 0 / 0 / 0 → povprečje 1,1 % (avg 2,8 %). 13. prompt ni zajet.",
+    "ratio": 29.6,
+    "ratioNote": "Nišni prompti so ~29,6× bolj vidni od generičnih (33,3 % vs 1,1 %); avgusta 10,7×.",
+    "conclusion": "Nišni del raste (Croatia large groups 51 → 82 %), generični pada proti 0. Strategija niše drži; v generični Mediteran se ne prebijamo."
   },
 
   "ownedCitations": [
-    { "url": "https://croatialuxurygulet.com/luxury-boats-large-groups/",              "answers": 21 },
-    { "url": "https://goolets.net/blog/smart-travelers-guide-yachting-mediterranean/", "answers": 21 },
-    { "url": "https://goolets.net/destination/croatia/",                                "answers": 19 },
-    { "url": "https://goolets.net/blog/best-large-yachts-croatia-groups-20-guests/",   "answers": 17 },
-    { "url": "https://goolets.net/blog/turkey-gulet-charter-deluxe-recommendations/",  "answers": 16 }
+    { "url": "https://goolets.net/destination/croatia/",                               "answers": 54 },
+    { "url": "https://goolets.net/blog/best-large-yachts-croatia-groups-20-guests/",  "answers": 21 },
+    { "url": "https://goolets.net/luxury-yacht-charters-at-unmatched-value/",         "answers": 20 },
+    { "url": "https://croatialuxurygulet.com/luxury-boats-large-groups/",             "answers": 17 },
+    { "url": "https://goolets.net/blog/turkey-gulet-charter-deluxe-recommendations/", "answers": 15 }
   ],
-  "ownedCitationsNote": "3 od 5 so blog članki → vsebina dela delo. /luxury-boats-large-groups je hkrati #3 landing stran po AI prometu v GA4 (neodvisna potrditev).",
+  "ownedCitationsNote": "/destination/croatia/ skoči 19 → 54 in je edini lasten URL v top 50 vseh citatov (#10). goolets.net je #5 domena (190 citatov). Mediteranski blog iz avgusta (21) ni več v top 5.",
 
   "topCitationsOverall": [
-    { "url": "https://moorings.com/yacht-charter/crewed-charter",        "answers": 178, "type": "Unknown",  "channel": "Peer" },
-    { "url": "https://iyc.com/luxury-yacht-charters/",                    "answers": 89,  "type": "Product",  "channel": "Peer" },
-    { "url": "https://northropandjohnson.com/yachts-for-charter",         "answers": 75,  "type": "Listicle", "channel": "Competitor" },
-    { "url": "https://northropandjohnson.com/yacht-charter/mediterranean","answers": 68,  "type": "Product",  "channel": "Competitor" },
-    { "url": "https://iyc.com/croatia/",                                  "answers": 63,  "type": "Homepage", "channel": "Peer" }
+    { "url": "https://northropandjohnson.com/yachts-for-charter",           "answers": 106, "type": "Product",  "channel": "Competitor" },
+    { "url": "https://northropandjohnson.com/yacht-charter/mediterranean",  "answers": 99,  "type": "Product",  "channel": "Competitor" },
+    { "url": "https://moorings.com/yacht-charter/crewed-charter",           "answers": 95,  "type": "Product",  "channel": "Peer" },
+    { "url": "https://internationalyachtchartergroup.com",                  "answers": 70,  "type": "Homepage", "channel": "Peer" },
+    { "url": "https://boatsatsea.com",                                      "answers": 69,  "type": "Homepage", "channel": "Peer" }
   ],
 
   "topDomains": [
-    { "domain": "boatbookings.com",       "channel": "Peer",       "frequency": 355 },
-    { "domain": "northropandjohnson.com", "channel": "Competitor", "frequency": 307 },
-    { "domain": "iyc.com",                "channel": "Peer",       "frequency": 289 },
-    { "domain": "moorings.com",           "channel": "Peer",       "frequency": 274 },
-    { "domain": "reddit.com",             "channel": "UGC",        "frequency": 255 }
+    { "domain": "northropandjohnson.com", "channel": "Competitor", "frequency": 371 },
+    { "domain": "boatbookings.com",       "channel": "Peer",       "frequency": 313 },
+    { "domain": "mycroatiancharter.com",  "channel": "Competitor", "frequency": 277 },
+    { "domain": "charterworld.com",       "channel": "Peer",       "frequency": 269 },
+    { "domain": "goolets.net",            "channel": "Owned",      "frequency": 190 }
   ],
 
   "recommendations": {
-    "total": 58,
-    "byStatus": { "new": 32, "inProgress": 25, "completed": 1 },
-    "byType": { "ownedContent": 19, "socialAmplification": 35, "outreach": 3 },
-    "assigned": 0,
+    "total": 37,
+    "archived": 59,
+    "byType": { "ownedContent": 15, "socialAmplification": 19, "outreach": 3 },
+    "visibleByStatus": { "inProgress": 14, "notStarted": 3, "new": 4, "note": "iz 21 vidnih od 37" },
+    "assigned": 11,
+    "assignedNote": "Najmanj 11 (Aymen 7 Reddit, Dijana 3 LinkedIn, 1 uporabnik 35467502) med 21 vidnimi.",
     "topByLift": [
-      { "title": "11 Things to Know About Croatia Mega Yacht Charters",  "lift": 17.9, "hubspotPriority": "LOW",    "type": "Educational listicle" },
-      { "title": "How to Plan a Mediterranean Crewed Charter in 2026",   "lift": 16.6, "hubspotPriority": "LOW",    "type": "Guide" },
-      { "title": "How to Plan a Mediterranean Crewed Charter Trip",      "lift": 15.8, "hubspotPriority": "LOW",    "type": "How-to" },
-      { "title": "How to Choose a Crewed Yacht Charter in Turkey",       "lift": 13.0, "hubspotPriority": "MEDIUM", "type": "Guide" },
-      { "title": "How to Choose a Croatia Charter Company in 2026",      "lift": 10.6, "hubspotPriority": "HIGH",   "type": "Guide" },
-      { "title": "Greece Island Hopping Crewed Yacht Charters in 2026",  "lift": 9.1,  "hubspotPriority": "MEDIUM", "type": "Guide" },
-      { "title": "8 Things to Know Before Choosing a Croatia Superyacht","lift": 6.8,  "hubspotPriority": "HIGH",   "type": "Educational listicle" }
+      { "title": "How to Compare Mediterranean Yacht Charters",                           "lift": 24.7, "hubspotPriority": "HIGH", "type": "LinkedIn post", "status": "In progress" },
+      { "title": "Why Mediterranean crewed charters get complex",                         "lift": 21.5, "hubspotPriority": "HIGH", "type": "LinkedIn post", "status": "In progress" },
+      { "title": "Just spent 8 days walking superyachts, taking notes and meeting crew AMA", "lift": 18.3, "hubspotPriority": "HIGH", "type": "Reddit post", "status": "In progress" },
+      { "title": "Even high-budget yacht charters go wrong – 5 common mistakes",          "lift": 17.2, "hubspotPriority": "HIGH", "type": "Reddit post", "status": "In progress" },
+      { "title": "Considering your first yacht charter but have no idea where to start? AMA", "lift": 12.9, "hubspotPriority": "HIGH", "type": "Reddit post", "status": "In progress" },
+      { "title": "Croatia Crewed Yacht Itineraries for Private Groups",                  "lift": 12.6, "hubspotPriority": "HIGH", "type": "Guide (blog)", "status": "In progress" },
+      { "title": "The Complete Guide to Turkey Crewed Yacht Charters",                   "lift": 8.4,  "hubspotPriority": "MEDIUM", "type": "Guide (blog)", "status": "Not started" },
+      { "title": "The Complete Guide to Crewed Yacht Charters in Croatia",               "lift": 7.7,  "hubspotPriority": "HIGH", "type": "Guide (blog)", "status": "Not started" }
     ],
-    "warning": "HubSpotova oznaka prioritete NASPROTUJE njegovemu lastnemu citation liftu — najvišji lift je označen LOW. Izbiraj po lift × ujemanje z nišo, ne po oznaki.",
+    "warning": "Prioriteta se še vedno ne ujema z liftom (npr. 'Everything to Know About Crewed Charter Planning' +6,5 % = LOW). Izbiraj po lift × ujemanje z nišo. Nišni (Croatia/Turkey) blog vodniki z liftom 7–13 % še niso začeti.",
     "namedOpportunities": [
-      "Reddit r/LuxuryTravel nit 'AMA: Private Yacht Charter in Croatia' — HIGH, social amplification",
-      "Prompt 'top Mediterranean crewed yacht charter companies' (naša vidnost 0 %) poganja EN LinkedIn Pulse članek, citiran 21×"
+      "Croatia Crewed Yacht Itineraries for Private Groups (+12,6 %) — v teku od 4. 8., še ni objavljeno",
+      "The Complete Guide to Turkey Crewed Yacht Charters (+8,4 %) in Croatia guide (+7,7 %) — nezačeta, nišna"
     ]
   },
 
@@ -109,10 +120,12 @@
     "productsTracked": 2,
     "productsTotal": 6,
     "freePromptSlots": 12,
-    "note": "HubSpot to sam označi kot slepo pego na dashboardu."
+    "promptBankNew": 20,
+    "note": "HubSpot: »You're only tracking 1% of your AI landscape«; v prompt banki 20 novih predlogov."
   },
 
   "risks": [
-    "AEO prompt runs se ugasnejo ob neuporabi. HubSpot je 3. 8. 2026 poslal opozorilo za 31. 8. 2026 ('No one on your team has used AEO in the past 4 weeks'). Dashboard odprt 14. 8., kar naj bi to resetiralo, a HubSpot potrditve ne pokaže — PREVERI pred 31. 8."
+    "Pavza prompt runov: banner NI viden 27. 10.; zadnji ChatGPT run 27. 10. 2026 02:07 → runi tečejo.",
+    "2026-09 snapshot manjka (ni bil zajet); trend avg → okt preskoči en mesec."
   ]
 }
