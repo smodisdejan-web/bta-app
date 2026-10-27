@@ -54,6 +54,12 @@ const STREAK_PREFIX_MAP: Record<string, StreakPrefixRule> = {
     exclude: ['rare-ops_anima-maris-the-experience-form1'],
   },
   'Prava forma - ASSET – Anima Maris – RareOps – ABO': 'rare-ops_anima-maris-the-experience-form1',
+  // ORGANIC Top Reels (2026-10-27): CBO (broad, 5 reels) vs ABO audience test. Plain-string
+  // CBO prefix also catches the bare `organic_top_reels_leads` of 20.-21. 10.; the two roots
+  // never overlap (`..._leads` vs `..._audience_test_`). The ABO's A/B/C ad sets cannot be
+  // separate variants here: spend is filtered on campaign_name only (no ad-set axis).
+  'ORGANIC - Top Reels - Leads - CBO': 'organic_top_reels_leads',
+  'ORGANIC - Top Reels - Audience Test - ABO': 'organic_top_reels_audience_test_',
 }
 
 const SPEND_ANOMALY_THRESHOLD = 1000

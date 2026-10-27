@@ -397,6 +397,24 @@ const RULES: Rule[] = [
     matches: (src) => src.startsWith('oguz_khan_caribbean_vert_warm'),
   },
 
+  // ── 12c. ORGANIC – Top Reels (IG reels promoted to Leads). SOURCE PLACEMENT = utm_campaign
+  // lowercased. Two campaigns share the `organic_top_reels_` root:
+  //   - CBO 120251370638930087 (live 2026-10-20, UTM per reel since 2026-10-21):
+  //     `organic_top_reels_leads_<premier|cristal|ohana|nocturno-6-12|nocturno-experiences>`
+  //     (5 leads of 20.-21. 10. carry the bare `organic_top_reels_leads`).
+  //   - ABO audience test 120251541568390087 (live 2026-10-27), ad sets A broad / B LAL bookers /
+  //     C LAL AI70: `organic_top_reels_audience_test_<a-broad|b-lal-bookers|c-lal-ai70>_<reel>`.
+  // ORDER: audience_test MUST precede the CBO rule, and both MUST precede any generic rule —
+  // `..._nocturno-6-12` would otherwise look like a Nocturno / Dalmatinčki lead.
+  {
+    campaignTarget: 'ORGANIC - Top Reels - Audience Test - ABO',
+    matches: (src) => src.startsWith('organic_top_reels_audience_test'),
+  },
+  {
+    campaignTarget: 'ORGANIC - Top Reels - Leads - CBO',
+    matches: (src) => src === 'organic_top_reels_leads' || src.startsWith('organic_top_reels_leads_'),
+  },
+
   // ── 13. Evergreen / seasonal umbrella campaigns.
   {
     // CORE 7 Social Proof: the ad NAME is written backwards relative to the utm

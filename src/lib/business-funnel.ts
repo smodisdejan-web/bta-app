@@ -34,7 +34,7 @@
 //     sits next to it as `lpViewsOrganic` and is never mixed into the funnel.
 //  5. Master QL excludes the ASSET/RareOps umbrella (its Streak AI score is inflated);
 //     `qualityLeadsIncludingAsset` keeps the old number.
-//  6. 15 umbrellas instead of 6, exact platform-campaign names first, regex only as the
+//  6. 16 umbrellas instead of 6, exact platform-campaign names first, regex only as the
 //     fallback for names the lists do not know yet. Every umbrella is mutually exclusive.
 //
 // Attribution of Streak leads to an umbrella: utm_mapping (SOURCE PLACEMENT → real campaign)
@@ -50,7 +50,7 @@ import targetsConfig from '../../config/funnel-targets.json'
 
 // ─── Campaign registry ──────────────────────────────────────────────────────
 //
-// 15 umbrellas (14 approved 2026-09-09, `caribbean` added 2026-09-21). Each one carries:
+// 16 umbrellas (14 approved 2026-09-09, `caribbean` added 2026-09-21, `organic` 2026-10-27). Each one carries:
 //   metaNames / googleNames — the EXACT platform campaign names that must land in it. These
 //                             win over every regex, so an order accident can never move a
 //                             known campaign.
@@ -286,6 +286,28 @@ export const CAMPAIGNS: CampaignDef[] = [
     booking: /oguz\s*khan|caribbean/i,
   },
   {
+    // 16th umbrella, added 2026-10-27. Organic IG reels promoted to Leads: CBO
+    // 120251370638930087 (live 20. 10.) + ABO audience test 120251541568390087 (live 27. 10.,
+    // ad sets A broad / B LAL bookers / C LAL AI70). Separate budget and a separate test, and
+    // without its own umbrella the spend matched no regex (unattributed) while the
+    // `organic_top_reels_leads_nocturno-6-12` leads fell into `dalmatincki` via /nocturno/.
+    // MUST sit before `dalmatincki` in UMBRELLA_ORDER for that reason. Per-campaign split
+    // comes from lib/fuzzy-match.ts §12c.
+    slug: 'organic',
+    name: 'Organic Top Reels',
+    metaNames: ['ORGANIC - Top Reels - Leads - CBO', 'ORGANIC - Top Reels - Audience Test - ABO'],
+    fb: /^\s*organic[\s_-]+top[\s_-]+reels/i,
+    google: null,
+    sp: /^organic[_\s-]*top[_\s-]*reels/i,
+    googleDetail: null,
+    // The ads land on /luxury-yacht-charters-at-unmatched-value/, which BOFU's Unmatched Value
+    // campaigns also use — GA4 cannot separate the two, so lpViews is null, not a guess.
+    lp: null,
+    booking: /^\s*organic[\s_-]+top[\s_-]+reels/i,
+    lpNote:
+      'Lands on /luxury-yacht-charters-at-unmatched-value/, shared with the BOFU Unmatched Value campaigns; GA4 has no axis to split them, so lpViews is null rather than guessed.',
+  },
+  {
     slug: 'dalmatincki',
     name: 'Last minute Dalmatinčki',
     metaNames: [
@@ -370,6 +392,7 @@ export const UMBRELLA_ORDER = [
   'earlybook',
   'turkey',
   'caribbean',
+  'organic',
   'dalmatincki',
   'smarter',
   'bofu',
@@ -1212,7 +1235,7 @@ const leadChannel = (l: LeadRow): PaidChannel | null => {
 
 /**
  * Bing and ChatGPT are FLAT channels: they have no umbrella and no campaign membership, so their
- * leads must never be pinned onto one of the 15 umbrellas. Without this a Bing lead whose SOURCE
+ * leads must never be pinned onto one of the 16 umbrellas. Without this a Bing lead whose SOURCE
  * DETAIL is `ms - search - croatia - en` resolves through adSlug('google', …) into the `croatia`
  * umbrella and inflates a Google umbrella's lead count with spend that is not in it.
  * They land in the unattributed remainder instead, so umbrellas + unattributed = master still holds.
@@ -2539,7 +2562,7 @@ export async function loadBusinessFunnel(opts: {
         `bookings_api currently ends ${bookings.coverage.max || 'n/a'} — months after that are null (not synced yet), never 0.`,
         `The Streak lead feed starts ${streak.coverage.min || 'n/a'}: there are no lead or QL numbers before that date, at all.`,
         'attribution.unattributed is the GLOBAL remainder: Streak leads in range that match none of the umbrellas (empty utm_content, bare "Facebook", "ig / instagram_stories", raw ids). It is the same figure on every view (channel-filtered when a channel is set).',
-        'campaignMembership.umbrellas: 15 mutually-exclusive umbrellas resolved by EXACT platform campaign name first, then the fallback regexes in an explicit order. umbrellas + unattributed = master for spend, leads, bookings and revenue (for QL use qualityLeadsIncludingAsset — the master QL step excludes ASSET by design). nonKpi umbrellas (boost, youtube, matchmaker) are inside master totals but flagged so the frontend can drop them from CPL/CPQL comparisons.',
+        'campaignMembership.umbrellas: 16 mutually-exclusive umbrellas resolved by EXACT platform campaign name first, then the fallback regexes in an explicit order. umbrellas + unattributed = master for spend, leads, bookings and revenue (for QL use qualityLeadsIncludingAsset — the master QL step excludes ASSET by design). nonKpi umbrellas (boost, youtube, matchmaker) are inside master totals but flagged so the frontend can drop them from CPL/CPQL comparisons.',
         orphanSpend.size
           ? `campaignMembership.unattributed.members lists the ${orphanSpend.size} platform campaign(s) whose spend lands in no umbrella (EUR ${campaignMembership.unattributed.spend.toFixed(2)}, ${masterAgg.spend > 0 ? ((campaignMembership.unattributed.spend / masterAgg.spend) * 100).toFixed(1) : '0.0'}% of spend). On a window reaching back to January this is expected — the umbrellas were defined for the campaigns running since June, so campaigns retired earlier fall here by design rather than by accident. They are still inside every master total; umbrellas + unattributed = master.`
           : 'campaignMembership.unattributed.members is empty: every platform campaign with spend in this window belongs to an umbrella.',
