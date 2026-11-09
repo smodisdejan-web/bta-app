@@ -11,7 +11,7 @@ import { Search, ArrowUp, ArrowDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { ZONE_STYLES, zoneForCac, type Zone } from '@/lib/zones'
+import { ZONE_STYLES, zoneForCac, zoneForCpel, type Zone } from '@/lib/zones'
 import { MONTHS } from '@/data/months'
 
 /* ---------- Search normalizer (case + diacritic insensitive) ---------- */
@@ -86,6 +86,8 @@ export interface GCampaign {
   name: string; spend: number; conv: number; clicks: number; impressions: number
   type: string; streakLeads: number; quality: number; qRate: number; avgAI: number
   cpql: number; convRate: number; market: CampaignMarket
+  /** EX = Streak AI >= 70 (build-mtd-data.js since 9.11.2026; absent in archived months). */
+  excellent?: number
 }
 
 export interface MtdData {
@@ -446,7 +448,10 @@ const MIN_SPEND = 300
 const MIN_LEADS = 5
 
 /** Objectives that cannot produce a lead — grading them on CPQL is meaningless. */
-const LEAD_RESULTS = new Set(['Landing Lead', 'Landing Lead (CLG)', 'Lead (Form)', 'Complete Registration', 'Contact', 'Calculator Lead'])
+const LEAD_RESULTS = new Set(['Landing Lead', 'Landing Lead (CLG)', 'Lead (Form)', 'Complete Registration', 'Contact', 'Calculator Lead',
+  // 9.11.2026: AI50 test (2026-11-04) optimises on a value-based "AI 50+ Lead" custom conversion —
+  // still a lead campaign; without this it was badged NOT A LEAD CAMPAIGN despite 12 leads / 7 QL.
+  'AI 50+ Lead', 'AI 70+ Lead'])
 
 export type Verdict =
   | { kind: 'turkey' }
@@ -550,6 +555,13 @@ export function VerdictBadge({ verdict }: { verdict: Verdict }) {
 export function cpqlColor(cpql: number, turkey: boolean): string {
   if (turkey || cpql <= 0) return '#7e8ea0'
   const zone = zoneForCac(cpql)
+  return zone ? ZONE_STYLES[zone].text : '#7e8ea0'
+}
+
+/** CPEL colour on the November 2026 KPI (< EUR 133 green, 133-333 amber, > 333 red). */
+export function cpelColor(cpel: number | null | undefined, turkey: boolean): string {
+  if (turkey || cpel == null || cpel <= 0) return '#7e8ea0'
+  const zone = zoneForCpel(cpel)
   return zone ? ZONE_STYLES[zone].text : '#7e8ea0'
 }
 

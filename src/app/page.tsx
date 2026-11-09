@@ -43,8 +43,14 @@ import {
   zoneForCac,
   zoneForRoas,
   zoneForAiScore,
-  zoneForQlRate
+  zoneForQlRate,
+  zoneForCpel,
+  CPEL_ZONE_LABEL
 } from '@/lib/zones'
+// Bundled MTD snapshot (same file /facebook-ads reads). Used ONLY to fill FB LP views on the
+// Overview funnel when fb_ads_enriched (dead since 2026-10-01) cannot cover the window AND the
+// window is exactly the snapshot's window — never stretched to another range.
+import mtdSnapshot from '@/data/mtd-data.json'
 
 type MetricCardProps = {
   title: string
@@ -79,6 +85,8 @@ type SummaryData = {
    *  system from `leads`/`qualityLeads` (Streak CRM) — never mix the two in one ratio. */
   platformLeads: number
   qualityLeads: number
+  /** Excellent leads (Streak AI >= 70). */
+  excellentLeads: number
   avgAi: number
   bookings: number
   revenue: number
@@ -393,6 +401,8 @@ export default function HomePage() {
   const leadsChatgptFiltered = useMemo(() => leadsFiltered.filter((l) => leadChannelOf(l) === 'chatgpt'), [leadsFiltered])
 
   const qualityCount = (list: OverviewLeadRow[]) => list.filter((l) => l.ai_score >= 50).length
+  /** EX = Excellent lead, Streak AI score >= 70 (same population as QL). */
+  const excellentCount = (list: OverviewLeadRow[]) => list.filter((l) => l.ai_score >= 70).length
   const avgAiScore = (list: OverviewLeadRow[]) => {
     const scores = list.map((l) => l.ai_score).filter((s) => s > 0)
     if (!scores.length) return 0
@@ -561,9 +571,21 @@ export default function HomePage() {
     const revenue = revenueTotals.totalRevenue
     // null, not 0, when the Facebook half cannot be measured for this window — the funnel and the
     // "CPC" arrow both read this, and a half-measured denominator is worse than an absent one.
-    const lpViews = fbEnrichedCoversWindow ? fbLpViews + googleClicksFinal : null
-    return { spend: totalSpend, leads: totalLeads, platformLeads, qualityLeads: totalQuality, avgAi, bookings: bookingsCount, revenue, lpViews }
-  }, [apiTotals, fbSpend, fbSpendFromApi, googleSpendFinal, bingSpendTotal, chatgptSpendTotal, leadsFiltered, filteredBookings.length, revenueTotals.totalRevenue, fbLpViews, googleClicksFinal])
+    // 9.11.2026: fb_ads_enriched is dead, so LP Views read "—" while /facebook-ads showed the Meta
+    // number. When the Overview window is EXACTLY the bundled MTD window, take FB LP views from
+    // that snapshot (Meta insights, landing_page_view — 23,367 for 1.-8.11., equal to Meta MCP).
+    const snapWin = (mtdSnapshot as any)?.window || {}
+    const snapFbLp = Number((mtdSnapshot as any)?.totals?.fb?.lpViews) || 0
+    const windowIsSnapshot =
+      snapWin.since === toLocalISODate(dateBounds.start) && snapWin.until === toLocalISODate(dateBounds.end)
+    const lpViews = fbEnrichedCoversWindow
+      ? fbLpViews + googleClicksFinal
+      : windowIsSnapshot && snapFbLp > 0
+        ? snapFbLp + googleClicksFinal
+        : null
+    const excellentLeads = excellentCount(leadsFiltered)
+    return { spend: totalSpend, leads: totalLeads, platformLeads, qualityLeads: totalQuality, excellentLeads, avgAi, bookings: bookingsCount, revenue, lpViews }
+  }, [apiTotals, fbSpend, fbSpendFromApi, googleSpendFinal, bingSpendTotal, chatgptSpendTotal, leadsFiltered, filteredBookings.length, revenueTotals.totalRevenue, fbLpViews, googleClicksFinal, dateBounds, fbEnrichedCoversWindow])
 
   const cacValue = useMemo(() => {
     if (cacMode === 'deals') {
@@ -573,6 +595,8 @@ export default function HomePage() {
   }, [totals, cacMode])
 
   const roasValue = useMemo(() => (totals.spend > 0 ? totals.revenue / totals.spend : 0), [totals])
+  const cpelValue = totals.excellentLeads > 0 && totals.spend > 0 ? totals.spend / totals.excellentLeads : null
+  const cpelZone = zoneForCpel(cpelValue)
   /** null = not measurable for this window: month-level bookings vs. a rolling day window, no
    *  spend, or a bookings feed that does not reach the window. A dead feed must never be able
    *  to produce "0.00x" - that is a measurement, and there was none. */
@@ -630,6 +654,7 @@ export default function HomePage() {
   const channelFb = useMemo(() => {
     const quality = qualityCount(leadsFbFiltered)
     const leadsCount = leadsFbFiltered.length
+    const excellent = excellentCount(leadsFbFiltered)
     const platformLeads = (apiTotals?.fb?.fbFormLeads || 0) + (apiTotals?.fb?.landingLeads || 0)
     // `fb_ads_enriched` is the ONLY source for FB platform leads / clicks / LP views and it
     // stopped emitting rows on 2026-08-08 (last date in the tab). Spend still arrives, because
@@ -657,6 +682,8 @@ export default function HomePage() {
       quality,
       qRate,
       cpql,
+      excellent,
+      cpel: excellent > 0 ? spend / excellent : null,
       bookings: bookingsFb.length,
       revenue: revenueFb,
       roas
@@ -666,6 +693,7 @@ export default function HomePage() {
   const channelGoogle = useMemo(() => {
     const quality = qualityCount(leadsGoogleFiltered)
     const leadsCount = leadsGoogleFiltered.length
+    const excellent = excellentCount(leadsGoogleFiltered)
     // Platform leads = the `conv` column of daily_api, summed on the client from the same rows
     // spend comes from. It used to read apiTotals?.google?.conversions ?? 0, so a dashboard-totals
     // call that died on the Apps Script concurrency limit printed "Platform leads 0" next to real
@@ -693,6 +721,8 @@ export default function HomePage() {
       quality,
       qRate,
       cpql,
+      excellent,
+      cpel: excellent > 0 ? spend / excellent : null,
       bookings: bookingsGoogle.length,
       revenue: revenueGoogle,
       roas
@@ -1174,7 +1204,7 @@ export default function HomePage() {
                     </Card>
                 </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <MetricCard
             title="Total Spend"
             value={bothSpendFeedsDead ? 'n/a' : formatCurrency(totals.spend, 'EUR')}
@@ -1215,6 +1245,21 @@ export default function HomePage() {
             target={cacMode === 'leads' ? '€96 SCALE · €150 OPTIMIZE · €240 CUT' : undefined}
           />
           <MetricCard
+            title="Excellent Leads"
+            value={`${totals.excellentLeads.toLocaleString()}${totals.leads > 0 ? ` (${Math.round((totals.excellentLeads / totals.leads) * 100)}%)` : ''}`}
+            subtitle="EX · AI ≥ 70"
+            icon={<Sparkles className="h-4 w-4 text-[#B39262]" />}
+          />
+          <MetricCard
+            title="CPEL"
+            value={cpelValue != null ? formatCurrency(cpelValue, 'EUR') : 'n/a'}
+            subtitle="spend / excellent lead"
+            icon={<Target className="h-4 w-4 text-[#B39262]" />}
+            zone={zoneForCpel(cpelValue) ?? undefined}
+            zoneLabel={(cpelZone && CPEL_ZONE_LABEL[cpelZone]) || undefined}
+            target="Nov KPI: <€133 · €133–333 · >€333"
+          />
+          <MetricCard
             title="ROAS"
             value={roasDisplay !== null ? `${roasDisplay.toFixed(2)}x` : 'n/a'}
             subtitle={roasDisplay !== null ? 'return on ad spend' : 'bookings are month-level'}
@@ -1248,6 +1293,12 @@ export default function HomePage() {
               },
               { label: 'Quality Leads', value: `${channelFb.quality.toLocaleString()} (${channelFb.qRate}%)` },
               { label: 'CPQL', value: formatCurrency(channelFb.cpql, 'EUR') },
+              { label: 'Excellent (EX)', value: channelFb.excellent.toLocaleString() },
+              {
+                label: 'CPEL',
+                value: channelFb.cpel != null ? formatCurrency(channelFb.cpel, 'EUR') : 'n/a',
+                zone: channelFb.cpel != null ? zoneForCpel(channelFb.cpel) : null
+              },
               { label: 'Bookings', value: bookingsFeedState === 'live' ? channelFb.bookings.toString() : 'n/a' },
               { label: 'Revenue', value: bookingsFeedState === 'live' ? formatCurrency(channelFb.revenue, 'EUR') : 'n/a' },
               {
@@ -1270,6 +1321,12 @@ export default function HomePage() {
               },
               { label: 'Quality Leads', value: `${channelGoogle.quality.toLocaleString()} (${channelGoogle.qRate}%)` },
               { label: 'CPQL', value: formatCurrency(channelGoogle.cpql, 'EUR') },
+              { label: 'Excellent (EX)', value: channelGoogle.excellent.toLocaleString() },
+              {
+                label: 'CPEL',
+                value: channelGoogle.cpel != null ? formatCurrency(channelGoogle.cpel, 'EUR') : 'n/a',
+                zone: channelGoogle.cpel != null ? zoneForCpel(channelGoogle.cpel) : null
+              },
               { label: 'Bookings', value: bookingsFeedState === 'live' ? channelGoogle.bookings.toString() : 'n/a' },
               { label: 'Revenue', value: bookingsFeedState === 'live' ? formatCurrency(channelGoogle.revenue, 'EUR') : 'n/a' },
               {
@@ -1361,7 +1418,7 @@ export default function HomePage() {
               <div className="flex items-center justify-between flex-wrap gap-2">
                             <div>
                   <p className="text-sm font-semibold">Top Markets</p>
-                  <p className="text-xs text-muted-foreground">Funnel by country</p>
+                  <p className="text-xs text-muted-foreground">Funnel by client country (guest home country, not charter destination)</p>
                             </div>
                 <div className="flex gap-1">
                   {([

@@ -163,6 +163,12 @@ export default function FacebookAdsPage() {
               (Dejan&rsquo;s personal-brand IG boost, billed through this ad account)
             </>
           )}
+          <div className="mt-1.5 pt-1.5 border-t">
+            <span className="font-semibold text-gray-700">Why Overview shows a different FB CPQL:</span>{' '}
+            Overview divides ALL Facebook spend ({eur(view.spend + view.magnetSpend + view.nonLeadSpend + view.notGooletsSpend)}) by QL
+            = <strong className="text-gray-700">{view.quality > 0 ? eur2((view.spend + view.magnetSpend + view.nonLeadSpend + view.notGooletsSpend) / view.quality) : '–'}</strong>;
+            this page prices lead campaigns only. Both are correct — different spend base.
+          </div>
           {market === 'all' && view.cpqlTurkey > 0 && (
             <div className="mt-1.5 pt-1.5 border-t">
               <span className="font-semibold text-gray-700">&ldquo;All markets&rdquo; blends Turkey in.</span>{' '}
@@ -199,7 +205,11 @@ export default function FacebookAdsPage() {
         <div className="grid gap-3 grid-cols-1 md:grid-cols-3">
           <CpqlZoneCard cpql={view.blendedCpql} blendedNote="blended account CPQL" />
           <QualityRateCard qRate={view.qRate} scored={view.scored} />
-          <NeutralStatCard label="Excellent leads" value={intFmt(view.excellent)} sub="AI ≥ 70 · across campaigns" />
+          <NeutralStatCard
+            label="Excellent leads · CPEL"
+            value={`${intFmt(view.excellent)} · ${view.excellent > 0 ? eur2(view.spend / view.excellent) : '–'}`}
+            sub="AI ≥ 70 · CPEL = lead-campaign spend / EX · Nov KPI <€133 / €133–333 / >€333"
+          />
         </div>
 
         {/* Campaign → ad set → ad */}

@@ -4,7 +4,7 @@ import React, { useMemo, useState } from 'react'
 import { ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
-  eur, eur2, pct1, pct0, intFmt, cpqlColor, norm,
+  eur, eur2, pct1, pct0, intFmt, cpqlColor, cpelColor, norm,
   MarketBadge, VerdictBadge, campaignVerdict, type SortDir,
   type FbCampaign, type FbAdset, type FbAd,
 } from './mtd-shared'
@@ -173,6 +173,13 @@ function CampaignRow({ view, searchActive }: { view: CampaignView; searchActive:
             // blended account CPQL.
             tone={c.qualityTracked && c.cpql > 0 && c.altLeadValue == null ? cpqlColor(c.cpql, turkey) : undefined}
             sub={c.altLeadValue != null ? 'excl. from blended' : 'on tracked QL'}
+          />
+          <CTile label="EX" value={c.qualityTracked ? intFmt(c.excellent || 0) : '–'} sub="AI ≥ 70" />
+          <CTile
+            label="CPEL"
+            value={c.qualityTracked && (c.excellent || 0) > 0 ? eur2(c.spend / (c.excellent || 1)) : '–'}
+            tone={c.qualityTracked && (c.excellent || 0) > 0 && c.altLeadValue == null ? cpelColor(c.spend / (c.excellent || 1), turkey) : undefined}
+            sub="spend / EX"
           />
         </div>
       </button>

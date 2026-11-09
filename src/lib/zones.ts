@@ -37,6 +37,25 @@ export function zoneForAiScore(value: number): Zone {
   return 'cut'
 }
 
+/**
+ * CPEL = spend / Excellent lead (Streak AI score >= 70). November 2026 KPI (Dejan, 9.11.2026):
+ * < EUR 133 green, EUR 133-333 amber, > EUR 333 red. Three bands only, so `maintain` is unused.
+ */
+export const CPEL_THRESHOLDS = { scale: 133, optimize: 333 } // EUR
+
+export function zoneForCpel(value: number | null | undefined): Zone | null {
+  if (value == null || !Number.isFinite(value) || value <= 0) return null
+  if (value < CPEL_THRESHOLDS.scale) return 'scale'
+  if (value <= CPEL_THRESHOLDS.optimize) return 'optimize'
+  return 'cut'
+}
+
+export const CPEL_ZONE_LABEL: Partial<Record<Zone, string>> = {
+  scale: 'ON KPI (<€133)',
+  optimize: 'WATCH (€133–333)',
+  cut: 'OVER (>€333)'
+}
+
 export function zoneForQlRate(value: number): Zone {
   if (value >= QL_RATE_THRESHOLDS.maintain) return 'scale'
   if (value >= QL_RATE_THRESHOLDS.optimize) return 'maintain'
