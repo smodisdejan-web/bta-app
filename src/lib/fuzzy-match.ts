@@ -106,6 +106,18 @@ const RULES: Rule[] = [
     matches: (src) => src === '120247328449180087',
   },
 
+  // ── 3a. CSY - Yacht Matchmaker - Lead Magnet - ABO - 2026-11 (campaign 120251758668670087,
+  // live 2026-11-10, croatiansuperyachts.com/yacht-matchmaker/). utm_campaign
+  // `csy_matchmaker_broad_c` / `csy_matchmaker_broad_d`, utm_content = ad name (same prefix).
+  // Quiz lead lands in HubSpot, NOT Streak — exclude from QL / CPQL like the old Matchmaker.
+  // MUST precede rule 3: the `ig|fb / <campaign name>` fallback flattens to
+  // `..._csy_yacht_matchmaker_...`, which also contains `yacht_matchmaker`.
+  {
+    campaignTarget: 'CSY - Yacht Matchmaker - Lead Magnet - ABO - 2026-11',
+    matches: (src) => src.startsWith('csy_matchmaker') || src.includes('csy_yacht_matchmaker'),
+    metric: 'complete_registration',
+  },
+
   // ── 3. Yacht Matchmaker – Lead Magnet: does NOT tag utm_content, Streak leads arrive
   // as the `ig|fb / <campaign name>` fallback. Optimises for Complete Registration —
   // exclude from QL / CPQL comparisons.
