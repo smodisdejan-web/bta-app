@@ -8,7 +8,7 @@
     "currency": "EUR",
     "combinedFollowerBase": 32800000,
     "marketValue": "$300-500K",
-    "lastRefreshed": "2026-10-09T04:04:34.308Z",
+    "lastRefreshed": "2026-11-11T05:15:52.770Z",
     "modashCampaignId": "6a07a46318211e4bbdb25adf",
     "totalContentPieces": 60,
     "notes": "10 creators trackani v Modash (10 IG + Dobrik & Adam tudi YT = 12 channel entries). Jeff/Bruce/Suzy iz originalnega plana so OUT (niso v Modash campaign-u). Data ~47 od 60 items v Modash; 13 pending pull.",
@@ -1543,37 +1543,37 @@
         "channelId": "UCJi8ZtNRy07_IEaEew1-xgw",
         "source": "YouTube Analytics API",
         "current": 12800,
-        "asOf": "2026-10-09T04:04:30.722Z",
+        "asOf": "2026-11-06T05:12:07.772Z",
         "trip": {
           "startDate": "2026-05-12",
-          "endDate": "2026-10-09",
-          "days": 151,
-          "views": 2231596,
-          "subscribersGained": 508,
-          "subscribersLost": 204,
-          "netSubscribers": 304,
-          "minutesWatched": 851433,
-          "averageViewDuration": 48
+          "endDate": "2026-11-06",
+          "days": 179,
+          "views": 2423224,
+          "subscribersGained": 606,
+          "subscribersLost": 247,
+          "netSubscribers": 359,
+          "minutesWatched": 979086,
+          "averageViewDuration": 50
         },
         "baseline": {
-          "startDate": "2025-12-12",
+          "startDate": "2025-11-14",
           "endDate": "2026-05-12",
-          "days": 151,
-          "views": 5341027,
-          "subscribersGained": 189,
-          "subscribersLost": 198,
-          "netSubscribers": -9,
-          "minutesWatched": 1416763
+          "days": 179,
+          "views": 5714724,
+          "subscribersGained": 265,
+          "subscribersLost": 251,
+          "netSubscribers": 14,
+          "minutesWatched": 1540027
         },
         "deltas": {
-          "views": -3109431,
-          "subscribersGained": 319,
-          "netSubscribers": 313,
-          "minutesWatched": -565330
+          "views": -3291500,
+          "subscribersGained": 341,
+          "netSubscribers": 345,
+          "minutesWatched": -560941
         },
-        "tripDelta": 508,
-        "tripNetDelta": 304,
-        "tripLiftVsBaseline": 319,
+        "tripDelta": 606,
+        "tripNetDelta": 359,
+        "tripLiftVsBaseline": 341,
         "dailySeries": [
           {
             "date": "2026-05-12",
@@ -2606,175 +2606,371 @@
           },
           {
             "date": "2026-10-06",
-            "views": 7014,
+            "views": 6974,
             "subscribersGained": 1,
             "subscribersLost": 2,
             "netSubscribers": -1
+          },
+          {
+            "date": "2026-10-07",
+            "views": 7178,
+            "subscribersGained": 4,
+            "subscribersLost": 3,
+            "netSubscribers": 1
+          },
+          {
+            "date": "2026-10-08",
+            "views": 9257,
+            "subscribersGained": 13,
+            "subscribersLost": 1,
+            "netSubscribers": 12
+          },
+          {
+            "date": "2026-10-09",
+            "views": 7428,
+            "subscribersGained": 8,
+            "subscribersLost": 1,
+            "netSubscribers": 7
+          },
+          {
+            "date": "2026-10-10",
+            "views": 6306,
+            "subscribersGained": 8,
+            "subscribersLost": 2,
+            "netSubscribers": 6
+          },
+          {
+            "date": "2026-10-11",
+            "views": 8326,
+            "subscribersGained": 3,
+            "subscribersLost": 1,
+            "netSubscribers": 2
+          },
+          {
+            "date": "2026-10-12",
+            "views": 7030,
+            "subscribersGained": 4,
+            "subscribersLost": 2,
+            "netSubscribers": 2
+          },
+          {
+            "date": "2026-10-13",
+            "views": 7272,
+            "subscribersGained": 4,
+            "subscribersLost": 1,
+            "netSubscribers": 3
+          },
+          {
+            "date": "2026-10-14",
+            "views": 8192,
+            "subscribersGained": 3,
+            "subscribersLost": 0,
+            "netSubscribers": 3
+          },
+          {
+            "date": "2026-10-15",
+            "views": 6964,
+            "subscribersGained": 4,
+            "subscribersLost": 0,
+            "netSubscribers": 4
+          },
+          {
+            "date": "2026-10-16",
+            "views": 8196,
+            "subscribersGained": 4,
+            "subscribersLost": 2,
+            "netSubscribers": 2
+          },
+          {
+            "date": "2026-10-17",
+            "views": 7375,
+            "subscribersGained": 1,
+            "subscribersLost": 4,
+            "netSubscribers": -3
+          },
+          {
+            "date": "2026-10-18",
+            "views": 8557,
+            "subscribersGained": 2,
+            "subscribersLost": 5,
+            "netSubscribers": -3
+          },
+          {
+            "date": "2026-10-19",
+            "views": 7752,
+            "subscribersGained": 5,
+            "subscribersLost": 0,
+            "netSubscribers": 5
+          },
+          {
+            "date": "2026-10-20",
+            "views": 8828,
+            "subscribersGained": 4,
+            "subscribersLost": 0,
+            "netSubscribers": 4
+          },
+          {
+            "date": "2026-10-21",
+            "views": 8824,
+            "subscribersGained": 1,
+            "subscribersLost": 1,
+            "netSubscribers": 0
+          },
+          {
+            "date": "2026-10-22",
+            "views": 9026,
+            "subscribersGained": 6,
+            "subscribersLost": 1,
+            "netSubscribers": 5
+          },
+          {
+            "date": "2026-10-23",
+            "views": 7395,
+            "subscribersGained": 1,
+            "subscribersLost": 4,
+            "netSubscribers": -3
+          },
+          {
+            "date": "2026-10-24",
+            "views": 6934,
+            "subscribersGained": 0,
+            "subscribersLost": 2,
+            "netSubscribers": -2
+          },
+          {
+            "date": "2026-10-25",
+            "views": 6424,
+            "subscribersGained": 1,
+            "subscribersLost": 2,
+            "netSubscribers": -1
+          },
+          {
+            "date": "2026-10-26",
+            "views": 6299,
+            "subscribersGained": 4,
+            "subscribersLost": 2,
+            "netSubscribers": 2
+          },
+          {
+            "date": "2026-10-27",
+            "views": 6668,
+            "subscribersGained": 4,
+            "subscribersLost": 0,
+            "netSubscribers": 4
+          },
+          {
+            "date": "2026-10-28",
+            "views": 4240,
+            "subscribersGained": 4,
+            "subscribersLost": 1,
+            "netSubscribers": 3
+          },
+          {
+            "date": "2026-10-29",
+            "views": 6357,
+            "subscribersGained": 0,
+            "subscribersLost": 2,
+            "netSubscribers": -2
+          },
+          {
+            "date": "2026-10-30",
+            "views": 1935,
+            "subscribersGained": 3,
+            "subscribersLost": 1,
+            "netSubscribers": 2
+          },
+          {
+            "date": "2026-10-31",
+            "views": 3852,
+            "subscribersGained": 1,
+            "subscribersLost": 1,
+            "netSubscribers": 0
+          },
+          {
+            "date": "2026-11-01",
+            "views": 7738,
+            "subscribersGained": 1,
+            "subscribersLost": 0,
+            "netSubscribers": 1
+          },
+          {
+            "date": "2026-11-02",
+            "views": 4955,
+            "subscribersGained": 3,
+            "subscribersLost": 2,
+            "netSubscribers": 1
+          },
+          {
+            "date": "2026-11-03",
+            "views": 2178,
+            "subscribersGained": 2,
+            "subscribersLost": 2,
+            "netSubscribers": 0
           }
         ],
         "trafficSources": {
           "trip": [
             {
               "source": "ADVERTISING",
-              "views": 2127201,
-              "minutesWatched": 792948
+              "views": 2302045,
+              "minutesWatched": 914041
             },
             {
               "source": "SHORTS",
-              "views": 52092,
-              "minutesWatched": 5757
+              "views": 61145,
+              "minutesWatched": 6679
             },
             {
               "source": "EXT_URL",
-              "views": 15205,
-              "minutesWatched": 20511
+              "views": 20080,
+              "minutesWatched": 22881
             },
             {
               "source": "YT_SEARCH",
-              "views": 14858,
-              "minutesWatched": 10319
+              "views": 18106,
+              "minutesWatched": 11686
             },
             {
               "source": "SUBSCRIBER",
-              "views": 8099,
-              "minutesWatched": 4658
+              "views": 9818,
+              "minutesWatched": 5227
             },
             {
               "source": "NO_LINK_OTHER",
-              "views": 5330,
-              "minutesWatched": 7795
+              "views": 5993,
+              "minutesWatched": 8723
             },
             {
               "source": "YT_CHANNEL",
-              "views": 4819,
-              "minutesWatched": 2787
+              "views": 5338,
+              "minutesWatched": 3018
             },
             {
               "source": "RELATED_VIDEO",
-              "views": 2202,
-              "minutesWatched": 4439
+              "views": 2374,
+              "minutesWatched": 4770
             },
             {
               "source": "YT_OTHER_PAGE",
-              "views": 1170,
-              "minutesWatched": 808
+              "views": 1475,
+              "minutesWatched": 1068
             },
             {
               "source": "NOTIFICATION",
-              "views": 949,
-              "minutesWatched": 398
+              "views": 1077,
+              "minutesWatched": 457
             },
             {
               "source": "PLAYLIST",
-              "views": 755,
-              "minutesWatched": 981
+              "views": 966,
+              "minutesWatched": 1308
             },
             {
               "source": "SOUND_PAGE",
-              "views": 635,
-              "minutesWatched": 61
+              "views": 836,
+              "minutesWatched": 78
             },
             {
               "source": "SHORTS_CONTENT_LINKS",
-              "views": 109,
-              "minutesWatched": 53
+              "views": 113,
+              "minutesWatched": 55
             },
             {
               "source": "END_SCREEN",
-              "views": 88,
-              "minutesWatched": 114
+              "views": 99,
+              "minutesWatched": 129
             },
             {
               "source": "HASHTAGS",
-              "views": 40,
+              "views": 49,
               "minutesWatched": 5
             },
             {
               "source": "ANNOTATION",
-              "views": 9,
-              "minutesWatched": 5
+              "views": 14,
+              "minutesWatched": 6
             }
           ],
           "baseline": [
             {
               "source": "ADVERTISING",
-              "views": 5247390,
-              "minutesWatched": 1378382
+              "views": 5605541,
+              "minutesWatched": 1494074
             },
             {
               "source": "SHORTS",
-              "views": 60563,
-              "minutesWatched": 6222
+              "views": 70942,
+              "minutesWatched": 7529
             },
             {
               "source": "EXT_URL",
-              "views": 10048,
-              "minutesWatched": 11954
+              "views": 11958,
+              "minutesWatched": 15297
             },
             {
               "source": "YT_SEARCH",
-              "views": 7893,
-              "minutesWatched": 6946
+              "views": 8903,
+              "minutesWatched": 7893
             },
             {
               "source": "YT_CHANNEL",
-              "views": 4498,
-              "minutesWatched": 1943
+              "views": 5100,
+              "minutesWatched": 2256
             },
             {
               "source": "NO_LINK_OTHER",
-              "views": 3258,
-              "minutesWatched": 4237
+              "views": 3681,
+              "minutesWatched": 4706
             },
             {
               "source": "SUBSCRIBER",
-              "views": 2726,
-              "minutesWatched": 2394
+              "views": 3092,
+              "minutesWatched": 2773
             },
             {
               "source": "RELATED_VIDEO",
-              "views": 1479,
-              "minutesWatched": 2942
+              "views": 1748,
+              "minutesWatched": 3419
             },
             {
               "source": "NOTIFICATION",
-              "views": 948,
-              "minutesWatched": 221
+              "views": 1197,
+              "minutesWatched": 298
             },
             {
               "source": "YT_OTHER_PAGE",
-              "views": 933,
-              "minutesWatched": 555
+              "views": 1110,
+              "minutesWatched": 620
             },
             {
               "source": "PLAYLIST",
-              "views": 896,
-              "minutesWatched": 758
+              "views": 994,
+              "minutesWatched": 912
             },
             {
               "source": "SOUND_PAGE",
-              "views": 166,
-              "minutesWatched": 25
+              "views": 189,
+              "minutesWatched": 28
             },
             {
               "source": "SHORTS_CONTENT_LINKS",
-              "views": 105,
-              "minutesWatched": 67
+              "views": 122,
+              "minutesWatched": 72
             },
             {
               "source": "END_SCREEN",
-              "views": 73,
-              "minutesWatched": 102
+              "views": 92,
+              "minutesWatched": 138
             },
             {
               "source": "HASHTAGS",
-              "views": 45,
-              "minutesWatched": 5
+              "views": 47,
+              "minutesWatched": 6
             },
             {
               "source": "ANNOTATION",
-              "views": 5,
-              "minutesWatched": 1
+              "views": 7,
+              "minutesWatched": 2
             },
             {
               "source": "IMMERSIVE_LIVE",
@@ -2787,172 +2983,172 @@
     },
     "leads": {
       "direct": {
-        "value": 95,
+        "value": 88,
         "source": "HubSpot · utm_campaign=dobrik",
         "note": null
       },
       "halo": {
-        "organicTrip": 3498,
-        "organicBaseline": 2314,
-        "organicLift": 1184,
+        "organicTrip": 3457,
+        "organicBaseline": 2098,
+        "organicLift": 1359,
         "breakdown": [
           {
             "source": "AI_REFERRALS",
-            "trip": 38,
-            "baseline": 25,
-            "delta": 13,
+            "trip": 39,
+            "baseline": 23,
+            "delta": 16,
             "organic": true
           },
           {
             "source": "DIRECT_TRAFFIC",
-            "trip": 1834,
-            "baseline": 1460,
-            "delta": 374,
+            "trip": 1816,
+            "baseline": 1316,
+            "delta": 500,
             "organic": true
           },
           {
             "source": "EMAIL_MARKETING",
-            "trip": 12,
-            "baseline": 5,
-            "delta": 7,
+            "trip": 10,
+            "baseline": 6,
+            "delta": 4,
             "organic": false
           },
           {
             "source": "OFFLINE",
-            "trip": 1539,
-            "baseline": 344,
-            "delta": 1195,
+            "trip": 3272,
+            "baseline": 288,
+            "delta": 2984,
             "organic": false
           },
           {
             "source": "ORGANIC_SEARCH",
-            "trip": 384,
-            "baseline": 211,
-            "delta": 173,
+            "trip": 383,
+            "baseline": 206,
+            "delta": 177,
             "organic": true
           },
           {
             "source": "OTHER_CAMPAIGNS",
-            "trip": 291,
-            "baseline": 183,
-            "delta": 108,
+            "trip": 280,
+            "baseline": 157,
+            "delta": 123,
             "organic": true
           },
           {
             "source": "PAID_SEARCH",
-            "trip": 1431,
-            "baseline": 397,
-            "delta": 1034,
+            "trip": 1615,
+            "baseline": 422,
+            "delta": 1193,
             "organic": false
           },
           {
             "source": "PAID_SOCIAL",
-            "trip": 6884,
-            "baseline": 3401,
-            "delta": 3483,
+            "trip": 7834,
+            "baseline": 3700,
+            "delta": 4134,
             "organic": false
           },
           {
             "source": "REFERRALS",
-            "trip": 6,
+            "trip": 5,
             "baseline": 7,
-            "delta": -1,
+            "delta": -2,
             "organic": true
           },
           {
             "source": "SOCIAL_MEDIA",
-            "trip": 945,
-            "baseline": 428,
-            "delta": 517,
+            "trip": 934,
+            "baseline": 389,
+            "delta": 545,
             "organic": true
           }
         ],
         "tripStart": "2026-05-12",
-        "baselineStart": "2025-12-12T00:00:00.000Z",
-        "tripDays": 151,
+        "baselineStart": "2025-11-09T00:00:00.000Z",
+        "tripDays": 184,
         "source": "HubSpot organic channels (ORGANIC_SEARCH + SOCIAL_MEDIA + DIRECT + REFERRALS + OTHER_CAMPAIGNS): trip vs equal pre-trip baseline. Paid social/search + offline excluded as Dobrik-unattributable."
       },
-      "asOf": "2026-10-09T04:04:34.308Z"
+      "asOf": "2026-11-11T05:15:52.770Z"
     },
     "visits": {
       "source": "GA4 (property 311674241) trip vs equal pre-trip baseline",
       "trip": {
         "startDate": "2026-05-12",
-        "endDate": "2026-10-09",
-        "sessions": 713514,
-        "users": 597632
+        "endDate": "2026-11-11",
+        "sessions": 858693,
+        "users": 717887
       },
       "baseline": {
-        "startDate": "2025-12-12",
+        "startDate": "2025-11-09",
         "endDate": "2026-05-11",
-        "sessions": 302553,
-        "users": 250396
+        "sessions": 375356,
+        "users": 310963
       },
-      "organicTrip": 169940,
-      "organicBaseline": 141293,
-      "organicLift": 28647,
+      "organicTrip": 198101,
+      "organicBaseline": 165757,
+      "organicLift": 32344,
       "breakdown": [
         {
           "category": "ORGANIC_SEARCH",
-          "trip": 57605,
-          "baseline": 44112,
-          "delta": 13493,
+          "trip": 64215,
+          "baseline": 53030,
+          "delta": 11185,
           "organic": true
         },
         {
           "category": "ORGANIC_SOCIAL",
-          "trip": 24751,
-          "baseline": 10804,
-          "delta": 13947,
+          "trip": 27189,
+          "baseline": 11960,
+          "delta": 15229,
           "organic": true
         },
         {
           "category": "DIRECT",
-          "trip": 84908,
-          "baseline": 83106,
-          "delta": 1802,
+          "trip": 103678,
+          "baseline": 96876,
+          "delta": 6802,
           "organic": true
         },
         {
           "category": "OTHER_REFERRAL",
-          "trip": 2676,
-          "baseline": 3271,
-          "delta": -595,
+          "trip": 3019,
+          "baseline": 3891,
+          "delta": -872,
           "organic": true
         },
         {
           "category": "EMAIL",
-          "trip": 6031,
-          "baseline": 6203,
-          "delta": -172,
+          "trip": 7273,
+          "baseline": 9134,
+          "delta": -1861,
           "organic": false
         },
         {
           "category": "PAID_SEARCH",
-          "trip": 65206,
-          "baseline": 26731,
-          "delta": 38475,
+          "trip": 89181,
+          "baseline": 47980,
+          "delta": 41201,
           "organic": false
         },
         {
           "category": "PAID_SOCIAL",
-          "trip": 442335,
-          "baseline": 117253,
-          "delta": 325082,
+          "trip": 529421,
+          "baseline": 140377,
+          "delta": 389044,
           "organic": false
         },
         {
           "category": "OTHER_PAID",
-          "trip": 2303,
-          "baseline": 545,
-          "delta": 1758,
+          "trip": 3335,
+          "baseline": 717,
+          "delta": 2618,
           "organic": false
         },
         {
           "category": "OTHER",
-          "trip": 27699,
-          "baseline": 10528,
-          "delta": 17171,
+          "trip": 31382,
+          "baseline": 11391,
+          "delta": 19991,
           "organic": false
         }
       ],
@@ -3699,21 +3895,186 @@
         },
         {
           "date": "20261007",
-          "sessions": 5977,
+          "sessions": 5912,
           "users": 5730
         },
         {
           "date": "20261008",
-          "sessions": 5471,
-          "users": 5232
+          "sessions": 5752,
+          "users": 5308
         },
         {
           "date": "20261009",
-          "sessions": 32,
-          "users": 32
+          "sessions": 5525,
+          "users": 5175
+        },
+        {
+          "date": "20261010",
+          "sessions": 5385,
+          "users": 5229
+        },
+        {
+          "date": "20261011",
+          "sessions": 6633,
+          "users": 6317
+        },
+        {
+          "date": "20261012",
+          "sessions": 5227,
+          "users": 4995
+        },
+        {
+          "date": "20261013",
+          "sessions": 4814,
+          "users": 4621
+        },
+        {
+          "date": "20261014",
+          "sessions": 4011,
+          "users": 3755
+        },
+        {
+          "date": "20261015",
+          "sessions": 3818,
+          "users": 3512
+        },
+        {
+          "date": "20261016",
+          "sessions": 3568,
+          "users": 3346
+        },
+        {
+          "date": "20261017",
+          "sessions": 3719,
+          "users": 3499
+        },
+        {
+          "date": "20261018",
+          "sessions": 4577,
+          "users": 4314
+        },
+        {
+          "date": "20261019",
+          "sessions": 3654,
+          "users": 3421
+        },
+        {
+          "date": "20261020",
+          "sessions": 3614,
+          "users": 3365
+        },
+        {
+          "date": "20261021",
+          "sessions": 3605,
+          "users": 3352
+        },
+        {
+          "date": "20261022",
+          "sessions": 3564,
+          "users": 3314
+        },
+        {
+          "date": "20261023",
+          "sessions": 3065,
+          "users": 2885
+        },
+        {
+          "date": "20261024",
+          "sessions": 3430,
+          "users": 3228
+        },
+        {
+          "date": "20261025",
+          "sessions": 4434,
+          "users": 4157
+        },
+        {
+          "date": "20261026",
+          "sessions": 3406,
+          "users": 3168
+        },
+        {
+          "date": "20261027",
+          "sessions": 3584,
+          "users": 3350
+        },
+        {
+          "date": "20261028",
+          "sessions": 3657,
+          "users": 3397
+        },
+        {
+          "date": "20261029",
+          "sessions": 3493,
+          "users": 3196
+        },
+        {
+          "date": "20261030",
+          "sessions": 3377,
+          "users": 3105
+        },
+        {
+          "date": "20261031",
+          "sessions": 3339,
+          "users": 3210
+        },
+        {
+          "date": "20261101",
+          "sessions": 4423,
+          "users": 4315
+        },
+        {
+          "date": "20261102",
+          "sessions": 4858,
+          "users": 4536
+        },
+        {
+          "date": "20261103",
+          "sessions": 3498,
+          "users": 3291
+        },
+        {
+          "date": "20261104",
+          "sessions": 4840,
+          "users": 4503
+        },
+        {
+          "date": "20261105",
+          "sessions": 5604,
+          "users": 5259
+        },
+        {
+          "date": "20261106",
+          "sessions": 4197,
+          "users": 3991
+        },
+        {
+          "date": "20261107",
+          "sessions": 5312,
+          "users": 5114
+        },
+        {
+          "date": "20261108",
+          "sessions": 7121,
+          "users": 6664
+        },
+        {
+          "date": "20261109",
+          "sessions": 5031,
+          "users": 4798
+        },
+        {
+          "date": "20261110",
+          "sessions": 4163,
+          "users": 3926
+        },
+        {
+          "date": "20261111",
+          "sessions": 926,
+          "users": 893
         }
       ],
-      "asOf": "2026-10-09T04:04:34.268Z"
+      "asOf": "2026-11-11T05:15:52.721Z"
     },
     "dobrikLandingPage": {
       "path": "/dobrik-smart-yachting-croatia",
