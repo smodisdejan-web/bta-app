@@ -364,6 +364,8 @@ export const CAMPAIGNS: CampaignDef[] = [
     metaNames: [
       'Last Minute - Croatia 2026 - CBO',
       'YOLO - August 2026',
+      // YOLO EB 2027 (live 2026-11-12); utm_campaign `yolo_eb27_*` (sp ^yolo), LP /charter-yolo-in-croatia/ (lp charter-yolo).
+      'FB - Test - Prospecting - YOLO EB 2027 - ABO',
       'CROATIA CALCULATOR - Sept 2026 - ABO',
     ],
     googleNames: ['Search - Croatia - EN', 'Posamezne ladje - Leads', 'Search - Croatia, Turkey - LATM'],

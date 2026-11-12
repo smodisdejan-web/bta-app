@@ -139,6 +139,14 @@ const RULES: Rule[] = [
     matches: (src) => src.startsWith('dalm_offseason_lpb') || src.includes('dalmatincki_offseason_2027_lp_b'),
   },
 
+  // ── 3c. YOLO EB 2027 (Meta, ABO, 3 seti lal/warm/int, 2026-11). utm_campaign
+  // `yolo_eb27_<lal|warm|int>_<s9_ctrl|s2_elvis2|s1_elvis3|s11_elvis3>`, utm_content = ad name.
+  // Fallback `ig|fb / <campaign name>` flattens to `..._yolo_eb_2027_abo`. Never matches August `yolo_short*`.
+  {
+    campaignTarget: 'FB - Test - Prospecting - YOLO EB 2027 - ABO',
+    matches: (src) => src.startsWith('yolo_eb27') || src.includes('yolo_eb_2027'),
+  },
+
   // ── 4. Alessandro — three separate namespaces (Smarter / Discount / Dalmatinčki ad).
   {
     campaignTarget: 'Alessandro - Discount - CBO - Lead Form',
