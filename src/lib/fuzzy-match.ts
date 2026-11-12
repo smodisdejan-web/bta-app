@@ -127,6 +127,18 @@ const RULES: Rule[] = [
     metric: 'complete_registration',
   },
 
+  // ── 3b. Dalmatinčki Offseason 2027: Meta A/B test landing A proti B (2 kampanji, 2026-11).
+  // utm_campaign `dalm_offseason_lp<a|b>_<cold|warm|lal>_<angle>_<video>`, utm_content = ad name.
+  // Fallback `ig|fb / <campaign name>` flattens to `..._dalmatincki_offseason_2027_lp_<a|b>_abo`.
+  {
+    campaignTarget: 'FB - Test - Prospecting - Dalmatinčki Offseason 2027 - LP A - ABO',
+    matches: (src) => src.startsWith('dalm_offseason_lpa') || src.includes('dalmatincki_offseason_2027_lp_a'),
+  },
+  {
+    campaignTarget: 'FB - Test - Prospecting - Dalmatinčki Offseason 2027 - LP B - ABO',
+    matches: (src) => src.startsWith('dalm_offseason_lpb') || src.includes('dalmatincki_offseason_2027_lp_b'),
+  },
+
   // ── 4. Alessandro — three separate namespaces (Smarter / Discount / Dalmatinčki ad).
   {
     campaignTarget: 'Alessandro - Discount - CBO - Lead Form',

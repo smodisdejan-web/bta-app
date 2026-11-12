@@ -317,12 +317,15 @@ export const CAMPAIGNS: CampaignDef[] = [
       'Dalmatino - Julij 2026',
       'Dalmatinčki - ABO - LF',
       'Dalmatinčki - Last Minute',
+      // Offseason 2027 Meta A/B test LP A vs LP B (live 2026-11-12); utm_campaign `dalm_offseason_lp<a|b>_*`.
+      'FB - Test - Prospecting - Dalmatinčki Offseason 2027 - LP A - ABO',
+      'FB - Test - Prospecting - Dalmatinčki Offseason 2027 - LP B - ABO',
     ],
     fb: /dalmatin|nocturno/i,
     google: null,
-    sp: /dalmatin|nocturno|maxita|anima-maris|smart-luxury-sailing|sail[\s_-]*smarter/i,
+    sp: /^dalm_offseason|dalmatin|nocturno|maxita|anima-maris|smart-luxury-sailing|sail[\s_-]*smarter/i,
     googleDetail: null,
-    lp: /^\/(smart-luxury-sailing|sail-smarter|exclusive-seasonal-selection|motor-sailing-yachts-exclusive-seasonal-selection|luxury-motor-sailing-yacht-(dalmatino|nocturno))/i,
+    lp: /^\/(smart-luxury-sailing|sail-smarter|exclusive-seasonal-selection|motor-sailing-yachts-exclusive-seasonal-selection|luxury-motor-sailing-yacht-(dalmatino|nocturno)|croatia-before-and-after-the-crowds|before-and-after-the-crowds-croatia)/i,
     booking: /dalmatin|nocturno/i,
   },
   {
