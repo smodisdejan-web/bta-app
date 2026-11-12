@@ -246,6 +246,8 @@ export const CAMPAIGNS: CampaignDef[] = [
       'Belgin Sultan - Turkey - Cold - ABO - LF',
       'Tosca - Turkey - Cold - ABO',
       'Tosca - Turkey - Cold - ABO - LF',
+      // Tosca 2027 (live 2026-11-12); utm_campaign `tosca_2027_*` (sp /tosca/), LP /best-superyacht-deal-of-summer-2027-turkey/ (lp /turkey/).
+      'FB - Test - Prospecting - Tosca 2027 - ABO',
       'Landing Turkey  - Scaling - CBO',
       'Landing Turkey  - Last Minute - CBO',
       'TURKEY – Creative Test – ABO',

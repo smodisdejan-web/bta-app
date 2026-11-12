@@ -147,6 +147,15 @@ const RULES: Rule[] = [
     matches: (src) => src.startsWith('yolo_eb27') || src.includes('yolo_eb_2027'),
   },
 
+  // ── 3d. Tosca 2027 (Meta, ABO, 3 seti lal/warm/int, 2026-11). utm_campaign
+  // `tosca_2027_<lal|warm|int>_<t12_d|t22_b|t4_c|t6_a>`, utm_content = ad name. MUST sit before the
+  // section-7 `startsWith('tosca')` rule (else it lands in the old Tosca - Turkey - Cold - ABO).
+  // Fallback `ig|fb / <campaign name>` flattens to `..._tosca_2027_abo`.
+  {
+    campaignTarget: 'FB - Test - Prospecting - Tosca 2027 - ABO',
+    matches: (src) => src.startsWith('tosca_2027') || src.includes('tosca_2027_abo'),
+  },
+
   // ── 4. Alessandro — three separate namespaces (Smarter / Discount / Dalmatinčki ad).
   {
     campaignTarget: 'Alessandro - Discount - CBO - Lead Form',
