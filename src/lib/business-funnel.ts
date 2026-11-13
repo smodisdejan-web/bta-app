@@ -118,7 +118,9 @@ export const CAMPAIGNS: CampaignDef[] = [
     google: null,
     sp: /rare[\s_-]*ops|(^|[_\-\s])asset([_\-\s]|$)/i,
     googleDetail: null,
-    lp: /^\/rare-opportunit/i,
+    // 2026-11-13: the Insider Jul27 campaigns land on /three-ways-to-charter-smarter-<vessel>/
+    // (read from the ads' final URLs); the bare /three-ways-to-charter-smarter/ is NOT included.
+    lp: /^\/(rare-opportunit|three-ways-to-charter-smarter-)/i,
     booking: /asset|rare[\s_-]*ops/i,
     lpNote:
       'ASSET / RareOps QL is not comparable: the Streak AI score is inflated for this umbrella (Dejan, 2026-09). Master QL therefore excludes it — see qualityLeadsIncludingAsset.',
@@ -355,7 +357,8 @@ export const CAMPAIGNS: CampaignDef[] = [
     google: null,
     // interesi_/warm_ + bella|riva|ohana resolve to the BOFU campaign in utm_mapping —
     // encoded here too so the fallback agrees with the authoritative table.
-    sp: /\bbofu\b|landing[_\s-]attainable|landing[_\s-]gulet|unmatched[_\s-]value|risk[\s_-]reversal|^(interesi|warm)_(bella|riva|ohana)/i,
+    // `^bofu_` (2026-11-13): `\bbofu\b` never matches `bofu_ai50_test_…` because `_` is a word char.
+    sp: /^bofu_|\bbofu\b|landing[_\s-]attainable|landing[_\s-]gulet|unmatched[_\s-]value|risk[\s_-]reversal|^(interesi|warm)_(bella|riva|ohana)/i,
     googleDetail: null,
     lp: /^\/(luxury-yacht-charters-at-unmatched-value|yacht-charters-at-unmatched-value|luxury-yacht-charters-unmatched-value|private-gulet-charters-in-croatia|croatia-private-gulet-charters|luxury-private-large-group-yacht-charters-in-croatia|bella-|riva-|ohana-|freedom-)/i,
     booking: /\bbofu\b|landing\s*gulets?|landing\s*attainable|landing\s*cnn|unmatched\s*value/i,
@@ -1356,6 +1359,12 @@ function aggregate(
   // summed over the visible channels only: a Meta-only numerator is honest, a Meta-only
   // numerator silently labelled "meta + google" is not.
   const lpGap = new Set<string>(def?.lpGapChannels ?? [])
+  const lpSpendCh: Set<string> | null = def
+    ? new Set<string>([
+        ...(def.metaNames?.length || def.fb ? ['meta'] : []),
+        ...(def.googleNames?.length || def.google ? ['google'] : []),
+      ])
+    : null
   const lpMeasurable =
     (channel === 'all' || channel === 'meta' || channel === 'google') && !lpGap.has(channel)
   if (lpMeasurable && (isMaster || def!.lp)) {
@@ -1370,6 +1379,10 @@ function aggregate(
       }
       if (lpGap.has(r.channel)) continue
       if (channel !== 'all' && r.channel !== channel) continue
+      // 2026-11-13: an umbrella only counts paid sessions from the platforms it actually spends
+      // on. BOFU is Meta-only, so Google cpc sessions on its shared vessel / unmatched-value
+      // pages are not its visitors (that is what pushed BOFU LP views to ~310 % of its clicks).
+      if (lpSpendCh && !lpSpendCh.has(r.channel)) continue
       lpViews += r.sessions
     }
   }
