@@ -14,7 +14,7 @@
 // Sources: streak_sync (leads), bookings (campaign-attributed), fb_ads_enriched +
 // daily (spend), turkey_availability (synced fleet calendar).
 
-import { fetchStreakSync, fetchBookings, fetchSheet, fetchHubspotContacts } from './sheetsData'
+import { fetchStreakSync, fetchBookings, fetchSheet, fetchHubspotContactsAll } from './sheetsData'
 import { fetchFbAdsLevel } from './facebook-ads-level'
 import type { StreakLeadRow, BookingRecord, HubSpotContactRow } from './sheetsData'
 import { getSheetsUrl, DEFAULT_WEB_APP_URL, SHEETS_TABS } from './config'
@@ -571,7 +571,7 @@ export async function loadTurkeyCampaign(): Promise<TurkeyCampaignResult> {
     fetchBookings(),
     loadAvailability(),
     loadSpend(),
-    fetchHubspotContacts(fetchSheet),
+    fetchHubspotContactsAll(fetchSheet), // 2026-11-13: _all tab — Turkey NEW form contacts were filtered out of hubspot_contacts
     loadGoogleApiCampaigns(),
     loadGoogleTurkeyTerms(),
     loadFbRawTraffic(),

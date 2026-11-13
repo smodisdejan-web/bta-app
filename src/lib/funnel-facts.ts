@@ -41,7 +41,7 @@ import {
 } from '@/lib/business-funnel'
 import {
   fetchSheet,
-  fetchHubspotContacts,
+  fetchHubspotContactsAll,
   fetchGA4LandingPages,
   fetchBookings,
   fetchStreakSync,
@@ -557,7 +557,7 @@ async function loadLpFacts(
   const toISO = new Date(`${end}T23:59:59.999Z`).toISOString()
 
   const [hsContacts, streakLeads, ga4Rows, bookings] = await Promise.all([
-    fetchHubspotContacts(fetchSheetShared),
+    fetchHubspotContactsAll(fetchSheetShared), // 2026-11-13: same source as the LP Funnel app
     fetchStreakSync(fetchSheetShared),
     fetchGA4LandingPages(fetchSheetShared),
     fetchBookings(fetchSheetShared),
