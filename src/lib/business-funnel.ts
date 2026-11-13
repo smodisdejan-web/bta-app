@@ -414,7 +414,7 @@ const ORDERED = UMBRELLA_ORDER.map((s) => CAMPAIGNS.find((c) => c.slug === s)!).
 export const QL_THRESHOLD = 50
 
 /** The umbrella whose Streak AI score is inflated — excluded from master QL. */
-const AI_INFLATED_SLUGS = new Set(CAMPAIGNS.filter((c) => c.aiScoreInflated).map((c) => c.slug))
+export const AI_INFLATED_SLUGS = new Set(CAMPAIGNS.filter((c) => c.aiScoreInflated).map((c) => c.slug))
 
 // ─── Small helpers ──────────────────────────────────────────────────────────
 
@@ -660,7 +660,7 @@ export interface Coverage {
   min: string
   max: string
 }
-interface AdDay {
+export interface AdDay {
   day: string
   campaign: string
   impressions: number
@@ -670,14 +670,14 @@ interface AdDay {
   clicksAll: number
   spend: number
 }
-interface LpDay {
+export interface LpDay {
   day: string
   lp: string
   /** from GA4 sessionSourceMedium — 'other' = organic / direct / referral / email */
   channel: 'meta' | 'google' | 'other'
   sessions: number
 }
-interface LeadRow {
+export interface LeadRow {
   day: string
   sp: string
   detail: string
@@ -686,7 +686,7 @@ interface LeadRow {
   platform: string
   ai: number
 }
-interface BookingRow {
+export interface BookingRow {
   month: string
   /** bookings_api.inquiry_date — a full date, present on ~2/3 of the rows. */
   inquiryDay: string
@@ -1052,6 +1052,88 @@ async function loadBookings(): Promise<{ rows: BookingRow[]; coverage: Coverage;
  * maintained by hand and therefore always a little behind the newest campaigns; the regex
  * fallback covers those. A failed fetch degrades to "no table", never to an error.
  */
+/** One row of utm_mapping (Dejan's confirmed table), keyed by nk(utm). Several ads can share a utm. */
+export interface UtmRow {
+  utm: string
+  campaign: string
+  adset: string
+  ad: string
+  adId: string
+  adsetId: string
+  campaignId: string
+}
+
+/** Every utm_mapping row, grouped by nk(utm). Same fetch as loadUtmIndex (memoised), never throws. */
+async function loadUtmRows(): Promise<Map<string, UtmRow[]>> {
+  return cached('utmRows', async () => {
+    const out = new Map<string, UtmRow[]>()
+    try {
+      const raw = await fetchRows(SHEETS_TABS.UTM_MAPPING)
+      for (const r of raw) {
+        const key = nk(r.utm)
+        if (!key) continue
+        const row: UtmRow = {
+          utm: String(r.utm ?? '').trim(),
+          campaign: String(r.campaign ?? '').trim(),
+          adset: String(r.adset ?? '').trim(),
+          ad: String(r.ad ?? '').trim(),
+          adId: String(r.ad_id ?? '').trim(),
+          adsetId: String(r.adset_id ?? '').trim(),
+          campaignId: String(r.campaign_id ?? '').trim(),
+        }
+        const list = out.get(key)
+        if (list) list.push(row)
+        else out.set(key, [row])
+      }
+    } catch (e) {
+      console.warn('[funnel] utm_mapping rows unavailable', (e as Error).message)
+    }
+    return out
+  })
+}
+
+/** Meta ad set × day (tab fb_adset_daily_api, BOFU first). Missing tab = no rows, never an error. */
+export interface AdsetDay {
+  day: string
+  campaignId: string
+  campaign: string
+  adsetId: string
+  adset: string
+  impressions: number
+  clicks: number
+  clicksAll: number
+  spend: number
+}
+
+async function loadFbAdsets(): Promise<{ rows: AdsetDay[]; coverage: Coverage }> {
+  try {
+    return await cached('fbAdsets', async () => {
+      const raw = await fetchRows(SHEETS_TABS.FB_ADSET_DAILY)
+      const rows: AdsetDay[] = []
+      for (const r of raw) {
+        const day = toDay(r.date)
+        const adsetId = String(r.adset_id ?? '').trim()
+        if (!day || !adsetId) continue
+        rows.push({
+          day,
+          campaignId: String(r.campaign_id ?? '').trim(),
+          campaign: String(r.campaign ?? '').trim(),
+          adsetId,
+          adset: String(r.adset ?? '').trim(),
+          impressions: num(r.impressions),
+          clicks: num(r.link_clicks),
+          clicksAll: num(r.clicks),
+          spend: num(r.spend),
+        })
+      }
+      return { rows, coverage: coverageOf(rows.map((r) => r.day)) }
+    })
+  } catch (e) {
+    console.warn('[funnel] fb_adset_daily_api unavailable — BOFU split falls back', (e as Error).message)
+    return { rows: [], coverage: { min: '', max: '' } }
+  }
+}
+
 async function loadUtmIndex(): Promise<Map<string, string>> {
   return cached('utmIndex', async () => {
     const byUtm = new Map<string, string>()
@@ -1194,7 +1276,7 @@ export interface RawStepValues {
   spend: number
 }
 
-interface Datasets {
+export interface Datasets {
   fb: { rows: AdDay[]; coverage: Coverage }
   fbSpend: { rows: { day: string; campaign: string; spend: number }[]; coverage: Coverage }
   google: { rows: AdDay[]; coverage: Coverage }
@@ -1206,6 +1288,10 @@ interface Datasets {
   streak: { rows: LeadRow[]; coverage: Coverage }
   bookings: { rows: BookingRow[]; coverage: Coverage; inquiryCoverage: Coverage }
   utmIndex: Map<string, string>
+  /** Every utm_mapping row per nk(utm) — campaign_id / adset_id / ad_id (2026-11-13). */
+  utmRows: Map<string, UtmRow[]>
+  /** Meta ad set × day feed (fb_adset_daily_api); empty until the tab exists. */
+  adsets: { rows: AdsetDay[]; coverage: Coverage }
   /** memoised leadSlug per streak row index */
   leadSlugs: (string | null)[]
   /** memoised bookingSlug per bookings row index */
@@ -1236,7 +1322,7 @@ const chanIn = (view: Channel, ch: PaidChannel): boolean => view === 'all' || vi
  * real ChatGPT lead carries `chatgpt-intl-croatia-sep26`, and both arrived on platform=google).
  * The channel tag lives in SOURCE DETAIL and nowhere else.
  */
-const leadChannel = (l: LeadRow): PaidChannel | null => {
+export const leadChannel = (l: LeadRow): PaidChannel | null => {
   const d = l.detail // already lowercased in loadStreak()
   if (d.startsWith('ms - ') || d.startsWith('ms_')) return 'bing'
   if (d.startsWith('chatgpt')) return 'chatgpt'
@@ -1250,7 +1336,7 @@ const leadChannel = (l: LeadRow): PaidChannel | null => {
  * umbrella and inflates a Google umbrella's lead count with spend that is not in it.
  * They land in the unattributed remainder instead, so umbrellas + unattributed = master still holds.
  */
-const isFlatChannelLead = (l: LeadRow): boolean => {
+export const isFlatChannelLead = (l: LeadRow): boolean => {
   const c = leadChannel(l)
   return c === 'bing' || c === 'chatgpt'
 }
@@ -1260,17 +1346,17 @@ const isFlatChannelLead = (l: LeadRow): boolean => {
  * too — see lib/booking-channel.ts for the two signals and why nothing is guessed. Before this
  * it returned 'google' for both, i.e. their revenue was reported as Paid Google revenue.
  */
-const bookingChannel = (b: { source: string; campaign?: string }): PaidChannel | null =>
+export const bookingChannel = (b: { source: string; campaign?: string }): PaidChannel | null =>
   bookingChannelOf(b)
 
-interface AggOpts {
+export interface AggOpts {
   /** Month window for the bookings step (bookings are month-granular at source). */
   fromM: string
   toM: string
 }
 
 /** null-safe: a step is null only when NO source can answer it for this scope. */
-function aggregate(
+export function aggregate(
   ds: Datasets,
   def: CampaignDef | null,
   from: string,
@@ -1438,6 +1524,149 @@ function aggregate(
     leads,
     ql,
     qlAll,
+    bookings,
+    revenue,
+    bookingsCohort,
+    revenueCohort,
+    spend,
+  }
+}
+
+
+// ─── Node scopes (2026-11-13) ───────────────────────────────────────────────
+//
+// A NodeScope is a funnel group or a single platform campaign (lib/funnel-nodes.ts builds them).
+// aggregateScope() is aggregate() with the umbrella filters replaced by per-row predicates, so a
+// node is measured on EXACTLY the same rows, days and rules as master and the umbrellas.
+// Flat channels (Bing, ChatGPT) belong to no node — they stay in the unattributed remainder.
+
+export interface MetaShare {
+  impressions: number
+  clicks: number
+  clicksAll: number
+  spend: number
+}
+
+export interface NodeScope {
+  id: string
+  label: string
+  /** Share (0..1) of a Meta campaign-day row that belongs to this node; null = none of it. */
+  metaShare: (campaign: string, day: string) => MetaShare | null
+  /** Google campaign row belongs to this node. */
+  google: (campaign: string) => boolean
+  /** Streak lead (index into ds.streak.rows) belongs to this node. */
+  lead: (i: number) => boolean
+  /** bookings_api row (index) belongs to this node. */
+  booking: (i: number) => boolean
+  /** GA4 landing path belongs to this node; null = this node has no LP measurement (lpViews null). */
+  lpPath: ((path: string) => boolean) | null
+  /** Platforms whose paid GA4 sessions count for this node (the platforms it spends on). */
+  lpChannels: ('meta' | 'google')[]
+  hasMeta: boolean
+  hasGoogle: boolean
+}
+
+export function aggregateScope(
+  ds: Datasets,
+  scope: NodeScope,
+  from: string,
+  to: string,
+  channel: Channel = 'all',
+  opts?: AggOpts
+): RawStepValues {
+  const inRange = (d: string) => d >= from && d <= to
+  let impressions = 0
+  let clicks = 0
+  let clicksAll = 0
+  let spend = 0
+  let adSources = 0
+  if (scope.hasMeta && chanIn(channel, 'meta')) {
+    adSources++
+    const useApiSpend = ds.fbSpend.rows.length > 0
+    for (const r of ds.fb.rows) {
+      if (!inRange(r.day)) continue
+      const f = scope.metaShare(r.campaign, r.day)
+      if (!f) continue
+      impressions += r.impressions * f.impressions
+      clicks += r.clicks * f.clicks
+      clicksAll += r.clicksAll * f.clicksAll
+      if (!useApiSpend) spend += r.spend * f.spend
+    }
+    if (useApiSpend) {
+      for (const r of ds.fbSpend.rows) {
+        if (!inRange(r.day)) continue
+        const f = scope.metaShare(r.campaign, r.day)
+        if (!f) continue
+        spend += r.spend * f.spend
+      }
+    }
+  }
+  if (scope.hasGoogle && chanIn(channel, 'google')) {
+    adSources++
+    for (const r of ds.google.rows) {
+      if (!inRange(r.day) || !scope.google(r.campaign)) continue
+      impressions += r.impressions
+      clicks += r.clicks
+      clicksAll += r.clicksAll
+      spend += r.spend
+    }
+  }
+  let lpViews: number | null = null
+  let lpViewsOrganic: number | null = null
+  const lpCh = new Set<string>(scope.lpChannels)
+  if (scope.lpPath && (channel === 'all' || channel === 'meta' || channel === 'google')) {
+    lpViews = 0
+    lpViewsOrganic = 0
+    for (const r of ds.ga4.rows) {
+      if (!inRange(r.day) || !scope.lpPath(r.lp)) continue
+      if (r.channel === 'other') {
+        lpViewsOrganic += r.sessions
+        continue
+      }
+      if (!lpCh.has(r.channel)) continue
+      if (channel !== 'all' && r.channel !== channel) continue
+      lpViews += r.sessions
+    }
+  }
+  let leads = 0
+  let ql = 0
+  for (let i = 0; i < ds.streak.rows.length; i++) {
+    const r = ds.streak.rows[i]
+    if (!inRange(r.day)) continue
+    if (channel !== 'all' && leadChannel(r) !== channel) continue
+    if (!scope.lead(i)) continue
+    leads++
+    if (r.ai >= QL_THRESHOLD) ql++
+  }
+  const fromM = opts?.fromM ?? from.slice(0, 7)
+  const toM = opts?.toM ?? to.slice(0, 7)
+  let bookings = 0
+  let revenue = 0
+  let bookingsCohort = 0
+  let revenueCohort = 0
+  for (let i = 0; i < ds.bookings.rows.length; i++) {
+    const r = ds.bookings.rows[i]
+    if (channel !== 'all' && bookingChannel(r) !== channel) continue
+    if (!scope.booking(i)) continue
+    if (r.month >= fromM && r.month <= toM) {
+      bookings++
+      revenue += r.rvc
+    }
+    if (r.inquiryDay && r.inquiryDay >= from && r.inquiryDay <= to) {
+      bookingsCohort++
+      revenueCohort += r.rvc
+    }
+  }
+  return {
+    impressions: adSources ? impressions : null,
+    clicks: adSources ? clicks : null,
+    clicksAll: adSources ? clicksAll : null,
+    lpViews,
+    lpViewsOrganic,
+    leads,
+    // Nodes never drop the AI-inflated umbrella: a node's QL is all of its own QL.
+    ql,
+    qlAll: ql,
     bookings,
     revenue,
     bookingsCohort,
@@ -1960,28 +2189,12 @@ function statusFor(cvr: number | null, bench: number | null): 'g' | 'a' | 'r' | 
   return 'r'
 }
 
-export async function loadBusinessFunnel(opts: {
-  start: string
-  end: string
-  campaign: string
-  channel?: Channel
-  /** Optional range key; when given it has already been resolved into start/end. */
-  range?: ResolvedRange
-}): Promise<FunnelResponse> {
-  const reqStart = opts.start
-  const reqEnd = opts.end
-  const channel: Channel = opts.channel || 'all'
-  const slug = opts.campaign && opts.campaign !== 'master' ? opts.campaign : 'master'
-  const def = slug === 'master' ? null : CAMPAIGNS.find((c) => c.slug === slug) || null
-  if (slug !== 'master' && !def) throw new Error(`Unknown campaign "${slug}"`)
-
-  // Channels whose landing path this umbrella cannot isolate in GA4 (CampaignDef.lpGapChannels).
-  // Their lpViews is a gap, and the clicks denominator of the LP-views rate drops them too.
-  const lpGapChannels = (def?.lpGapChannels ?? []) as PaidChannel[]
-  const lpGapSet = new Set<string>(lpGapChannels)
-  const lpVisibleChannels = (['meta', 'google'] as PaidChannel[]).filter((c) => !lpGapSet.has(c))
-
-  const [fb, fbSpend, google, bing, chatgpt, ga4, streak, bookings, utmIndex] = await Promise.all([
+/**
+ * Every dataset the funnel reads, parsed and memoised (15 min). Exported 2026-11-13 so the node
+ * layer (lib/funnel-nodes.ts) works on the very same rows as /api/funnel — one read, one truth.
+ */
+export async function getFunnelDatasets(): Promise<Datasets> {
+  const [fb, fbSpend, google, bing, chatgpt, ga4, streak, bookings, utmIndex, utmRows, adsets] = await Promise.all([
     loadFb(),
     loadFbSpend(),
     loadGoogle(),
@@ -1991,9 +2204,10 @@ export async function loadBusinessFunnel(opts: {
     loadStreak(),
     loadBookings(),
     loadUtmIndex(),
+    loadUtmRows(),
+    loadFbAdsets(),
   ])
-
-  const ds: Datasets = {
+  return {
     fb,
     fbSpend,
     google,
@@ -2003,12 +2217,56 @@ export async function loadBusinessFunnel(opts: {
     streak,
     bookings,
     utmIndex,
-    // Flat-channel leads are deliberately slug-less: Bing/ChatGPT belong to no umbrella, so
-    // they sit in the unattributed remainder instead of being pinned onto a Google umbrella
-    // whose spend does not contain them.
+    utmRows,
+    adsets,
     leadSlugs: streak.rows.map((r) => (isFlatChannelLead(r) ? null : leadSlug(r, utmIndex))),
     bookingSlugs: bookings.rows.map((r) => bookingSlug(r)),
   }
+}
+
+export async function loadBusinessFunnel(opts: {
+  start: string
+  end: string
+  campaign: string
+  channel?: Channel
+  /** Optional range key; when given it has already been resolved into start/end. */
+  range?: ResolvedRange
+  /** 2026-11-13: a funnel / campaign node (lib/funnel-nodes.ts). Overrides `campaign`. */
+  scope?: NodeScope
+}): Promise<FunnelResponse> {
+  const reqStart = opts.start
+  const reqEnd = opts.end
+  const channel: Channel = opts.channel || 'all'
+  const scope = opts.scope || null
+  const slug = scope ? scope.id : opts.campaign && opts.campaign !== 'master' ? opts.campaign : 'master'
+  const def = scope || slug === 'master' ? null : CAMPAIGNS.find((c) => c.slug === slug) || null
+  if (!scope && slug !== 'master' && !def) throw new Error(`Unknown campaign "${slug}"`)
+  /** What sourcesUsed() needs to know about a scope node (which platforms / LP it measures). */
+  const sourceDef: CampaignDef | null = scope
+    ? {
+        slug: scope.id,
+        name: scope.label,
+        metaNames: scope.hasMeta ? [scope.label] : [],
+        googleNames: scope.hasGoogle ? [scope.label] : [],
+        fb: null,
+        google: null,
+        sp: null,
+        googleDetail: null,
+        lp: scope.lpPath ? /./ : null,
+        booking: null,
+      }
+    : def
+  const agg = (from: string, to: string, ch: Channel, o?: AggOpts): RawStepValues =>
+    scope ? aggregateScope(ds, scope, from, to, ch, o) : aggregate(ds, def, from, to, ch, o)
+
+  // Channels whose landing path this umbrella cannot isolate in GA4 (CampaignDef.lpGapChannels).
+  // Their lpViews is a gap, and the clicks denominator of the LP-views rate drops them too.
+  const lpGapChannels = (def?.lpGapChannels ?? []) as PaidChannel[]
+  const lpGapSet = new Set<string>(lpGapChannels)
+  const lpVisibleChannels = (['meta', 'google'] as PaidChannel[]).filter((c) => !lpGapSet.has(c))
+
+  const ds: Datasets = await getFunnelDatasets()
+  const { fb, fbSpend, google, bing, chatgpt, ga4, streak, bookings } = ds
 
   /**
    * Does a flat channel's tab actually answer? An absent or empty tab is NO MEASUREMENT: on a
@@ -2098,7 +2356,7 @@ export async function loadBusinessFunnel(opts: {
     `${bookingsFromM}-01` > bookings.coverage.max
   const gapAll = windowEmpty
 
-  const cur = aggregate(ds, def, effFrom, effTo, channel, bookingOpts)
+  const cur = agg(effFrom, effTo, channel, bookingOpts)
 
   // ── Benchmark window: the previous period of the same length ──
   const windowDays = daysBetween(effFrom, effTo)
@@ -2110,7 +2368,7 @@ export async function loadBusinessFunnel(opts: {
     const k = `${from}|${to}`
     let v = histCache.get(k)
     if (!v) {
-      v = aggregate(ds, def, from, to, channel, { fromM: from.slice(0, 7), toM: to.slice(0, 7) })
+      v = agg(from, to, channel, { fromM: from.slice(0, 7), toM: to.slice(0, 7) })
       histCache.set(k, v)
     }
     return v
@@ -2148,10 +2406,10 @@ export async function loadBusinessFunnel(opts: {
   const splitOn = channel === 'all'
   const chCur: Record<PaidChannel, RawStepValues> | null = splitOn
     ? {
-        meta: aggregate(ds, def, effFrom, effTo, 'meta', bookingOpts),
-        google: aggregate(ds, def, effFrom, effTo, 'google', bookingOpts),
-        bing: aggregate(ds, def, effFrom, effTo, 'bing', bookingOpts),
-        chatgpt: aggregate(ds, def, effFrom, effTo, 'chatgpt', bookingOpts),
+        meta: agg(effFrom, effTo, 'meta', bookingOpts),
+        google: agg(effFrom, effTo, 'google', bookingOpts),
+        bing: agg(effFrom, effTo, 'bing', bookingOpts),
+        chatgpt: agg(effFrom, effTo, 'chatgpt', bookingOpts),
       }
     : null
   const chHistCache = new Map<string, RawStepValues>()
@@ -2159,7 +2417,7 @@ export async function loadBusinessFunnel(opts: {
     const k = `${ch}|${from}|${to}`
     let v = chHistCache.get(k)
     if (!v) {
-      v = aggregate(ds, def, from, to, ch, { fromM: from.slice(0, 7), toM: to.slice(0, 7) })
+      v = agg(from, to, ch, { fromM: from.slice(0, 7), toM: to.slice(0, 7) })
       chHistCache.set(k, v)
     }
     return v
@@ -2186,7 +2444,7 @@ export async function loadBusinessFunnel(opts: {
     let win: { from: string; to: string; covered: number } | null = null
     if (prevKey) {
       const used = sourcesUsed(
-        def,
+        sourceDef,
         [...(STEP_SOURCES[s.key] || []), ...(STEP_SOURCES[prevKey] || [])],
         channel
       ).filter((v, idx, arr) => arr.indexOf(v) === idx)
@@ -2288,7 +2546,7 @@ export async function loadBusinessFunnel(opts: {
         // umbrella drill-down their rows are structurally absent, not measured zeros. Printing
         // 0 leads / 0 QL / 0 bookings there reads as "Bing ran on this umbrella and produced
         // nothing" about a channel that cannot run on it at all.
-        const flatOnUmbrella = isFlat && def !== null
+        const flatOnUmbrella = isFlat && (def !== null || !!scope)
         const value = flatOnUmbrella ? null : pick(chCur[ch], s.key)
         const nextValue = nextKey && !flatOnUmbrella ? pick(chCur[ch], nextKey) : null
         const cvrToNext = nextKey ? div(nextValue, value) : null
@@ -2296,7 +2554,7 @@ export async function loadBusinessFunnel(opts: {
         let bm: number | null = null
         if (nextKey) {
           const used = sourcesUsed(
-            def,
+            sourceDef,
             [...(STEP_SOURCES[nextKey] || []), ...(STEP_SOURCES[s.key] || [])],
             ch
           ).filter((v, idx, arr) => arr.indexOf(v) === idx)
@@ -2342,7 +2600,9 @@ export async function loadBusinessFunnel(opts: {
   // the denominator and the numerators now span exactly the same days — the 2026-08 failure
   // (fb_ads_raw froze, ROAS printed 69.75x on Google-only spend) cannot recur by clipping.
   // The metrics only go null when the Meta feed cannot answer the window AT ALL.
-  const metaInScope = chanIn(channel, 'meta') && (def === null || !!def.metaNames?.length || !!def.fb)
+  const metaInScope = scope
+    ? chanIn(channel, 'meta') && scope.hasMeta
+    : chanIn(channel, 'meta') && (def === null || !!def.metaNames?.length || !!def.fb)
   // On a window with no coverage at all NOTHING is measurable, not even on a Google-only view:
   // spend would otherwise print 0 next to null steps.
   // `!flatFeedDead`: on a ?channel=bing|chatgpt view whose tab is missing there is no spend
@@ -2389,7 +2649,7 @@ export async function loadBusinessFunnel(opts: {
 
   // ── Membership: every umbrella + the unattributed remainder ──
   const masterAgg = slug === 'master' ? cur : aggregate(ds, null, effFrom, effTo, channel, bookingOpts)
-  const shownUmbrellas = slug === 'master' ? CAMPAIGNS : [def!]
+  const shownUmbrellas = scope ? [] : slug === 'master' ? CAMPAIGNS : [def!]
   const perUmbrella = shownUmbrellas.map((c) => {
     const a = aggregate(ds, c, effFrom, effTo, channel, bookingOpts)
     const members = campaignBreakdown(ds, c, effFrom, effTo, channel, bookingOpts)
