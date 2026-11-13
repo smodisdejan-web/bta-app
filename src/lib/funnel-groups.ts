@@ -108,5 +108,5 @@ export const LP_FUNNEL_OVERRIDES: [RegExp, FunnelKey][] = [
   [/^\/best-superyacht-deal-of-summer-2027-turkey/i, 'asset'],
   [/tosca|belgin/i, 'asset'],
   // Turkish single yachts (Dejan 2026-11-13): /yacht-rentals/esma-sultan, /…/arabella…, /…/queen-of-makri
-  [/esma|arabella|makri/i, 'asset'],
+  [/esma|arabella|makri|la-bella-vita/i, 'asset'],
 ]
