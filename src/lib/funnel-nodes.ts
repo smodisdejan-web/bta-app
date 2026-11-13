@@ -987,23 +987,26 @@ function copyParts(ds: Datasets, A: Assignment, from: string, to: string, channe
     a.set(r.assetId, x)
   }
   const parts: CopyPart[] = []
-  const flags = { multiNoBreakdown: { ads: 0, spend: 0 }, unresolvedText: { ads: 0, spend: 0 }, noTextFeed: { ads: 0, spend: 0 } }
+  const flags = { multiNoBreakdown: { ads: 0, spend: 0 }, unresolvedText: { ads: 0, pairs: 0, spend: 0 }, noTextFeed: { ads: 0, spend: 0 } }
+  /** values of every ad / ad part that has no text row (all three flags): remainder.parts metaUnresolvedText */
+  const lost = cm0()
+  const addLost = (v: CopyMetrics) => { for (const k of CM_KEYS) lost[k] += v[k] }
   for (const [nodeId, a] of adRoll) {
     const adId = nodeId.replace(/^ad:meta:/, '')
     const tot: CopyMetrics = { impressions: a.impressions, clicks: a.clicks, spend: a.spend, lpViews: a.lpSeen ? (a.lpViews ?? 0) : 0, leads: a.leads, ql: a.ql, bookings: a.bookings, revenue: a.revenue }
     const inf = info.get(adId)
     const base = { adId, lpSeen: a.lpSeen, utmLoss: a.utmLoss, est: a.est, spendApprox: a.spendApprox }
-    if (!inf) { flags.noTextFeed.ads++; flags.noTextFeed.spend += a.spend; continue }
+    if (!inf) { flags.noTextFeed.ads++; flags.noTextFeed.spend += a.spend; addLost(tot); continue }
     if (!inf.multi) {
       const b = inf.bodies.find((x) => x.text != null)
       const text = b?.text ?? ''
-      if (!b && inf.bodies.length) { flags.unresolvedText.ads++; flags.unresolvedText.spend += a.spend; continue }
+      if (!b && inf.bodies.length) { flags.unresolvedText.ads++; flags.unresolvedText.pairs++; flags.unresolvedText.spend += a.spend; addLost(tot); continue }
       parts.push({ ...base, copyId: copyNodeId(text), text, values: tot, multi: false })
       continue
     }
     const br = bd.get(adId)
     const assets = [...(br || new Map()).entries()].filter(([, x]) => x.spend > 0 || x.impressions > 0 || x.linkClicks > 0)
-    if (!assets.length) { flags.multiNoBreakdown.ads++; flags.multiNoBreakdown.spend += a.spend; continue }
+    if (!assets.length) { flags.multiNoBreakdown.ads++; flags.multiNoBreakdown.spend += a.spend; addLost(tot); continue }
     const S = assets.reduce((n, [, x]) => n + x.spend, 0), I = assets.reduce((n, [, x]) => n + x.impressions, 0)
     const L = assets.reduce((n, [, x]) => n + x.linkClicks, 0), C = assets.reduce((n, [, x]) => n + x.clicks, 0)
     const shareOf = (x: { spend: number; impressions: number; clicks: number; linkClicks: number }) => {
@@ -1014,18 +1017,18 @@ function copyParts(ds: Datasets, A: Assignment, from: string, to: string, channe
     }
     assets.sort((p, q) => p[0].localeCompare(q[0]))
     const done = cm0()
-    let lostSpend = 0
+    let lostSpend = 0, lostPairs = 0
     assets.forEach(([assetId, x], i) => {
       const sh = shareOf(x)
       const v = cm0()
       for (const k of CM_KEYS) { v[k] = i === assets.length - 1 ? tot[k] - done[k] : tot[k] * sh[k]; done[k] += v[k] }
       const text = inf.bodies.find((b) => b.assetId === assetId)?.text
-      if (text == null) { lostSpend += v.spend; return }
+      if (text == null) { lostSpend += v.spend; lostPairs++; addLost(v); return }
       parts.push({ ...base, copyId: copyNodeId(text), text, values: v, multi: true })
     })
-    if (lostSpend > 0) { flags.unresolvedText.ads++; flags.unresolvedText.spend += lostSpend }
+    if (lostPairs) { flags.unresolvedText.ads++; flags.unresolvedText.pairs += lostPairs; flags.unresolvedText.spend += lostSpend }
   }
-  return { parts, flags, info }
+  return { parts, flags, info, lost }
 }
 
 /** Rows of level=copy: parts merged by text. */
@@ -1300,8 +1303,9 @@ export async function loadFunnelNode(o: NodeOpts) {
   const fdef = parsed.type === 'funnel' ? FUNNEL_BY_KEY.get(parsed.key as FunnelKey)! : null
   const leadsNa = !!fdef?.leadsNa || (parsed.type === 'campaign' && false)
   const lpKey = parsed.type === 'lp' ? lpOfNode(parsed.key) : null
-  const lpAgg = (f: string, t2: string, ob: AggOpts): RawStepValues => {
-    const m = rollupLevel(ds, A, f, t2, o.channel, ob, 'node', (c) => c.lp === lpKey, true).get('node')
+  const lpAgg = (f: string, t2: string, ob: AggOpts): RawStepValues => lpAggCh(f, t2, ob, o.channel)
+  const lpAggCh = (f: string, t2: string, ob: AggOpts, ch: Channel): RawStepValues => {
+    const m = rollupLevel(ds, A, f, t2, ch, ob, 'node', (c) => c.lp === lpKey, true).get('node')
     return {
       impressions: m ? m.impressions : 0, clicks: m ? m.clicks : 0, clicksAll: m ? m.clicks : 0,
       lpViews: m?.lpSeen ? m.lpViews : 0, lpViewsOrganic: null, leads: m ? m.leads : 0, ql: m ? m.ql : 0, qlAll: m ? m.ql : 0,
@@ -1399,6 +1403,7 @@ export async function loadFunnelNode(o: NodeOpts) {
   }
 
   let hiddenLeads: { leads: number; ql: number; funnel: string } | null = null
+  let copyCp: ReturnType<typeof copyParts> | null = null
   if (parsed.type === 'master' && level === 'funnel') {
     for (const f of FUNNELS) {
       const sc = funnelScope(ds, f.key)
@@ -1472,6 +1477,7 @@ export async function loadFunnelNode(o: NodeOpts) {
     // Ad copy (part 4): level=copy lists the texts inside a node; a copy node lists the ads (or
     // their ad sets / campaigns / landing pages) that carry this text, each with this text's share only.
     const cp = copyKey ? copyPartsOf(from, to, bo) : copyParts(ds, A, from, to, o.channel, bo, nodePredicate(parsed.type, parsed.key))
+    copyCp = cp
     const anyMulti = (xs: CopyPart[]) => xs.some((p) => p.multi)
     const est = (multi: boolean, a: boolean) => ({ spend: a, impressions: a, clicks: a, leads: multi, ql: multi, bookings: multi, revenue: multi })
     const q = (v: CopyMetrics, lpSeen: boolean, utmLoss: boolean, multi: boolean, approx: boolean) => ({
@@ -1497,6 +1503,7 @@ export async function loadFunnelNode(o: NodeOpts) {
           field: 'body', text: r.text || NO_TEXT_LABEL, ...(r.text ? {} : { noText: true }),
           headlines: [...r.headlines], descriptions: [...r.descriptions], ctas: [...r.ctas],
           adsCount: r.ads.size, multiTextAds: r.multiAds.size,
+          ...(r.values.bookings > r.values.leads ? { leadsBelowBookings: true, flagNote: 'Bookings reach this text through the ad id in the Acq sheet; leads only through a unique utm_mapping row per ad, which these ads lack, so leads can be lower than bookings.' } : {}),
           split: { measured: r.measured, estimated: { lpViews: r.estimated.lpViews, leads: r.estimated.leads, ql: r.estimated.ql, bookings: r.estimated.bookings, revenue: r.estimated.revenue } },
           path: [],
         } as any)
@@ -1587,6 +1594,45 @@ export async function loadFunnelNode(o: NodeOpts) {
   if (remainder && (parsed.type === 'lp' || parsed.type === 'copy')) {
     const s = children.reduce((n, c) => n + (c.values.lpViews ?? 0), 0)
     remainder.values.lpViews = Math.max(0, (nodeValues.lpViews ?? 0) - s)
+  }
+  // level=copy: split the remainder into its causes (frontend, 2026-11-13). Σ parts = remainder exactly:
+  // the last part (metaNotAttributableToAd) takes what the others leave.
+  let copyRemainderParts: { key: string; label: string; values: NodeValues }[] | null = null
+  if (remainder && level === 'copy' && !copyKey && copyCp) {
+    const metaAgg = (f: string, t2: string, ob: AggOpts): RawStepValues =>
+      lpKey ? lpAggCh(f, t2, ob, 'meta') : scope ? aggregateScope(ds, scope, f, t2, 'meta', ob) : aggregate(ds, def, f, t2, 'meta', ob)
+    const metaOn = o.channel === 'all' || o.channel === 'meta'
+    const M = metaOn ? rawToValues(metaAgg(from, to, bo), roasOk, false, true) : null
+    const AD_START = '2026-08-01'
+    const beforeTo = to < AD_START ? to : addDays(AD_START, -1)
+    const Mb = metaOn && from < AD_START ? rawToValues(metaAgg(from, beforeTo, { fromM: from.slice(0, 7), toM: beforeTo.slice(0, 7) }), roasOk, false, true) : null
+    const R = remainder.values
+    const keys: (keyof NodeValues)[] = ['impressions', 'clicks', 'lpViews', 'leads', 'ql', 'bookings', 'revenue', 'spend']
+    const L = copyCp.lost
+    const mk = () => ({ impressions: 0, clicks: 0, lpViews: 0, leads: 0, ql: 0, bookings: 0, revenue: 0, spend: 0, roas: null } as NodeValues)
+    const nonMeta = mk(), unres = mk(), before = mk(), notAd = mk()
+    const fix = (x: number) => Math.round(x * 1000) / 1000
+    for (const k of keys) {
+      const r = R[k]
+      if (r == null) { nonMeta[k] = unres[k] = before[k] = notAd[k] = null; continue }
+      const node = reconcileBase[k] ?? 0
+      const m = M ? (M[k] ?? 0) : 0
+      nonMeta[k] = fix(node - m)
+      unres[k] = fix((L as any)[k] ?? 0)
+      // spend / impressions / clicks never reach an ad only on days without the ad feed (before 1.8. or an
+      // incomplete campaign-day); leads / bookings do when they carry no unique ad id.
+      const measured = k === 'spend' || k === 'impressions' || k === 'clicks'
+      const sumAds = (node - r) + (unres[k] as number)   // Σ rows + unresolved = Σ ads seen at ad level
+      before[k] = fix(measured ? Math.max(0, m - sumAds) : Mb ? (Mb[k] ?? 0) : 0)
+      notAd[k] = fix(r - (nonMeta[k] as number) - (unres[k] as number) - (before[k] as number))
+    }
+    copyRemainderParts = [
+      { key: 'nonMeta', label: 'Google / Bing / ChatGPT (no Meta ad copy)', values: nonMeta },
+      { key: 'metaUnresolvedText', label: 'Meta ad parts whose text is unknown (asset text not readable, no body breakdown, ad not in fb_ad_texts)', values: unres },
+      { key: 'beforeAdData', label: 'Meta before 2026-08-01 or on campaign-days without a complete ad feed', values: before },
+      { key: 'metaNotAttributableToAd', label: 'Meta leads / bookings / visitors without a unique ad id (campaign or ad set level only)', values: notAd },
+    ]
+    ;(remainder as any).parts = copyRemainderParts
   }
   if (parsed.type === 'master') {
     const qlStep = resp.steps.find((s) => s.key === 'ql')
@@ -1772,6 +1818,7 @@ export async function loadFunnelNode(o: NodeOpts) {
     previous,
     freshness: freshnessOf(resp, ds),
     bofuSplit: { days: bofuDays, leadsBy: A.bofuLeadsBy },
+    ...(copyCp ? { copyFlags: { ...copyCp.flags, note: 'unresolvedText / multiNoBreakdown / noTextFeed = Meta ads or ad parts without a known text; their values are remainder.parts[metaUnresolvedText]' } } : {}),
     ...(parsed.type === 'master' ? { singleYachtMoves: singleYachtMoves(ds, A, from, to) } : {}),
   }
 }
@@ -1834,8 +1881,12 @@ export async function loadFunnelIndex(o: { range: ResolvedRange; channel: Channe
 }
 
 /** Verify helper (scripts/verify-funnel-nodes.ts): every copy part in the window, plus the flags. */
-export async function copyPartsForVerify(range: ResolvedRange, channel: Channel) {
+export async function copyPartsForVerify(range: ResolvedRange, channel: Channel, win?: { from: string; to: string }) {
+  if (win) range = { ...range, from: win.from, to: win.to }
   const ds = await getFunnelDatasets()
   const A = assignmentOf(ds)
+  // same warm-up as loadFunnelNode (lead placement reads the memoised Meta parts)
+  for (const r of ds.fbSpend.rows) A.metaParts(r.campaign, r.day)
+  for (const r of ds.google.rows) A.googleFunnel(r.campaign)
   return copyParts(ds, A, range.from, range.to, channel, { fromM: range.from.slice(0, 7), toM: range.to.slice(0, 7) }, () => true)
 }

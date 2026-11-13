@@ -205,8 +205,20 @@ async function pool<T>(items: T[], n: number, fn: (t: T) => Promise<void>) {
       const sm = m.children.reduce((x: number, c: any) => x + (c.values[k] ?? 0), 0) + ((m.remainder?.values as any)?.[k] ?? 0)
       if (!near(total, sm, k === 'spend' || k === 'revenue' ? 0.05 : 0.5)) fail(`${rk} master level=copy ${k}: ${total} ≠ Σ ${sm}`)
     }
+    // remainder.parts sum exactly to the remainder (master, a funnel, a campaign)
+    for (const nd of [m, await loadFunnelNode({ node: 'funnel:eb_croatia', range, channel: 'all', level: 'copy' })]) {
+      const parts: any[] = (nd.remainder as any)?.parts || []
+      if (parts.length !== 4) fail(`${rk} ${nd.node.id} level=copy remainder.parts missing (${parts.length})`)
+      for (const k of keys6) {
+        const r = (nd.remainder?.values as any)?.[k]
+        if (r == null) continue
+        const sp = parts.reduce((x, p) => x + (p.values[k] ?? 0), 0)
+        if (!near(r, sp, 0.01)) fail(`${rk} ${nd.node.id} remainder ${k} ${r} ≠ Σ parts ${sp}`)
+      }
+      if (rk === RANGES[0]) console.log(`  ${nd.node.id} remainder.parts spend: ${parts.map((p) => `${p.key} ${Math.round(p.values.spend)}`).join(' · ')} · leads: ${parts.map((p) => `${p.key} ${Math.round(p.values.leads * 10) / 10}`).join(' · ')}`)
+    }
     // Σ parts of each ad = the ad (ad level row)
-    const parts = await copyPartsForVerify(range, 'all')
+    const parts = await copyPartsForVerify(range, 'all', (m.meta as any).effectiveWindow)
     const adL = await loadFunnelNode({ node: 'master', range, channel: 'all', level: 'ad' })
     const byAd = new Map<string, any>()
     for (const p of parts.parts) { const x = byAd.get(p.adId) || { n: 0, multi: p.multi }; x.n++; for (const k of ['impressions', 'clicks', 'spend', 'leads', 'ql', 'bookings', 'revenue'] as const) x[k] = (x[k] || 0) + p.values[k]; byAd.set(p.adId, x) }
