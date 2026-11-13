@@ -110,6 +110,82 @@ async function pool<T>(items: T[], n: number, fn: (t: T) => Promise<void>) {
     }
   }
 
+  // ── 4. Visitors: a campaign / ad set NODE equals its ROW one level up (GA4 by utm, same quality)
+  console.log('\n== 4. Visitors row = node (campaign rows of every funnel, ad set rows of the top Meta campaigns)')
+  for (const rk of RANGES.slice(0, 2)) {
+    const range = resolveRange(rk, '', '')
+    let n = 0, approx = 0
+    const metaCamps: string[] = []
+    for (const f of FUNNELS) {
+      const fn = await loadFunnelNode({ node: `funnel:${f.key}`, range, channel: 'all', level: 'campaign' })
+      for (const c of fn.children) {
+        const nd: any = await loadFunnelNode({ node: c.id, range, channel: 'all' })
+        n++
+        if (nd.values.lpViews !== c.values.lpViews) fail(`${rk} ${c.id} lpViews: row ${c.values.lpViews} ≠ node ${nd.values.lpViews}`)
+        if (nd.quality?.lpViews !== c.quality.lpViews) fail(`${rk} ${c.id} quality.lpViews: row ${c.quality.lpViews} ≠ node ${nd.quality?.lpViews}`)
+        const st = nd.steps.find((s: any) => s.key === 'lpViews')
+        if (st && st.value !== nd.values.lpViews) fail(`${rk} ${c.id} steps[lpViews] ${st.value} ≠ values.lpViews ${nd.values.lpViews}`)
+        if (c.quality.lpViews === 'approx') { approx++; console.log(`    approx · ${f.key} · ${c.label} · clicks ${c.values.clicks} · visitors ${c.values.lpViews}`) }
+        if (c.platform === 'meta' && (c.values.spend || 0) > 0) metaCamps.push(c.id)
+      }
+    }
+    let m = 0
+    for (const cid of metaCamps.slice(0, 6)) {
+      const cn = await loadFunnelNode({ node: cid, range, channel: 'all', level: 'adset' })
+      for (const a of cn.children.slice(0, 5)) {
+        const an: any = await loadFunnelNode({ node: a.id, range, channel: 'all' })
+        m++
+        if (an.values.lpViews !== a.values.lpViews) fail(`${rk} ${a.id} lpViews: row ${a.values.lpViews} ≠ node ${an.values.lpViews}`)
+        if (an.quality?.lpViews !== a.quality.lpViews) fail(`${rk} ${a.id} quality.lpViews: row ${a.quality.lpViews} ≠ node ${an.quality?.lpViews}`)
+      }
+      const s = cn.children.reduce((x: number, c: any) => x + (c.values.lpViews ?? 0), 0)
+      const tot = (cn.values as any).lpViews
+      if (tot != null && !near(tot, s + ((cn.remainder?.values as any)?.lpViews ?? 0), 0.5)) fail(`${rk} ${cid} lpViews ${tot} ≠ Σ ad sets ${s} + remainder`)
+    }
+    console.log(`  ${rk}: ${n} campaign nodes, ${m} ad set nodes checked · ${approx} campaign row(s) quality.lpViews approx`)
+  }
+
+  // ── 5. Real HTTP route (local dev server of this branch): level=lp + index
+  const LOCAL = arg('local', 'http://localhost:3011')
+  if (!process.argv.includes('--no-http')) {
+    console.log(`\n== 5. HTTP ${LOCAL}/api/funnel …&level=lp and /api/funnel/index?levels=all`)
+    const get = async (path: string) => {
+      const r = await fetch(`${LOCAL}${path}`, { cache: 'no-store' })
+      const body: any = await r.json().catch(() => null)
+      return { status: r.status, body }
+    }
+    const rk = RANGES[0]
+    const fe = await loadFunnelNode({ node: 'funnel:eb_croatia', range: resolveRange(rk, '', ''), channel: 'all', level: 'campaign' })
+    const camp = fe.children.find((c: any) => c.platform === 'meta' && (c.values.spend || 0) > 0)!
+    const cAd = await loadFunnelNode({ node: camp.id, range: resolveRange(rk, '', ''), channel: 'all', level: 'adset' })
+    const adset = cAd.children.find((c: any) => (c.values.spend || 0) > 0)!
+    const lpIds = new Set<string>()
+    for (const node of ['master', 'funnel:eb_croatia', camp.id, adset.id]) {
+      const { status, body } = await get(`/api/funnel?range=${rk}&node=${encodeURIComponent(node)}&level=lp&nocache=1`)
+      if (status !== 200) { fail(`HTTP ${status} for node=${node}&level=lp: ${JSON.stringify(body).slice(0, 200)}`); continue }
+      for (const c of body.children) lpIds.add(c.id)
+      const tot = body.values.spend, s = body.children.reduce((x: number, c: any) => x + (c.values.spend ?? 0), 0) + (body.remainder?.values.spend ?? 0)
+      if (!near(tot, s, 0.05)) fail(`HTTP ${node} level=lp spend ${tot} ≠ Σ ${s}`)
+      if (node !== 'master' && node !== 'funnel:eb_croatia') {
+        const row = node === camp.id ? camp : adset
+        if (body.values.lpViews !== row.values.lpViews) fail(`HTTP node ${node} lpViews ${body.values.lpViews} ≠ row ${row.values.lpViews}`)
+      }
+      console.log(`  200 · node=${node.slice(0, 50).padEnd(50)} level=lp · ${String(body.children.length).padStart(3)} LPs · lpViews ${body.values.lpViews} (${body.quality?.lpViews}) · spend Σ+remainder = node`)
+    }
+    const bad = await get(`/api/funnel?range=${rk}&node=master&level=bogus`)
+    if (bad.status !== 400) fail(`level=bogus should be 400, got ${bad.status}`)
+    const idx = await get(`/api/funnel/index?range=${rk}&levels=all&nocache=1`)
+    if (idx.status !== 200) fail(`index HTTP ${idx.status}`)
+    else {
+      const ids = new Set<string>(idx.body.items.map((i: any) => i.id))
+      const missing = [...lpIds].filter((id) => !ids.has(id))
+      if (missing.length) fail(`index misses ${missing.length} LP(s) shown in a level=lp list: ${missing.slice(0, 5).join(', ')}`)
+      const ifm = 'lp:' + encodeURIComponent('meta-instant-form/')
+      if (lpIds.has(ifm) && !ids.has(ifm)) fail('index misses meta-instant-form/')
+      console.log(`  index levels=all: ${idx.body.items.filter((i: any) => i.type === 'lp').length} LPs · every LP from the 4 lists present: ${missing.length === 0} · meta-instant-form/ ${ids.has(ifm) ? 'present' : 'absent'}`)
+    }
+  }
+
   if (SKIP_PROD) { console.log(`\nfailures: ${failures}`); process.exit(failures ? 1 : 0) }
   // ── 1. regression vs production
   console.log('\n== 1. Regression vs production (legacy ?campaign=)')

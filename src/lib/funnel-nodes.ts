@@ -95,7 +95,7 @@ export interface NodeChild {
   drillable: boolean
   values: NodeValues
   /** How each value was obtained: exact | approx (allocated from shares) | n/a */
-  quality: { spend: 'exact' | 'approx' | 'n/a'; lpViews: 'exact' | 'n/a'; leads: 'exact' | 'partial' | 'n/a' }
+  quality: { spend: 'exact' | 'approx' | 'n/a'; lpViews: 'exact' | 'approx' | 'n/a'; leads: 'exact' | 'partial' | 'n/a' }
   /** labels of the ancestors (funnel › campaign › ad set) — set on level lists and on ad set / ad children */
   path?: string[]
   /** single-yacht rule that placed this item when it is not its campaign's funnel */
@@ -730,7 +730,28 @@ export function itemScope(ds: Datasets, node: string): NodeScope | null {
 }
 
 interface Ctx { funnel: FunnelKey | null; campaignBase: string | null; slug: string | null; adsetId: string | null; adId: string | null; lp: string | null }
-type ItemAcc = Acc & { label: string; platform: 'meta' | 'google' | null; path: string[]; leadsPartial: number; movedBy?: 'adset' | 'ad'; type: NodeType | 'lp'; url?: string; lpSeen: boolean; spendApprox: boolean }
+type ItemAcc = Acc & { label: string; platform: 'meta' | 'google' | null; path: string[]; leadsPartial: number; movedBy?: 'adset' | 'ad'; type: NodeType | 'lp'; url?: string; lpSeen: boolean; spendApprox: boolean; utmLoss: boolean }
+
+/**
+ * Hosts where utm parameters do not reach the GA4 property we read (separate site / redirect):
+ * GA4-by-utm Visitors there undercount (CLG ≈ 21–55 % of clicks), so they are quality 'approx'.
+ */
+export const UTM_LOSS_HOSTS = ['croatialuxurygulet.com']
+const isUtmLossLp = (lp: string | null | undefined) => !!lp && UTM_LOSS_HOSTS.some((h) => lp === h || lp.startsWith(h + '/') || lp.includes('.' + h + '/'))
+/** Visitors / clicks band outside which GA4 sessions are not a like-for-like count of the clicks. */
+export const LP_RATIO_BAND = { min: 0.6, max: 1.1, minClicks: 30 }
+/**
+ * quality.lpViews: 'n/a' without GA4 rows; 'approx' when the traffic lands on a UTM-loss host, or
+ * when visitors / clicks is outside 60–110 % on ≥ 30 clicks (utm lost on the way, or GA4 counting
+ * several sessions per click: returning visitors, reloads, in-app browser hand-offs); else 'exact'.
+ */
+export function lpViewsQuality(lpViews: number | null | undefined, clicks: number | null | undefined, utmLoss: boolean): 'exact' | 'approx' | 'n/a' {
+  if (lpViews == null) return 'n/a'
+  if (utmLoss) return 'approx'
+  const c = clicks || 0
+  if (c >= LP_RATIO_BAND.minClicks) { const r = lpViews / c; if (r < LP_RATIO_BAND.min || r > LP_RATIO_BAND.max) return 'approx' }
+  return 'exact'
+}
 
 export type RollLevel = 'campaign' | 'adset' | 'ad' | 'lp' | 'node'
 
@@ -774,9 +795,12 @@ function rollupLevel(
   }
   const get = (k: NonNullable<ReturnType<typeof keyOf>>) => {
     let a = out.get(k.key)
-    if (!a) out.set(k.key, (a = { ...acc(), label: k.label, platform: k.platform, path: k.path, leadsPartial: 0, movedBy: k.movedBy, type: level === 'node' ? 'campaign' : level, url: k.url, lpSeen: false, spendApprox: false }))
+    if (!a) out.set(k.key, (a = { ...acc(), label: k.label, platform: k.platform, path: k.path, leadsPartial: 0, movedBy: k.movedBy, type: level === 'node' ? 'campaign' : level, url: k.url, lpSeen: false, spendApprox: false, utmLoss: false }))
     return a
   }
+  // Google campaigns whose landing_page_view shows a UTM-loss host (for the daily_api path)
+  const gLoss = new Set<string>()
+  for (const r of ds.lp.googleLp) if (inR(r.day) && isUtmLossLp(r.lp)) gLoss.add(campaignId('google', r.campaign))
   if (chanIn(channel, 'meta')) {
     const useApi = ds.fbSpend.rows.length > 0
     const add = (campaign: string, day: string, m: { impressions: number; clicks: number; spend: number }, withSpend: boolean, withCounts: boolean) => {
@@ -806,6 +830,7 @@ function rollupLevel(
         if (withCounts) { a.impressions += m.impressions * it.share.impressions; a.clicks += m.clicks * it.share.clicks }
         if (withSpend) a.spend += m.spend * it.share.spend
         if (lp && it.adId && ds.lp.adLanding.get(it.adId)?.source !== 'ad_preview') a.spendApprox = true
+        if (withSpend && m.spend > 0 && isUtmLossLp(lp)) a.utmLoss = true
       }
     }
     for (const r of ds.fb.rows) if (inR(r.day)) add(r.campaign, r.day, r, !useApi, true)
@@ -820,6 +845,7 @@ function rollupLevel(
       const k = keyOf(c); if (!k) continue
       const a = get(k)
       a.impressions += r.impressions * A.googleLpImprFactor(r.campaign, r.day); a.clicks += r.clicks; a.spend += r.spend
+      if (r.clicks > 0 && isUtmLossLp(r.lp)) a.utmLoss = true
     } else for (const r of ds.google.rows) {
       if (!inR(r.day)) continue
       const f = A.googleFunnel(r.campaign)
@@ -828,6 +854,7 @@ function rollupLevel(
       const k = keyOf(c); if (!k) continue
       const a = get(k)
       a.impressions += r.impressions; a.clicks += r.clicks; a.spend += r.spend
+      if (r.clicks > 0 && gLoss.has(c.campaignBase!)) a.utmLoss = true
     }
   }
   ds.streak.rows.forEach((l, i) => {
@@ -1192,6 +1219,18 @@ export async function loadFunnelNode(o: NodeOpts) {
   }
   const cur = aggNode(from, to, bo)
   const nodeValues = rawToValues(cur, roasOk, leadsNa, true)
+  // Campaign / ad set / ad nodes: Visitors = GA4 paid sessions matched by utm (the same cut their
+  // rows use one level up), so a node and its own row agree. Null when GA4 has no utm row for it.
+  const utmVisNode = parsed.type === 'campaign' || parsed.type === 'adset' || parsed.type === 'ad'
+  const visOf = (f: string, t: string, ob: AggOpts) => rollupLevel(ds, A, f, t, o.channel, ob, 'node', nodePredicate(parsed.type, parsed.key), false).get('node')
+  const visCur = utmVisNode ? visOf(from, to, bo) : undefined
+  if (utmVisNode) nodeValues.lpViews = visCur?.lpSeen ? Math.round(visCur.lpViews as number) : null
+  const nodeQuality = {
+    lpViews: utmVisNode
+      ? lpViewsQuality(nodeValues.lpViews, nodeValues.clicks, !!visCur?.utmLoss)
+      : parsed.type === 'lp' ? lpViewsQuality(nodeValues.lpViews, nodeValues.clicks, isUtmLossLp(lpKey))
+      : fdef?.nonFunnel ? 'n/a' as const : 'exact' as const,
+  }
   const notes: string[] = []
 
   // ── children ──
@@ -1268,7 +1307,7 @@ export async function loadFunnelNode(o: NodeOpts) {
     const gaCamp = rollupLevel(ds, A, from, to, o.channel, bo, 'campaign', nodePredicate(parsed.type, parsed.key), false)
     for (const ch of children) {
       const g = gaCamp.get(ch.id)
-      if (g?.lpSeen) { ch.values = { ...ch.values, lpViews: g.lpViews }; ch.quality = { ...ch.quality, lpViews: 'exact' } }
+      if (g?.lpSeen) { ch.values = { ...ch.values, lpViews: g.lpViews }; ch.quality = { ...ch.quality, lpViews: lpViewsQuality(g.lpViews, ch.values.clicks, g.utmLoss) } }
     }
     children.sort((x, y) => (y.values.spend || 0) - (x.values.spend || 0))
     // keep rawKids aligned with the sorted children
@@ -1291,7 +1330,7 @@ export async function loadFunnelNode(o: NodeOpts) {
         values: shown,
         quality: {
           spend: a.est || a.spendApprox ? 'approx' : 'exact',
-          lpViews: a.lpSeen || level === 'lp' ? 'exact' : 'n/a',
+          lpViews: a.lpSeen || level === 'lp' ? lpViewsQuality(raw.lpViews, raw.clicks, a.utmLoss) : 'n/a',
           leads: leadsNa ? 'n/a' : a.leadsPartial ? 'partial' : 'exact',
         },
         estimate: { spend: a.est, impressions: a.est, clicks: a.est },
@@ -1318,7 +1357,11 @@ export async function loadFunnelNode(o: NodeOpts) {
     : null
   // Visitors below the funnel level come from GA4 by utm / landing page, the node's own Visitors
   // from GA4 by landing path: two different cuts, so they are never subtracted from each other.
-  if (remainder && level !== 'funnel' && parsed.type !== 'lp') {
+  if (remainder && utmVisNode) {
+    // node and rows are the same GA4-by-utm cut here: the remainder is the plain difference
+    const sv = children.reduce((n, c) => n + (c.values.lpViews ?? 0), 0)
+    remainder.values.lpViews = nodeValues.lpViews == null ? null : Math.max(0, nodeValues.lpViews - sv)
+  } else if (remainder && level !== 'funnel' && parsed.type !== 'lp') {
     remainder.values.lpViews = null
     if (children.some((c) => c.values.lpViews != null)) notes.push(`Visitors on ${level} rows are GA4 paid sessions matched by utm_campaign / utm_content${level === 'lp' ? ' and landing page' : ''}; the node's own Visitors step is GA4 by landing path. They are different cuts, so remainder.lpViews is null rather than a difference of the two.`)
   }
@@ -1363,6 +1406,7 @@ export async function loadFunnelNode(o: NodeOpts) {
     // ROAS only when the previous window is whole months (bookings are month-granular at source).
     const whole = pw.from.endsWith('-01') && pw.to === monthEnd(pw.to.slice(0, 7))
     previous = { from: pw.from, to: pw.to, values: rawToValues(pv, whole, leadsNa, true) }
+    if (utmVisNode) { const pvis = visOf(pw.from, pw.to, { fromM: pw.from.slice(0, 7), toM: pw.to.slice(0, 7) }); previous.values.lpViews = pvis?.lpSeen ? Math.round(pvis.lpViews as number) : null }
   }
   const stepKeyMap: Record<string, keyof NodeValues> = { impressions: 'impressions', clicks: 'clicks', lpViews: 'lpViews', leads: 'leads', ql: 'ql', bookings: 'bookings' }
   // Bookings are month-granular at source: on a window that is not whole months the QL → booking
@@ -1390,6 +1434,30 @@ export async function loadFunnelNode(o: NodeOpts) {
     if (s.key === 'bookings' && previous) st.previousRevenue = previous.values.revenue
     return st
   })
+  { const lst = steps.find((x) => x.key === 'lpViews'); if (lst) lst.quality = nodeQuality.lpViews }
+  if (utmVisNode) {
+    // Visitors step (and the Leads step's rate) from the node's GA4-by-utm visitors
+    const rate = (a: number | null | undefined, b: number | null | undefined) => (a != null && b ? a / b : null)
+    const stOf = (cv: number | null, bm: number | null) => (cv == null || bm == null || bm === 0 ? null : cv / bm >= 0.95 ? 'g' : cv / bm >= 0.8 ? 'a' : 'r')
+    const pv = previous?.values
+    for (const st of steps) {
+      if (st.key === 'lpViews') {
+        st.value = nodeValues.lpViews
+        st.previousValue = pv?.lpViews ?? null
+        st.cvrFromPrev = rate(nodeValues.lpViews, nodeValues.clicks)
+        st.benchmarkCvr = rate(pv?.lpViews, pv?.clicks)
+        st.status = stOf(st.cvrFromPrev, st.benchmarkCvr)
+        st.source = 'GA4 · paid sessions by utm (utm_campaign / utm_term / utm_content)'
+        st.quality = nodeQuality.lpViews
+        delete st.channels
+      }
+      if (st.key === 'leads' && !leadsNa) {
+        st.cvrFromPrev = rate(nodeValues.leads, nodeValues.lpViews)
+        st.benchmarkCvr = rate(pv?.leads, pv?.lpViews)
+        st.status = stOf(st.cvrFromPrev, st.benchmarkCvr)
+      }
+    }
+  }
 
   // ── node info / path ──
   const funnelOfCampaign = (id: string): FunnelKey | null => {
@@ -1460,6 +1528,7 @@ export async function loadFunnelNode(o: NodeOpts) {
     funnels: FUNNEL_LIST,
     levels,
     level,
+    quality: nodeQuality,
     values: parsed.type === 'master' ? { ...nodeValues, qlStep: resp.steps.find((s) => s.key === 'ql')?.value ?? null } : nodeValues,
     children,
     remainder,
@@ -1503,7 +1572,7 @@ export async function loadFunnelIndex(o: { range: ResolvedRange; channel: Channe
   if (o.all) {
     const roll = rollupLevel(ds, A, from, to, o.channel, bo, 'lp', () => true, true)
     for (const [lp, x] of roll) {
-      if (!(x.spend > 0) && !x.leads && !x.bookings && !(x.lpViews && x.lpViews > 20)) continue
+      // every landing page the master level=lp list shows (same rollup, no threshold), incl. meta-instant-form/
       items.push({ id: lpNodeId(lp), type: 'lp', label: lp, path: ['All campaigns · Master'], platform: null, funnel: null, spend: r2(x.spend), leads: x.leads, url: x.url } as any)
     }
   }
