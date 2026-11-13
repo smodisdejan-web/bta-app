@@ -4,7 +4,7 @@ import { resolveRange, RANGE_KEYS, type Channel } from '@/lib/business-funnel'
 
 // GET /api/funnel/index?range=this_month|last_month|3m|ytd  or  ?start=YYYY-MM-DD&end=YYYY-MM-DD [&channel=]
 // Lightweight search index for the portal: master, the 5 funnels + Outside, every campaign under
-// each funnel (with its spend and leads for the range). The 16 umbrellas only with &umbrellas=1.
+// each funnel (with its spend and leads for the range). Ad sets + ads with &levels=all. The 16 umbrellas only with &umbrellas=1.
 export const maxDuration = 300
 const ISO = /^\d{4}-\d{2}-\d{2}$/
 const base = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, OPTIONS' }
@@ -21,7 +21,7 @@ export async function GET(request: Request) {
   const channel = ((sp.get('channel') || 'all').toLowerCase()) as Channel
   if (!['all', 'meta', 'google', 'bing', 'chatgpt'].includes(channel)) return NextResponse.json({ error: `Unknown channel "${channel}"` }, { status: 400, headers })
   try {
-    const data = await getFunnelIndex({ range: resolveRange(rangeParam, start, end), channel, umbrellas: sp.get('umbrellas') === '1' }, nocache)
+    const data = await getFunnelIndex({ range: resolveRange(rangeParam, start, end), channel, umbrellas: sp.get('umbrellas') === '1', all: sp.get('levels') === 'all' }, nocache)
     return NextResponse.json(data, { headers })
   } catch (e) {
     console.error('[funnel/index] failed', e)

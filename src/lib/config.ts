@@ -65,6 +65,8 @@ export const SHEETS_TABS = {
   // so their spend must never reach adSlug()/orphanSpend or it would break umbrellas + unattributed = master.
   BING_DAILY: 'bing_ads_api', // Microsoft Advertising, live 2026-09-04 (12-week test)
   CHATGPT_DAILY: 'chatgpt_ads_api', // OpenAI Ads Manager, oCPC campaign live 2026-09-14
+  FB_AD_DAILY: 'fb_ad_daily_api', // Meta ad × day, all campaigns (2026-11-13) — code/facebook/sync-fb-ad-daily.js
+  BOOKINGS_ADS: 'bookings_ads', // Acq sheet paid bookings + ad/ad set/campaign ids from the J/L hyperlinks — code/sheets/sync-goolets-booking-ads.js
   FB_ADSET_DAILY: 'fb_adset_daily_api', // Meta ad set × day (BOFU first, 2026-11-13) — code/facebook/sync-fb-adset-daily.js
   // 2026-09-25: HubSpot paid contacts per (day, channel) + misrouted ChatGPT/Bing leads
   // (code/hubspot/sync-goolets-paid-reconcile.js). /api/freshness compares it to Streak.

@@ -52,7 +52,9 @@ import {
   FUNNEL_BY_KEY,
   LP_FUNNEL_OVERRIDES,
   UMBRELLA_FUNNEL,
+  itemFunnel,
   type FunnelKey,
+  type ItemRule,
 } from './funnel-groups'
 import bofuMtd from '../data/bofu-adset-mtd.json'
 
@@ -60,7 +62,8 @@ type FunnelResponse = Awaited<ReturnType<typeof loadBusinessFunnel>>
 
 // ─── Public types ───────────────────────────────────────────────────────────
 
-export type NodeType = 'master' | 'funnel' | 'umbrella' | 'campaign'
+export type NodeType = 'master' | 'funnel' | 'umbrella' | 'campaign' | 'adset' | 'ad'
+export type NodeLevel = 'funnel' | 'campaign' | 'adset' | 'ad'
 
 export interface NodeValues {
   impressions: number | null
@@ -89,7 +92,11 @@ export interface NodeChild {
   drillable: boolean
   values: NodeValues
   /** How each value was obtained: exact | approx (allocated from shares) | n/a */
-  quality: { spend: 'exact' | 'approx'; lpViews: 'exact' | 'n/a'; leads: 'exact' | 'n/a' }
+  quality: { spend: 'exact' | 'approx' | 'n/a'; lpViews: 'exact' | 'n/a'; leads: 'exact' | 'partial' | 'n/a' }
+  /** labels of the ancestors (funnel › campaign › ad set) — set on level lists and on ad set / ad children */
+  path?: string[]
+  /** single-yacht rule that placed this item when it is not its campaign's funnel */
+  movedBy?: 'adset' | 'ad'
   /** true = the value is ALLOCATED (BOFU ad set split from MTD shares), not measured. */
   estimate: NodeEstimate
 }
@@ -113,29 +120,70 @@ interface Part {
   estimate: boolean
 }
 
+interface ItemFrac {
+  adsetId: string
+  adset: string
+  adId: string | null
+  ad: string | null
+  funnel: FunnelKey | null
+  rule: ItemRule
+  /** this item's share of the campaign-day (per metric) */
+  share: MetaShare
+}
+
+export interface ItemInfo {
+  id: string
+  name: string
+  campaign: string
+  campaignBase: string
+  adsetId: string
+  adset: string
+  funnel: FunnelKey | null
+  rule: ItemRule
+}
+
 interface Assignment {
   metaParts: (campaign: string, day: string) => Part[]
+  /** ad (preferred) or ad set fractions of a Meta campaign-day; null = no item feed for it */
+  items: (campaign: string, day: string) => ItemFrac[] | null
   bofuMode: (day: string) => BofuMode
   googleFunnel: (campaign: string) => FunnelKey | null
   leadFunnel: (FunnelKey | null)[]
-  /** campaign child id, qualified for BOFU; null = could not be placed on one campaign */
+  /** campaign child id, qualified for split campaigns; null = could not be placed on one campaign */
   leadChild: (string | null)[]
   /** unqualified campaign id */
   leadCampaign: (string | null)[]
+  leadAdset: (string | null)[]
+  leadAd: (string | null)[]
+  /** how the lead reached its campaign: utm (unique utm_mapping campaign) | detail (Google) | fuzzy */
+  leadCampaignBy: ('utm' | 'detail' | 'fuzzy' | null)[]
   bookingFunnel: (FunnelKey | null)[]
   bookingChild: (string | null)[]
   bookingCampaign: (string | null)[]
+  bookingAdset: (string | null)[]
+  bookingAd: (string | null)[]
   lpFunnel: (path: string) => FunnelKey | null
   /** child id → { label, platform } */
   labels: Map<string, { label: string; platform: 'meta' | 'google' }>
+  /** campaign bases whose items sit in more than one funnel (ids qualified with |funnel) */
+  splitCampaigns: Set<string>
+  /** ad set ids whose ads sit in more than one funnel (ids qualified with |funnel) */
+  splitAdsets: Set<string>
+  adsets: Map<string, ItemInfo>
+  ads: Map<string, ItemInfo>
   bofuLeadsBy: { utm: number; sp: number; default: number }
+  /** leads whose candidate ads sit in different funnels (kept in the campaign's base funnel) */
+  funnelAmbiguousLeads: number
 }
 
 const ONE: MetaShare = { impressions: 1, clicks: 1, clicksAll: 1, spend: 1 }
+const ZERO: MetaShare = { impressions: 0, clicks: 0, clicksAll: 0, spend: 0 }
 const BOFU_KEY = nk(BOFU_CAMPAIGN)
 const isBofu = (name: string) => nk(name) === BOFU_KEY
 
 export const campaignId = (platform: 'meta' | 'google', name: string) => `campaign:${platform}:${nk(name).replace(/ /g, '-')}`
+export const adsetNodeId = (id: string) => `adset:meta:${id}`
+export const adNodeId = (id: string) => `ad:meta:${id}`
 const qualify = (id: string, f: FunnelKey) => `${id}|${f}`
 
 const memo = new WeakMap<Datasets, Assignment>()
@@ -147,20 +195,80 @@ function assignmentOf(ds: Datasets): Assignment {
   const label = (id: string, name: string, platform: 'meta' | 'google') => {
     if (!labels.has(id)) labels.set(id, { label: name, platform })
   }
-
-  // ── BOFU ad set split per day ──
-  const feedDay = new Map<string, { y: MetaShare; t: MetaShare }>()
-  for (const r of ds.adsets.rows) {
-    if (r.campaignId !== BOFU_CAMPAIGN_ID) continue
-    let e = feedDay.get(r.day)
-    if (!e) feedDay.set(r.day, (e = { y: { impressions: 0, clicks: 0, clicksAll: 0, spend: 0 }, t: { impressions: 0, clicks: 0, clicksAll: 0, spend: 0 } }))
-    const yacht = BOFU_YACHT_ADSET.test(r.adset)
-    for (const k of ['impressions', 'clicks', 'clicksAll', 'spend'] as const) {
-      const v = k === 'impressions' ? r.impressions : k === 'clicks' ? r.clicks : k === 'clicksAll' ? r.clicksAll : r.spend
-      e.t[k] += v
-      if (yacht) e.y[k] += v
-    }
+  const baseFunnelOf = (campaign: string): FunnelKey | null => {
+    const slug = adSlug('meta', campaign)
+    return slug ? UMBRELLA_FUNNEL[slug] ?? null : null
   }
+
+  // ── Item feeds: ad × day preferred, ad set × day where the ad feed has no rows ──
+  type Raw = { adsetId: string; adset: string; adId: string | null; ad: string | null; m: MetaShare }
+  const byKey = new Map<string, Raw[]>()
+  const adDays = new Set<string>()
+  // The ad feed is used for a campaign-day only when it is COMPLETE there (Σ ads = campaign feed
+  // spend within €1 / 0,5 %); otherwise that day falls back to the ad set feed. A partial ad pull
+  // can therefore never move spend between items.
+  const campDaySpend = new Map<string, number>()
+  for (const r of ds.fbSpend.rows.length ? ds.fbSpend.rows : ds.fb.rows) {
+    const k = `${nk(r.campaign)}|${r.day}`
+    campDaySpend.set(k, (campDaySpend.get(k) || 0) + r.spend)
+  }
+  const adByKey = new Map<string, Raw[]>()
+  for (const r of ds.ads.rows) {
+    const k = `${nk(r.campaign)}|${r.day}`
+    let l = adByKey.get(k)
+    if (!l) adByKey.set(k, (l = []))
+    l.push({ adsetId: r.adsetId, adset: r.adset, adId: r.adId, ad: r.ad, m: { impressions: r.impressions, clicks: r.clicks, clicksAll: r.clicksAll, spend: r.spend } })
+  }
+  for (const [k, l] of adByKey) {
+    const s = l.reduce((n, r) => n + r.m.spend, 0)
+    const c = campDaySpend.get(k) ?? 0
+    if (Math.abs(s - c) <= Math.max(1, c * 0.005)) { byKey.set(k, l); adDays.add(k) }
+  }
+  for (const r of ds.adsets.rows) {
+    const k = `${nk(r.campaign)}|${r.day}`
+    if (adDays.has(k)) continue
+    let l = byKey.get(k)
+    if (!l) byKey.set(k, (l = []))
+    l.push({ adsetId: r.adsetId, adset: r.adset, adId: null, ad: null, m: { impressions: r.impressions, clicks: r.clicks, clicksAll: r.clicksAll, spend: r.spend } })
+  }
+  const campName = new Map<string, string>()
+  for (const r of [...ds.fbSpend.rows, ...ds.fb.rows]) if (!campName.has(nk(r.campaign))) campName.set(nk(r.campaign), r.campaign)
+  for (const r of [...ds.ads.rows, ...ds.adsets.rows]) if (!campName.has(nk(r.campaign))) campName.set(nk(r.campaign), r.campaign)
+
+  const adsetsInfo = new Map<string, ItemInfo>()
+  const adsInfo = new Map<string, ItemInfo>()
+  const funnelsOfCampaign = new Map<string, Set<string>>()
+  const funnelsOfAdset = new Map<string, Set<string>>()
+  const itemsCache = new Map<string, ItemFrac[]>()
+  const fracOf = (m: MetaShare, t: MetaShare, n: number): MetaShare => {
+    const f = (k: keyof MetaShare) => (t[k] > 0 ? m[k] / t[k] : t.spend > 0 ? m.spend / t.spend : 1 / n)
+    return { impressions: f('impressions'), clicks: f('clicks'), clicksAll: f('clicksAll'), spend: f('spend') }
+  }
+  for (const [k, list] of byKey) {
+    const campaign = campName.get(k.split('|')[0]) || k.split('|')[0]
+    const base = baseFunnelOf(campaign)
+    const cBase = campaignId('meta', campaign)
+    const t = list.reduce((a, r) => ({ impressions: a.impressions + r.m.impressions, clicks: a.clicks + r.m.clicks, clicksAll: a.clicksAll + r.m.clicksAll, spend: a.spend + r.m.spend }), { ...ZERO })
+    const out: ItemFrac[] = []
+    for (const r of list) {
+      const asRule = itemFunnel(campaign, r.adset, null, base)
+      const it = r.adId ? itemFunnel(campaign, r.adset, r.ad, base) : asRule
+      out.push({ adsetId: r.adsetId, adset: r.adset, adId: r.adId, ad: r.ad, funnel: it.funnel, rule: it.rule, share: fracOf(r.m, t, list.length) })
+      if (r.m.spend > 0 || r.m.impressions > 0) {
+        let fs = funnelsOfCampaign.get(cBase); if (!fs) funnelsOfCampaign.set(cBase, (fs = new Set())); fs.add(String(it.funnel))
+        let fa = funnelsOfAdset.get(r.adsetId); if (!fa) funnelsOfAdset.set(r.adsetId, (fa = new Set())); fa.add(String(it.funnel))
+      }
+      if (!adsetsInfo.has(r.adsetId)) adsetsInfo.set(r.adsetId, { id: adsetNodeId(r.adsetId), name: r.adset, campaign, campaignBase: cBase, adsetId: r.adsetId, adset: r.adset, funnel: asRule.funnel, rule: asRule.rule })
+      if (r.adId && !adsInfo.has(r.adId)) adsInfo.set(r.adId, { id: adNodeId(r.adId), name: r.ad || r.adId, campaign, campaignBase: cBase, adsetId: r.adsetId, adset: r.adset, funnel: it.funnel, rule: it.rule })
+    }
+    itemsCache.set(k, out)
+  }
+  const splitCampaigns = new Set<string>([...funnelsOfCampaign].filter(([, s]) => s.size > 1).map(([c]) => c))
+  splitCampaigns.add(campaignId('meta', BOFU_CAMPAIGN))
+  const splitAdsets = new Set<string>([...funnelsOfAdset].filter(([, s]) => s.size > 1).map(([a]) => a))
+  const items = (campaign: string, day: string) => itemsCache.get(`${nk(campaign)}|${day}`) || null
+
+  // ── BOFU fallback for days without any item feed: MTD ad set shares (estimate) ──
   const mtd = bofuMtd as { since: string; until: string; adsets: { name: string; spend: number; impressions: number; linkClicks: number }[] }
   const mtdShare: MetaShare | null = (() => {
     const t = { impressions: 0, clicks: 0, spend: 0 }
@@ -176,20 +284,12 @@ function assignmentOf(ds: Datasets): Assignment {
     return { impressions: d(y.impressions, t.impressions, s), clicks: d(y.clicks, t.clicks, s), clicksAll: d(y.clicks, t.clicks, s), spend: s }
   })()
   const bofuMode = (day: string): BofuMode => {
-    if (feedDay.has(day)) return 'feed'
+    if (items(BOFU_CAMPAIGN, day)) return 'feed'
     if (mtdShare && day >= mtd.since && day <= (mtd.until || mtd.since).slice(0, 7) + '-31') return 'approx'
     return 'unsplit'
   }
-  const bofuShare = (day: string): { y: MetaShare; mode: BofuMode } => {
-    const f = feedDay.get(day)
-    if (f) {
-      const d = (k: keyof MetaShare) => (f.t[k] > 0 ? f.y[k] / f.t[k] : f.t.spend > 0 ? f.y.spend / f.t.spend : 0)
-      return { y: { impressions: d('impressions'), clicks: d('clicks'), clicksAll: d('clicksAll'), spend: d('spend') }, mode: 'feed' }
-    }
-    if (bofuMode(day) === 'approx' && mtdShare) return { y: mtdShare, mode: 'approx' }
-    return { y: { impressions: 0, clicks: 0, clicksAll: 0, spend: 0 }, mode: 'unsplit' }
-  }
 
+  const childOf = (cBase: string, f: FunnelKey | null) => (f && splitCampaigns.has(cBase) ? qualify(cBase, f) : cBase)
   const partsCache = new Map<string, Part[]>()
   const metaParts = (campaign: string, day: string): Part[] => {
     const key = `${campaign}|${day}`
@@ -201,20 +301,32 @@ function assignmentOf(ds: Datasets): Assignment {
       const id = campaignId('meta', campaign)
       label(id, campaign, 'meta')
       const ov = CAMPAIGN_FUNNEL.get(nk(campaign))
-      if (ov) out = [{ funnel: ov, child: id, share: ONE, estimate: false }]
-      else if (isBofu(campaign)) {
-        const { y, mode } = bofuShare(day)
+      const its = ov ? null : items(campaign, day)
+      if (ov) out = [{ funnel: ov, child: childOf(id, ov), share: ONE, estimate: false }]
+      else if (its && its.length) {
+        const by = new Map<FunnelKey, MetaShare>()
+        for (const it of its) {
+          if (!it.funnel) continue
+          const s = by.get(it.funnel) || { ...ZERO }
+          s.impressions += it.share.impressions; s.clicks += it.share.clicks; s.clicksAll += it.share.clicksAll; s.spend += it.share.spend
+          by.set(it.funnel, s)
+        }
+        out = [...by].map(([f, s]) => ({ funnel: f, child: childOf(id, f), share: s, estimate: false }))
+      } else if (isBofu(campaign)) {
+        const mode = bofuMode(day)
+        const y = mode === 'approx' && mtdShare ? mtdShare : ZERO
         const g: MetaShare = { impressions: 1 - y.impressions, clicks: 1 - y.clicks, clicksAll: 1 - y.clicksAll, spend: 1 - y.spend }
         const est = mode === 'approx'
-        label(qualify(id, BOFU_FUNNEL_YACHT), `${campaign} · single-yacht ad sets`, 'meta')
-        label(qualify(id, BOFU_FUNNEL_GENERIC), `${campaign} · generic ad sets`, 'meta')
         out = [
           { funnel: BOFU_FUNNEL_YACHT, child: qualify(id, BOFU_FUNNEL_YACHT), share: y, estimate: est },
           { funnel: BOFU_FUNNEL_GENERIC, child: qualify(id, BOFU_FUNNEL_GENERIC), share: g, estimate: est },
         ]
       } else {
         const f = UMBRELLA_FUNNEL[slug]
-        if (f) out = [{ funnel: f, child: id, share: ONE, estimate: false }]
+        if (f) out = [{ funnel: f, child: childOf(id, f), share: ONE, estimate: false }]
+      }
+      for (const p of out) {
+        if (p.child !== id) label(p.child, `${campaign} · ${p.funnel === 'asset' ? 'single-yacht items' : FUNNEL_BY_KEY.get(p.funnel)?.label || p.funnel}`, 'meta')
       }
     }
     partsCache.set(key, out)
@@ -250,73 +362,128 @@ function assignmentOf(ds: Datasets): Assignment {
   }
 
   const bofuLeadsBy = { utm: 0, sp: 0, default: 0 }
+  let funnelAmbiguous = 0
   const leadFunnel: (FunnelKey | null)[] = []
   const leadChild: (string | null)[] = []
   const leadCampaign: (string | null)[] = []
+  const leadAdset: (string | null)[] = []
+  const leadAd: (string | null)[] = []
+  const leadCampaignBy: ('utm' | 'detail' | 'fuzzy' | null)[] = []
   ds.streak.rows.forEach((l, i) => {
     const slug = ds.leadSlugs[i]
-    if (isFlatChannelLead(l) || !slug) { leadFunnel.push(null); leadChild.push(null); leadCampaign.push(null); return }
+    if (isFlatChannelLead(l) || !slug) {
+      leadFunnel.push(null); leadChild.push(null); leadCampaign.push(null); leadAdset.push(null); leadAd.push(null); leadCampaignBy.push(null)
+      return
+    }
     let name: string | null = null
     let platform: 'meta' | 'google' = 'meta'
-    let utmRows = null as null | { campaign: string; adset: string }[]
+    let by: 'utm' | 'detail' | 'fuzzy' | null = null
+    let utmRows = null as null | { campaign: string; adset: string; ad: string; adId: string; adsetId: string }[]
     if (l.isGoogle) {
       platform = 'google'
       name = googleNames.get(nk(l.detail)) || null
+      if (name) by = 'detail'
     } else {
       utmRows = ds.utmRows.get(nk(l.sp)) || null
       const fromUtm = [...new Set((utmRows || []).map((u) => metaNames.get(nk(u.campaign)) || u.campaign).filter(Boolean))]
-      if (fromUtm.length) name = pin(fromUtm, l.day)
+      if (fromUtm.length) { name = pin(fromUtm, l.day); by = 'utm' }
       else {
         const cands = matchSourceToCampaignCandidates(l.sp, allMeta).filter((n) => adSlug('meta', n) === slug)
-        if (cands.length) name = pin(cands, l.day)
+        if (cands.length) { name = pin(cands, l.day); by = 'fuzzy' }
         else {
           const exact = metaNames.get(nk(l.sp))
-          if (exact) name = exact
+          if (exact) { name = exact; by = 'fuzzy' }
         }
       }
     }
     const id = name ? campaignId(platform, name) : null
     if (id && name) label(id, name, platform)
-    let funnel: FunnelKey | null = (name && platform === 'meta' ? CAMPAIGN_FUNNEL.get(nk(name)) : undefined) ?? null
-    let child = id
+    // ad set / ad: the utm_mapping rows of THIS campaign; unique = attributed, several = one level up
+    let adsetId: string | null = null
+    let adId: string | null = null
+    let adsetName: string | null = null
+    let adName: string | null = null
+    if (name && utmRows && platform === 'meta') {
+      const mine = utmRows.filter((u) => nk(u.campaign) === nk(name!))
+      const adIds = [...new Set(mine.map((u) => u.adId).filter(Boolean))]
+      const adsetIds = [...new Set(mine.map((u) => u.adsetId).filter(Boolean))]
+      if (adsetIds.length === 1) { adsetId = adsetIds[0]; adsetName = mine.find((u) => u.adsetId === adsetId)!.adset }
+      if (adIds.length === 1 && adsetId) { adId = adIds[0]; adName = mine.find((u) => u.adId === adId)!.ad }
+    }
+    let funnel: FunnelKey | null = null
+    // Candidate ads of this utm inside the campaign: when they all sit in ONE funnel the lead does
+    // too, even if the ad itself is ambiguous; when they disagree the lead keeps the campaign's
+    // base funnel and is counted as funnel-ambiguous (meta.notes).
+    let candFunnels: Set<string> | null = null
+    if (name && utmRows && platform === 'meta' && !adId) {
+      const mine = utmRows.filter((u) => nk(u.campaign) === nk(name!))
+      if (mine.length) candFunnels = new Set(mine.map((u) => String(itemFunnel(name!, u.adset, u.ad, UMBRELLA_FUNNEL[slug] ?? null).funnel)))
+    }
+    if (name && platform === 'meta' && (adsetId || CAMPAIGN_FUNNEL.has(nk(name)))) {
+      funnel = itemFunnel(name, adsetName, adName, UMBRELLA_FUNNEL[slug] ?? null).funnel
+      if (!adId && candFunnels && candFunnels.size === 1) funnel = [...candFunnels][0] as FunnelKey
+      if (!adId && candFunnels && candFunnels.size > 1) funnelAmbiguous++
+      if (isBofu(name)) bofuLeadsBy.utm++
+    } else if (name && platform === 'meta' && candFunnels && candFunnels.size >= 1) {
+      if (candFunnels.size === 1) funnel = [...candFunnels][0] as FunnelKey
+      else funnelAmbiguous++
+    }
     if (!funnel && ((name && isBofu(name)) || (!name && slug === 'bofu'))) {
-      const rows = (utmRows || []).filter((u) => isBofu(u.campaign))
-      let yacht: boolean
-      if (rows.length && rows.every((u) => BOFU_YACHT_ADSET.test(u.adset))) { yacht = true; bofuLeadsBy.utm++ }
-      else if (rows.length && rows.every((u) => !BOFU_YACHT_ADSET.test(u.adset))) { yacht = false; bofuLeadsBy.utm++ }
-      else if (BOFU_YACHT_SP.test(l.sp)) { yacht = true; bofuLeadsBy.sp++ }
-      else { yacht = false; bofuLeadsBy.default++ }
+      const yacht = BOFU_YACHT_SP.test(l.sp)
+      if (yacht) bofuLeadsBy.sp++
+      else bofuLeadsBy.default++
       funnel = yacht ? BOFU_FUNNEL_YACHT : BOFU_FUNNEL_GENERIC
-      child = id ? qualify(id, funnel) : null
     }
     if (!funnel) funnel = UMBRELLA_FUNNEL[slug] ?? null
     leadFunnel.push(funnel)
-    leadChild.push(child)
+    leadChild.push(id ? childOf(id, funnel) : null)
     leadCampaign.push(id)
+    leadAdset.push(adsetId)
+    leadAd.push(adId)
+    leadCampaignBy.push(by)
   })
 
+  // Bookings: ad / ad set ids from the Acq sheet links (bookings_ads), joined on email + month.
+  const baIndex = new Map<string, { adsetId: string; adId: string; adName: string }[]>()
+  for (const r of ds.bookingAds) {
+    if (r.storno || (!r.adId && !r.adsetId)) continue
+    const k = `${r.email}|${r.month}`
+    const l = baIndex.get(k) || []
+    l.push({ adsetId: r.adsetId, adId: r.adId, adName: r.adName })
+    baIndex.set(k, l)
+  }
   const bookingFunnel: (FunnelKey | null)[] = []
   const bookingChild: (string | null)[] = []
   const bookingCampaign: (string | null)[] = []
+  const bookingAdset: (string | null)[] = []
+  const bookingAd: (string | null)[] = []
   ds.bookings.rows.forEach((b, i) => {
     const slug = ds.bookingSlugs[i]
-    if (!slug) { bookingFunnel.push(null); bookingChild.push(null); bookingCampaign.push(null); return }
+    if (!slug) { bookingFunnel.push(null); bookingChild.push(null); bookingCampaign.push(null); bookingAdset.push(null); bookingAd.push(null); return }
     const ch = bookingChannel(b)
     const platform: 'meta' | 'google' = ch === 'google' ? 'google' : 'meta'
     const name = b.campaign.trim()
     const id = name ? campaignId(platform, name) : null
     if (id) label(id, name, platform)
-    let funnel: FunnelKey | null = (name && platform === 'meta' ? CAMPAIGN_FUNNEL.get(nk(name)) : undefined) ?? null
-    let child = id
-    if (!funnel && name && isBofu(name)) {
-      const lp = b.landingPage || ''
-      funnel = BOFU_YACHT_LANDING.test(lp) ? BOFU_FUNNEL_YACHT : BOFU_FUNNEL_GENERIC
-      child = id ? qualify(id, funnel) : null
+    let adsetId: string | null = null
+    let adId: string | null = null
+    if (platform === 'meta' && b.email) {
+      const hits = baIndex.get(`${b.email}|${b.month}`) || []
+      if (hits.length === 1) { adsetId = hits[0].adsetId || null; adId = hits[0].adId || null }
     }
+    let funnel: FunnelKey | null = null
+    if (name && platform === 'meta' && (adId || adsetId)) {
+      const ai = adId ? adsInfo.get(adId) : null
+      const si = adsetId ? adsetsInfo.get(adsetId) : null
+      funnel = itemFunnel(name, si?.adset || ai?.adset || null, ai?.name || null, UMBRELLA_FUNNEL[slug] ?? null).funnel
+    } else if (name && platform === 'meta' && CAMPAIGN_FUNNEL.has(nk(name))) funnel = CAMPAIGN_FUNNEL.get(nk(name))!
+    else if (name && isBofu(name)) funnel = BOFU_YACHT_LANDING.test(b.landingPage || '') ? BOFU_FUNNEL_YACHT : BOFU_FUNNEL_GENERIC
     if (!funnel) funnel = UMBRELLA_FUNNEL[slug] ?? null
     bookingFunnel.push(funnel)
-    bookingChild.push(child)
+    bookingChild.push(id ? childOf(id, funnel) : null)
     bookingCampaign.push(id)
+    bookingAdset.push(adsetId)
+    bookingAd.push(adId)
   })
 
   const ordered = UMBRELLA_ORDER.map((s) => CAMPAIGNS.find((c) => c.slug === s)!).filter(Boolean)
@@ -332,8 +499,9 @@ function assignmentOf(ds: Datasets): Assignment {
   }
 
   const a: Assignment = {
-    metaParts, bofuMode, googleFunnel, leadFunnel, leadChild, leadCampaign,
-    bookingFunnel, bookingChild, bookingCampaign, lpFunnel, labels, bofuLeadsBy,
+    metaParts, items, bofuMode, googleFunnel, leadFunnel, leadChild, leadCampaign, leadAdset, leadAd, leadCampaignBy,
+    bookingFunnel, bookingChild, bookingCampaign, bookingAdset, bookingAd, lpFunnel, labels,
+    splitCampaigns, splitAdsets, adsets: adsetsInfo, ads: adsInfo, bofuLeadsBy, funnelAmbiguousLeads: funnelAmbiguous,
   }
   memo.set(ds, a)
   return a
@@ -409,6 +577,172 @@ export function campaignScope(ds: Datasets, id: string): NodeScope | null {
     hasMeta: p.platform === 'meta',
     hasGoogle: p.platform === 'google',
   }
+}
+
+
+// ─── Ad set / ad nodes (part 2) ─────────────────────────────────────────────
+
+function parseItemId(id: string): { kind: 'adset' | 'ad'; id: string; qual: FunnelKey | null } | null {
+  const m = /^(adset|ad):meta:(\d+)(?:\|([a-z_]+))?$/.exec(id)
+  if (!m) return null
+  const qual = (m[3] as FunnelKey) || null
+  if (qual && !FUNNEL_BY_KEY.has(qual)) return null
+  return { kind: m[1] as 'adset' | 'ad', id: m[2], qual }
+}
+
+export function itemScope(ds: Datasets, node: string): NodeScope | null {
+  const p = parseItemId(node)
+  if (!p) return null
+  const A = assignmentOf(ds)
+  const info = p.kind === 'adset' ? A.adsets.get(p.id) : A.ads.get(p.id)
+  if (!info) return null
+  const match = (it: ItemFrac) => (p.kind === 'adset' ? it.adsetId === p.id : it.adId === p.id) && (!p.qual || it.funnel === p.qual)
+  return {
+    id: node,
+    label: info.name,
+    metaShare: (c, d) => {
+      const its = A.items(c, d)
+      if (!its) return null
+      const s = { ...ZERO }
+      let any = false
+      for (const it of its) if (match(it)) { any = true; s.impressions += it.share.impressions; s.clicks += it.share.clicks; s.clicksAll += it.share.clicksAll; s.spend += it.share.spend }
+      return any ? s : null
+    },
+    google: () => false,
+    lead: (i) => (p.kind === 'adset' ? A.leadAdset[i] === p.id : A.leadAd[i] === p.id) && (!p.qual || A.leadFunnel[i] === p.qual),
+    booking: (i) => (p.kind === 'adset' ? A.bookingAdset[i] === p.id : A.bookingAd[i] === p.id) && (!p.qual || A.bookingFunnel[i] === p.qual),
+    lpPath: null,
+    lpChannels: [],
+    hasMeta: true,
+    hasGoogle: false,
+  }
+}
+
+interface Ctx { funnel: FunnelKey | null; campaignBase: string | null; slug: string | null; adsetId: string | null; adId: string | null }
+type ItemAcc = Acc & { label: string; platform: 'meta' | 'google' | null; path: string[]; leadsPartial: number; movedBy?: 'adset' | 'ad'; type: NodeType }
+
+/**
+ * Flat list of every item of `level` inside a node (`inNode` on the row context). Meta spend comes
+ * from the campaign feed × the item's share of that campaign-day, so Σ items + remainder = node to
+ * the cent; campaign-days with no ad set / ad feed stay in the remainder at those levels.
+ */
+function rollupLevel(
+  ds: Datasets, A: Assignment, from: string, to: string, channel: Channel, bo: AggOpts,
+  level: 'campaign' | 'adset' | 'ad', inNode: (c: Ctx) => boolean
+): Map<string, ItemAcc> {
+  const out = new Map<string, ItemAcc>()
+  const inR = (d: string) => d >= from && d <= to
+  const fl = (f: FunnelKey | null) => (f ? FUNNEL_BY_KEY.get(f)?.label || f : '')
+  const campLabel = (base: string | null) => (base ? (A.labels.get(base)?.label || base) : '')
+  const keyOf = (c: Ctx): { key: string; label: string; platform: 'meta' | 'google' | null; path: string[]; movedBy?: 'adset' | 'ad' } | null => {
+    if (level === 'campaign') {
+      if (!c.campaignBase) return null
+      const key = A.splitCampaigns.has(c.campaignBase) && c.funnel ? qualify(c.campaignBase, c.funnel) : c.campaignBase
+      const lab = A.labels.get(key) || A.labels.get(c.campaignBase)
+      return { key, label: lab?.label || key, platform: lab?.platform || null, path: [fl(c.funnel)] }
+    }
+    if (level === 'adset') {
+      if (!c.adsetId) return null
+      const info = A.adsets.get(c.adsetId)
+      const key = A.splitAdsets.has(c.adsetId) && c.funnel ? `${adsetNodeId(c.adsetId)}|${c.funnel}` : adsetNodeId(c.adsetId)
+      const moved = info && info.rule === 'adset' ? 'adset' as const : undefined
+      return { key, label: info?.name || c.adsetId, platform: 'meta', path: [fl(c.funnel), campLabel(c.campaignBase)], movedBy: moved }
+    }
+    if (!c.adId) return null
+    const info = A.ads.get(c.adId)
+    const moved = info && (info.rule === 'ad' || info.rule === 'adset') ? (info.rule as 'adset' | 'ad') : undefined
+    return { key: adNodeId(c.adId), label: info?.name || c.adId, platform: 'meta', path: [fl(c.funnel), campLabel(c.campaignBase), info?.adset || ''], movedBy: moved }
+  }
+  const get = (k: ReturnType<typeof keyOf> & {}) => {
+    let a = out.get(k.key)
+    if (!a) out.set(k.key, (a = { ...acc(), label: k.label, platform: k.platform, path: k.path, leadsPartial: 0, movedBy: k.movedBy, type: level }))
+    return a
+  }
+  if (chanIn(channel, 'meta')) {
+    const useApi = ds.fbSpend.rows.length > 0
+    const add = (campaign: string, day: string, m: { impressions: number; clicks: number; spend: number }, withSpend: boolean, withCounts: boolean) => {
+      const slug = adSlug('meta', campaign)
+      const base = slug ? campaignId('meta', campaign) : null
+      if (level === 'campaign') {
+        for (const p of A.metaParts(campaign, day)) {
+          const c: Ctx = { funnel: p.funnel, campaignBase: base, slug, adsetId: null, adId: null }
+          if (!inNode(c)) continue
+          const k = keyOf(c); if (!k) continue
+          const a = get(k)
+          if (withCounts) { a.impressions += m.impressions * p.share.impressions; a.clicks += m.clicks * p.share.clicks }
+          if (withSpend) a.spend += m.spend * p.share.spend
+          if (p.estimate) a.est = true
+        }
+        return
+      }
+      const its = A.items(campaign, day)
+      if (!its) return
+      for (const it of its) {
+        const c: Ctx = { funnel: it.funnel, campaignBase: base, slug, adsetId: it.adsetId, adId: it.adId }
+        if (!inNode(c)) continue
+        const k = keyOf(c); if (!k) continue
+        const a = get(k)
+        if (withCounts) { a.impressions += m.impressions * it.share.impressions; a.clicks += m.clicks * it.share.clicks }
+        if (withSpend) a.spend += m.spend * it.share.spend
+      }
+    }
+    for (const r of ds.fb.rows) if (inR(r.day)) add(r.campaign, r.day, r, !useApi, true)
+    if (useApi) for (const r of ds.fbSpend.rows) if (inR(r.day)) add(r.campaign, r.day, { impressions: 0, clicks: 0, spend: r.spend }, true, false)
+  }
+  if (level === 'campaign' && chanIn(channel, 'google')) for (const r of ds.google.rows) {
+    if (!inR(r.day)) continue
+    const f = A.googleFunnel(r.campaign)
+    const c: Ctx = { funnel: f, campaignBase: campaignId('google', r.campaign), slug: adSlug('google', r.campaign), adsetId: null, adId: null }
+    if (!inNode(c)) continue
+    const k = keyOf(c); if (!k) continue
+    const a = get(k)
+    a.impressions += r.impressions; a.clicks += r.clicks; a.spend += r.spend
+  }
+  ds.streak.rows.forEach((l, i) => {
+    if (!inR(l.day)) return
+    if (channel !== 'all' && leadChannel(l) !== channel) return
+    const c: Ctx = { funnel: A.leadFunnel[i], campaignBase: A.leadCampaign[i], slug: ds.leadSlugs[i], adsetId: A.leadAdset[i], adId: A.leadAd[i] }
+    if (!inNode(c)) return
+    const k = keyOf(c); if (!k) return
+    const a = get(k)
+    a.leads++
+    if (l.ai >= 50) a.ql++
+    if (level === 'campaign' && A.leadCampaignBy[i] === 'fuzzy') a.leadsPartial++
+  })
+  ds.bookings.rows.forEach((b, i) => {
+    if (b.month < bo.fromM || b.month > bo.toM) return
+    if (channel !== 'all' && bookingChannel(b) !== channel) return
+    const c: Ctx = { funnel: A.bookingFunnel[i], campaignBase: A.bookingCampaign[i], slug: ds.bookingSlugs[i], adsetId: A.bookingAdset[i], adId: A.bookingAd[i] }
+    if (!inNode(c)) return
+    const k = keyOf(c); if (!k) return
+    const a = get(k)
+    a.bookings++
+    a.revenue += b.rvc
+  })
+  return out
+}
+
+function nodePredicate(type: NodeType, key: string): (c: Ctx) => boolean {
+  if (type === 'master') return () => true
+  if (type === 'funnel') return (c) => c.funnel === key
+  if (type === 'umbrella') return (c) => c.slug === key
+  if (type === 'campaign') {
+    const p = parseCampaignId(key)!
+    return (c) => c.campaignBase === p.base && (!p.qual || c.funnel === p.qual)
+  }
+  const p = parseItemId(key)!
+  return p.kind === 'adset'
+    ? (c) => c.adsetId === p.id && (!p.qual || c.funnel === p.qual)
+    : (c) => c.adId === p.id
+}
+
+const LEVEL_ORDER: NodeLevel[] = ['funnel', 'campaign', 'adset', 'ad']
+function levelsFor(type: NodeType, key: string): NodeLevel[] {
+  if (type === 'master') return ['funnel', 'campaign', 'adset', 'ad']
+  if (type === 'funnel' || type === 'umbrella') return ['campaign', 'adset', 'ad']
+  if (type === 'campaign') return /^campaign:meta:/.test(key) ? ['adset', 'ad'] : []
+  if (type === 'adset') return ['ad']
+  return []
 }
 
 // ─── Values / rollups ───────────────────────────────────────────────────────
@@ -570,6 +904,32 @@ function freshnessOf(resp: FunnelResponse, ds: Datasets) {
   }
 }
 
+// ─── Single-yacht moves (for review) ────────────────────────────────────────
+
+/** Every ad set / ad the single-yacht rule moved out of its campaign's funnel, with spend in the window. */
+export function singleYachtMoves(ds: Datasets, A: Assignment, from: string, to: string) {
+  const spend = new Map<string, number>()
+  for (const r of ds.fbSpend.rows) {
+    if (r.day < from || r.day > to) continue
+    const its = A.items(r.campaign, r.day)
+    if (!its) continue
+    for (const it of its) {
+      if (it.rule !== 'adset' && it.rule !== 'ad') continue
+      const k = it.rule === 'adset' ? `adset|${it.adsetId}` : `ad|${it.adId}`
+      spend.set(k, (spend.get(k) || 0) + r.spend * it.share.spend)
+    }
+  }
+  const out: { type: 'adset' | 'ad'; id: string; label: string; campaign: string; adset: string | null; from: FunnelKey | null; to: FunnelKey | null; rule: 'adset' | 'ad'; spend: number }[] = []
+  for (const [k, s] of spend) {
+    const [kind, id] = k.split('|') as ['adset' | 'ad', string]
+    const info = kind === 'adset' ? A.adsets.get(id) : A.ads.get(id)
+    if (!info) continue
+    const base = UMBRELLA_FUNNEL[adSlug('meta', info.campaign) || ''] ?? null
+    out.push({ type: kind, id: kind === 'adset' ? adsetNodeId(id) : adNodeId(id), label: info.name, campaign: info.campaign, adset: kind === 'ad' ? info.adset : null, from: base, to: info.funnel, rule: info.rule as 'adset' | 'ad', spend: r2(s) })
+  }
+  return out.sort((a, b) => b.spend - a.spend)
+}
+
 // ─── Node builder ───────────────────────────────────────────────────────────
 
 const FUNNEL_LIST = FUNNELS.map((f) => ({ key: f.key, id: `funnel:${f.key}`, label: f.label, nonFunnel: !!f.nonFunnel, leadsNa: !!f.leadsNa }))
@@ -582,6 +942,8 @@ export function parseNode(node: string): { type: NodeType; key: string } | null 
   m = /^umbrella:([a-z]+)$/.exec(n)
   if (m) return CAMPAIGNS.some((c) => c.slug === m![1]) ? { type: 'umbrella', key: m[1] } : null
   if (parseCampaignId(n)) return { type: 'campaign', key: n }
+  const it = parseItemId(n)
+  if (it) return { type: it.kind, key: n }
   return null
 }
 
@@ -591,6 +953,8 @@ export interface NodeOpts {
   channel: Channel
   /** an already-built master/umbrella response (from the shared cache) — avoids a rebuild */
   base?: FunnelResponse
+  /** flat list of every item of this level inside the node (children + remainder = node) */
+  level?: NodeLevel
 }
 
 export async function loadFunnelNode(o: NodeOpts) {
@@ -607,6 +971,14 @@ export async function loadFunnelNode(o: NodeOpts) {
     scope = campaignScope(ds, parsed.key)
     if (!scope) throw new Error(`Unknown campaign node "${o.node}"`)
   }
+  if (parsed.type === 'adset' || parsed.type === 'ad') {
+    scope = itemScope(ds, parsed.key)
+    if (!scope) throw new Error(`Unknown ${parsed.type} node "${o.node}"`)
+  }
+  const levels = levelsFor(parsed.type, parsed.key)
+  const defaultLevel: NodeLevel | null = parsed.type === 'master' ? 'funnel' : levels[0] ?? null
+  const level: NodeLevel | null = o.level ?? defaultLevel
+  if (o.level && !levels.includes(o.level)) throw new Error(`level "${o.level}" is not available on ${o.node} (levels: ${levels.join(', ') || 'none'})`)
   const resp: FunnelResponse =
     o.base ||
     (await loadBusinessFunnel({
@@ -645,7 +1017,7 @@ export async function loadFunnelNode(o: NodeOpts) {
   }
 
   let hiddenLeads: { leads: number; ql: number; funnel: string } | null = null
-  if (parsed.type === 'master') {
+  if (parsed.type === 'master' && level === 'funnel') {
     for (const f of FUNNELS) {
       const sc = funnelScope(ds, f.key)
       const v = aggregateScope(ds, sc, from, to, o.channel, bo)
@@ -664,7 +1036,7 @@ export async function loadFunnelNode(o: NodeOpts) {
         estimate: { spend: est, impressions: est, clicks: est },
       })
     }
-  } else if (parsed.type === 'funnel' || parsed.type === 'umbrella') {
+  } else if ((parsed.type === 'funnel' || parsed.type === 'umbrella') && level === 'campaign') {
     const key = parsed.key
     const sel =
       parsed.type === 'funnel'
@@ -681,6 +1053,13 @@ export async function loadFunnelNode(o: NodeOpts) {
             booking: (i: number) => ({ keep: ds.bookingSlugs[i] === key, child: A.bookingCampaign[i] }),
           }
     const roll = rollupCampaigns(ds, from, to, o.channel, bo, sel)
+    // leads placed on their campaign by the fuzzy placement rules (not a unique utm_mapping row)
+    const partial = new Map<string, number>()
+    ds.streak.rows.forEach((l, i) => {
+      if (l.day < from || l.day > to || A.leadCampaignBy[i] !== 'fuzzy') return
+      const s = sel.lead(i)
+      if (s.keep && s.child) partial.set(s.child, (partial.get(s.child) || 0) + 1)
+    })
     for (const [id, a] of roll) {
       const lab = A.labels.get(id)
       const raw = valuesOf({ ...a, lpViews: null }, roasOk, false)
@@ -691,7 +1070,7 @@ export async function loadFunnelNode(o: NodeOpts) {
       children.push({
         id, type: 'campaign', label: lab?.label || id, platform: lab?.platform || null, nonKpi: !!c0?.nonKpi, drillable: true,
         values: shown,
-        quality: { spend: a.est ? 'approx' : 'exact', lpViews: 'n/a', leads: leadsNa ? 'n/a' : 'exact' },
+        quality: { spend: a.est ? 'approx' : 'exact', lpViews: 'n/a', leads: leadsNa ? 'n/a' : partial.get(id) ? 'partial' : 'exact' },
         estimate: { spend: a.est, impressions: a.est, clicks: a.est },
       })
     }
@@ -701,6 +1080,27 @@ export async function loadFunnelNode(o: NodeOpts) {
     for (const c of children) rawKids.push({ ...c.values, leads: c.values.leads ?? null, ql: c.values.ql ?? null })
     if (leadsNa) for (let i = 0; i < rawKids.length; i++) { rawKids[i].leads = null; rawKids[i].ql = null }
   }
+  else if (level && level !== 'funnel') {
+    // flat list of every campaign / ad set / ad inside this node (part 2)
+    const roll = rollupLevel(ds, A, from, to, o.channel, bo, level, nodePredicate(parsed.type, parsed.key))
+    for (const [id, a] of roll) {
+      const raw = valuesOf({ ...a, lpViews: null }, roasOk, false)
+      const shown = leadsNa ? { ...raw, leads: null, ql: null } : raw
+      const baseName = a.label.split(' · ')[0]
+      const c0 = level === 'campaign' ? CAMPAIGNS.find((c) => c.slug === adSlug(a.platform || 'meta', baseName)) : null
+      children.push({
+        id, type: level, label: a.label, platform: a.platform, nonKpi: !!c0?.nonKpi, drillable: level !== 'ad',
+        values: shown,
+        quality: { spend: a.est ? 'approx' : 'exact', lpViews: 'n/a', leads: leadsNa ? 'n/a' : a.leadsPartial ? 'partial' : 'exact' },
+        estimate: { spend: a.est, impressions: a.est, clicks: a.est },
+        path: a.path.filter(Boolean),
+        ...(a.movedBy ? { movedBy: a.movedBy } : {}),
+      })
+    }
+    children.sort((x, y) => (y.values.spend || 0) - (x.values.spend || 0))
+    for (const c of children) rawKids.push({ ...c.values })
+    if (level === 'adset' || level === 'ad') notes.push(`level=${level}: Meta spend / impressions / clicks per ${level} come from the ${level === 'ad' ? 'fb_ad_daily_api (only on campaign-days where it is complete) or ' : ''}fb_adset_daily_api feed; campaign-days without it, Google spend and leads / bookings without a unique ${level} stay in the remainder. Leads reach an ${level} only through a UNIQUE utm_mapping row (quality.leads 'exact').`)
+  }
   void pushChild
 
   // ── remainder ──
@@ -708,7 +1108,7 @@ export async function loadFunnelNode(o: NodeOpts) {
   // is therefore reconciled against qualityLeadsIncludingAsset — never against the step value.
   const reconcileBase: NodeValues =
     parsed.type === 'master' ? rawToValues(cur, roasOk, false, true) : nodeValues
-  const remainder = children.length || parsed.type !== 'campaign'
+  const remainder = level
     ? { label: '(not attributed lower)', values: remainderOf(reconcileBase, children, rawKids) }
     : null
   if (parsed.type === 'master') {
@@ -724,6 +1124,7 @@ export async function loadFunnelNode(o: NodeOpts) {
       `BOFU ad set split: ${bofuDays.feed} day(s) from fb_adset_daily_api, ${bofuDays.approx} day(s) allocated from MTD ad set shares (estimate:true), ${bofuDays.unsplit} day(s) without ad set data kept whole in EB Croatia.`
     )
   }
+  if (A.funnelAmbiguousLeads) notes.push(`${A.funnelAmbiguousLeads} lead(s) over the whole Streak feed carry a utm that several ads share across funnels (single-yacht ad vs generic ad in one campaign, e.g. earlybook2027_tier1); they stay in the campaign's own funnel because the ad cannot be told apart. Unique utm_content per ad (SOP, new ads) removes this.`)
   if (A.bofuLeadsBy.default) {
     notes.push(`BOFU leads by ad set: ${A.bofuLeadsBy.utm} via utm_mapping ad set, ${A.bofuLeadsBy.sp} via the placement token, ${A.bofuLeadsBy.default} with no ad set signal counted as generic (EB Croatia). Counts are over the whole Streak feed, not this window.`)
   }
@@ -799,6 +1200,20 @@ export async function loadFunnelNode(o: NodeOpts) {
     label = scope!.label
     path.push({ id: parsed.key, label })
   }
+  if (parsed.type === 'adset' || parsed.type === 'ad') {
+    const ip = parseItemId(parsed.key)!
+    const info = ip.kind === 'adset' ? A.adsets.get(ip.id)! : A.ads.get(ip.id)!
+    const fk = ip.qual || info.funnel
+    if (fk) path.push({ id: `funnel:${fk}`, label: FUNNEL_BY_KEY.get(fk)!.label })
+    const cId = A.splitCampaigns.has(info.campaignBase) && fk ? qualify(info.campaignBase, fk) : info.campaignBase
+    path.push({ id: cId, label: A.labels.get(cId)?.label || info.campaign })
+    if (ip.kind === 'ad') {
+      const sId = A.splitAdsets.has(info.adsetId) && fk ? `${adsetNodeId(info.adsetId)}|${fk}` : adsetNodeId(info.adsetId)
+      path.push({ id: sId, label: info.adset })
+    }
+    label = scope!.label
+    path.push({ id: parsed.key, label })
+  }
   const node: NodeInfo = { id: parsed.type === 'master' ? 'master' : o.node, type: parsed.type, label, path }
 
   return {
@@ -818,6 +1233,8 @@ export async function loadFunnelNode(o: NodeOpts) {
     steps,
     node,
     funnels: FUNNEL_LIST,
+    levels,
+    level,
     values: parsed.type === 'master' ? { ...nodeValues, qlStep: resp.steps.find((s) => s.key === 'ql')?.value ?? null } : nodeValues,
     children,
     remainder,
@@ -825,6 +1242,7 @@ export async function loadFunnelNode(o: NodeOpts) {
     previous,
     freshness: freshnessOf(resp, ds),
     bofuSplit: { days: bofuDays, leadsBy: A.bofuLeadsBy },
+    ...(parsed.type === 'master' ? { singleYachtMoves: singleYachtMoves(ds, A, from, to) } : {}),
   }
 }
 
@@ -832,7 +1250,7 @@ export type FunnelNodeResponse = Awaited<ReturnType<typeof loadFunnelNode>>
 
 // ─── Search index ───────────────────────────────────────────────────────────
 
-export async function loadFunnelIndex(o: { range: ResolvedRange; channel: Channel; umbrellas?: boolean }) {
+export async function loadFunnelIndex(o: { range: ResolvedRange; channel: Channel; umbrellas?: boolean; all?: boolean }) {
   const master = await loadFunnelNode({ node: 'master', range: o.range, channel: o.channel })
   const items: { id: string; type: NodeType; label: string; path: string[]; platform: 'meta' | 'google' | null; funnel: FunnelKey | null; spend: number | null; leads: number | null }[] = []
   items.push({ id: 'master', type: 'master', label: 'All campaigns · Master', path: [], platform: null, funnel: null, spend: master.values.spend, leads: master.values.leads })
@@ -855,6 +1273,13 @@ export async function loadFunnelIndex(o: { range: ResolvedRange; channel: Channe
     for (const [id, a] of roll) {
       const lab = A.labels.get(id)
       items.push({ id, type: 'campaign', label: lab?.label || id, path: ['All campaigns · Master', f.label], platform: lab?.platform || null, funnel: f.key, spend: r2(a.spend), leads: f.leadsNa ? null : a.leads })
+    }
+  }
+  if (o.all) for (const lv of ['adset', 'ad'] as const) {
+    const roll = rollupLevel(ds, A, from, to, o.channel, bo, lv, () => true)
+    for (const [id, x] of roll) {
+      if (!(x.spend > 0) && !x.leads && !x.bookings) continue
+      items.push({ id, type: lv, label: x.label, path: ['All campaigns · Master', ...x.path.filter(Boolean)], platform: 'meta', funnel: null, spend: r2(x.spend), leads: x.leads })
     }
   }
   // Umbrellas are an internal grouping: only listed with ?umbrellas=1, labelled as such.

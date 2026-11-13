@@ -110,3 +110,44 @@ export const LP_FUNNEL_OVERRIDES: [RegExp, FunnelKey][] = [
   // Turkish single yachts (Dejan 2026-11-13): /yacht-rentals/esma-sultan, /…/arabella…, /…/queen-of-makri
   [/esma|arabella|makri|la-bella-vita/i, 'asset'],
 ]
+
+// ─── Single-yacht rule at ad set / ad level (part 2, 2026-11-13) ─────────────
+//
+// Dejan: every campaign, ad set or AD for a single yacht → Asset marketing. Exceptions:
+//   - the Dalmatinčki group (Dalmatino, Nocturno, Maxita, Anima Maris) stays EB Croatia,
+//   - Oguz Khan / Caribbean is its own funnel,
+//   - BOFU "Warm - Angle …" ad sets are the confirmed GENERIC part of BOFU even where an ad
+//     features a yacht (the angle is the test, not the yacht).
+// Items only move OUT of EB Croatia and Turkey; Asset, Oguz Khan, Lead magnet and Outside keep
+// their items. Every move is listed by the API (meta.singleYachtMoves) for review.
+export const SINGLE_YACHTS = [
+  'bella', 'riva', 'ohana', 'freedom', 'yolo', 'tosca', 'belgin', 'esma', 'arabella', 'makri',
+  'la bella vita', 'premier', 'cristal', 'belleza', 'bellezza', 'eleganza', 'andeo', 'alessandro',
+]
+const YACHT_WORD = new RegExp(`(^| )(${SINGLE_YACHTS.map((y) => y.replace(/ /g, ' ')).join('|')})( |$)`)
+/** true when the (normalised) name names one of the single yachts */
+export const namesSingleYacht = (name: string): boolean => YACHT_WORD.test(nk(name))
+/** Ad sets whose items are generic by Dejan's decision, whatever their ads show. */
+export const GENERIC_ADSETS: RegExp[] = [/^warm\s*-\s*angle\b/i]
+export const MOVABLE_FUNNELS = new Set<FunnelKey>(['eb_croatia', 'turkey'])
+
+export type ItemRule = 'campaign' | 'adset' | 'ad' | 'umbrella'
+
+/**
+ * Funnel of one Meta item (campaign / ad set / ad). `base` = the funnel of the campaign's umbrella.
+ * Returns the funnel and which rule decided it.
+ */
+export function itemFunnel(
+  campaign: string,
+  adset: string | null,
+  ad: string | null,
+  base: FunnelKey | null
+): { funnel: FunnelKey | null; rule: ItemRule } {
+  const ov = CAMPAIGN_FUNNEL.get(nk(campaign))
+  if (ov) return { funnel: ov, rule: 'campaign' }
+  if (!base || !MOVABLE_FUNNELS.has(base)) return { funnel: base, rule: 'umbrella' }
+  if (adset && GENERIC_ADSETS.some((r) => r.test(adset))) return { funnel: base, rule: 'umbrella' }
+  if (adset && namesSingleYacht(adset)) return { funnel: 'asset', rule: 'adset' }
+  if (ad && namesSingleYacht(ad)) return { funnel: 'asset', rule: 'ad' }
+  return { funnel: base, rule: 'umbrella' }
+}

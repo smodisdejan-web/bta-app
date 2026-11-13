@@ -142,6 +142,10 @@ export async function GET(request: Request) {
   if (nodeParam && !parseNode(nodeParam)) {
     return NextResponse.json({ error: `Unknown node "${nodeParam}"` }, { status: 400, headers })
   }
+  const levelParam = (searchParams.get('level') || '').trim().toLowerCase()
+  if (levelParam && (!nodeParam || !['funnel', 'campaign', 'adset', 'ad'].includes(levelParam))) {
+    return NextResponse.json({ error: `level= needs node= and one of funnel|campaign|adset|ad` }, { status: 400, headers })
+  }
 
   if (!nodeParam && campaign !== 'master' && !CAMPAIGNS.some((c) => c.slug === campaign)) {
     return NextResponse.json(
@@ -163,7 +167,7 @@ export async function GET(request: Request) {
     // forces a rebuild only when the cached build is older than an hour. meta.range is
     // re-stamped with what THIS request asked for (the entry is shared across range names).
     const data = nodeParam
-      ? await getFunnelNode({ range, node: nodeParam, channel }, searchParams.get('nocache') === '1')
+      ? await getFunnelNode({ range, node: nodeParam, channel, level: (levelParam || undefined) as any }, searchParams.get('nocache') === '1')
       : await getFunnel({ range, campaign, channel }, searchParams.get('nocache') === '1')
     const out = (data as any)?.meta?.range ? { ...data, meta: { ...(data as any).meta, range } } : data
     return NextResponse.json(out, { headers })

@@ -699,6 +699,8 @@ export interface BookingRow {
   source: string
   /** bookings_api.landing_page — Acq sheet column M, normalised to /path (goolets.net) or host/path */
   landingPage: string
+  /** bookings_api.client_email (lower-case) — joins to bookings_ads */
+  email: string
 }
 
 function coverageOf(days: string[]): Coverage {
@@ -1032,6 +1034,7 @@ async function loadBookings(): Promise<{ rows: BookingRow[]; coverage: Coverage;
         campaign: String(r.campaign ?? ''),
         rvc: num(r.rvc),
         landingPage: String(r.landing_page ?? '').trim(),
+        email: String(r.client_email ?? '').trim().toLowerCase(),
         source: String(r.source ?? '')
           .toLowerCase()
           .trim(),
@@ -1134,6 +1137,82 @@ async function loadFbAdsets(): Promise<{ rows: AdsetDay[]; coverage: Coverage }>
   } catch (e) {
     console.warn('[funnel] fb_adset_daily_api unavailable — BOFU split falls back', (e as Error).message)
     return { rows: [], coverage: { min: '', max: '' } }
+  }
+}
+
+/** Meta ad × day (tab fb_ad_daily_api, all campaigns, 2026-11-13). Missing tab = no rows. */
+export interface AdDayRow extends AdsetDay {
+  adId: string
+  ad: string
+}
+
+async function loadFbAds(): Promise<{ rows: AdDayRow[]; coverage: Coverage }> {
+  try {
+    return await cached('fbAds', async () => {
+      const raw = await fetchRows(SHEETS_TABS.FB_AD_DAILY)
+      const rows: AdDayRow[] = []
+      for (const r of raw) {
+        const day = toDay(r.date)
+        const adId = String(r.ad_id ?? '').trim()
+        if (!day || !adId) continue
+        rows.push({
+          day,
+          campaignId: String(r.campaign_id ?? '').trim(),
+          campaign: String(r.campaign ?? '').trim(),
+          adsetId: String(r.adset_id ?? '').trim(),
+          adset: String(r.adset ?? '').trim(),
+          adId,
+          ad: String(r.ad ?? '').trim(),
+          impressions: num(r.impressions),
+          clicks: num(r.link_clicks),
+          clicksAll: num(r.clicks),
+          spend: num(r.spend),
+        })
+      }
+      return { rows, coverage: coverageOf(rows.map((r) => r.day)) }
+    })
+  } catch (e) {
+    console.warn('[funnel] fb_ad_daily_api unavailable', (e as Error).message)
+    return { rows: [], coverage: { min: '', max: '' } }
+  }
+}
+
+/** Acq sheet paid bookings with the ad / ad set / campaign ids from its hyperlinks (tab bookings_ads). */
+export interface BookingAdRow {
+  month: string
+  email: string
+  rvc: number
+  storno: boolean
+  campaign: string
+  campaignId: string
+  adsetId: string
+  adId: string
+  adName: string
+  landing: string
+}
+
+async function loadBookingAds(): Promise<BookingAdRow[]> {
+  try {
+    return await cached('bookingAds', async () => {
+      const raw = await fetchRows(SHEETS_TABS.BOOKINGS_ADS)
+      return raw
+        .map((r) => ({
+          month: String(r.month ?? '').slice(0, 7),
+          email: String(r.client_email ?? '').trim().toLowerCase(),
+          rvc: num(r.rvc),
+          storno: String(r.storno ?? '').trim() !== '',
+          campaign: String(r.campaign ?? '').trim(),
+          campaignId: String(r.campaign_id ?? '').trim(),
+          adsetId: String(r.adset_id ?? '').trim(),
+          adId: String(r.ad_id ?? '').trim(),
+          adName: String(r.ad_name ?? '').trim(),
+          landing: String(r.landing ?? '').trim(),
+        }))
+        .filter((r) => /^\d{4}-\d{2}$/.test(r.month))
+    })
+  } catch (e) {
+    console.warn('[funnel] bookings_ads unavailable', (e as Error).message)
+    return []
   }
 }
 
@@ -1295,6 +1374,10 @@ export interface Datasets {
   utmRows: Map<string, UtmRow[]>
   /** Meta ad set × day feed (fb_adset_daily_api); empty until the tab exists. */
   adsets: { rows: AdsetDay[]; coverage: Coverage }
+  /** Meta ad × day feed (fb_ad_daily_api); empty until the tab exists. */
+  ads: { rows: AdDayRow[]; coverage: Coverage }
+  /** Acq-sheet bookings with ad / ad set / campaign ids (bookings_ads). */
+  bookingAds: BookingAdRow[]
   /** memoised leadSlug per streak row index */
   leadSlugs: (string | null)[]
   /** memoised bookingSlug per bookings row index */
@@ -2197,7 +2280,7 @@ function statusFor(cvr: number | null, bench: number | null): 'g' | 'a' | 'r' | 
  * layer (lib/funnel-nodes.ts) works on the very same rows as /api/funnel — one read, one truth.
  */
 export async function getFunnelDatasets(): Promise<Datasets> {
-  const [fb, fbSpend, google, bing, chatgpt, ga4, streak, bookings, utmIndex, utmRows, adsets] = await Promise.all([
+  const [fb, fbSpend, google, bing, chatgpt, ga4, streak, bookings, utmIndex, utmRows, adsets, ads, bookingAds] = await Promise.all([
     loadFb(),
     loadFbSpend(),
     loadGoogle(),
@@ -2209,6 +2292,8 @@ export async function getFunnelDatasets(): Promise<Datasets> {
     loadUtmIndex(),
     loadUtmRows(),
     loadFbAdsets(),
+    loadFbAds(),
+    loadBookingAds(),
   ])
   return {
     fb,
@@ -2222,6 +2307,8 @@ export async function getFunnelDatasets(): Promise<Datasets> {
     utmIndex,
     utmRows,
     adsets,
+    ads,
+    bookingAds,
     leadSlugs: streak.rows.map((r) => (isFlatChannelLead(r) ? null : leadSlug(r, utmIndex))),
     bookingSlugs: bookings.rows.map((r) => bookingSlug(r)),
   }

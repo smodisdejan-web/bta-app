@@ -49,6 +49,20 @@ async function pool<T>(items: T[], n: number, fn: (t: T) => Promise<void>) {
     bad.slice(0, 5).forEach((b) => console.log('    ' + b))
   }
 
+  console.log('== 3b. Σ ad sets = campaign and Σ ads = ad set, per day (all Meta campaigns)')
+  {
+    const camp = new Map<string, number>(), as = new Map<string, number>(), asById = new Map<string, number>(), adByAs = new Map<string, number>()
+    for (const r of ds.fbSpend.rows) camp.set(`${r.campaign}|${r.day}`, (camp.get(`${r.campaign}|${r.day}`) || 0) + r.spend)
+    for (const r of ds.adsets.rows) { as.set(`${r.campaign}|${r.day}`, (as.get(`${r.campaign}|${r.day}`) || 0) + r.spend); asById.set(`${r.adsetId}|${r.day}`, (asById.get(`${r.adsetId}|${r.day}`) || 0) + r.spend) }
+    for (const r of ds.ads.rows) adByAs.set(`${r.adsetId}|${r.day}`, (adByAs.get(`${r.adsetId}|${r.day}`) || 0) + r.spend)
+    let n = 0, off = 0, sc = 0, sa = 0
+    for (const [k, v] of as) { n++; const c = camp.get(k) ?? 0; sc += c; sa += v; if (Math.abs(c - v) > 2) off++ }
+    console.log(`  ad sets: ${n} campaign-days · campaign €${sc.toFixed(2)} · ad sets €${sa.toFixed(2)} · off by > €2: ${off}`)
+    let m = 0, off2 = 0, s1 = 0, s2 = 0
+    for (const [k, v] of adByAs) { m++; const c = asById.get(k) ?? 0; s1 += c; s2 += v; if (Math.abs(c - v) > 2) off2++ }
+    console.log(`  ads: ${m} ad-set-days · ad sets €${s1.toFixed(2)} · ads €${s2.toFixed(2)} · off by > €2: ${off2} (the funnel only uses complete campaign-days)`)
+  }
+
   for (const rk of RANGES) {
     const range = resolveRange(rk, '', '')
     console.log(`\n==== ${rk} ${range.from}…${range.to}`)
@@ -65,6 +79,17 @@ async function pool<T>(items: T[], n: number, fn: (t: T) => Promise<void>) {
       const lm = 0 // lead magnet leads are shown null; its raw Streak count sits in the remainder math
       const rem = (m.remainder?.values as any)?.[k] ?? 0
       if (!near(total, s + rem + lm, k === 'spend' || k === 'revenue' ? 0.05 : 0.5)) fail(`${rk} master ${k}: total ${total} ≠ Σ funnels ${s} + remainder ${rem}`)
+    }
+    for (const lv of ['campaign', 'adset', 'ad'] as const) {
+      const n = await loadFunnelNode({ node: 'master', range, channel: 'all', level: lv })
+      for (const k of keys) {
+        if (k === 'lpViews') continue
+        const total = k === 'ql' ? qlIncl : (m.values as any)[k]
+        const sm = n.children.reduce((x: number, c: any) => x + ((c.values as any)[k] ?? 0), 0) + ((n.remainder?.values as any)?.[k] ?? 0)
+        if (!near(total, sm, k === 'spend' || k === 'revenue' ? 0.05 : 0.5)) fail(`${rk} master level=${lv} ${k}: ${total} ≠ Σ ${sm}`)
+      }
+      const cv: any = n.coverage
+      console.log(`  level=${lv.padEnd(8)} items ${String(n.children.length).padStart(4)} · leads ${cv?.leads.share == null ? 'n/a' : (cv.leads.share * 100).toFixed(1) + ' %'} · QL ${cv?.ql.share == null ? 'n/a' : (cv.ql.share * 100).toFixed(1) + ' %'} · bookings ${cv?.bookings.share == null ? 'n/a' : (cv.bookings.share * 100).toFixed(1) + ' %'} · spend ${cv?.spend.share == null ? 'n/a' : (cv.spend.share * 100).toFixed(1) + ' %'}`)
     }
     const qlStep = m.steps.find((s: any) => s.key === 'ql')?.value
     console.log(`  QL: step ${qlStep} (excl. ASSET) · qualityLeadsIncludingAsset ${qlIncl} · Σ funnels + remainder reconciles to the latter`)
