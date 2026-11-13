@@ -143,8 +143,12 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: `Unknown node "${nodeParam}"` }, { status: 400, headers })
   }
   const levelParam = (searchParams.get('level') || '').trim().toLowerCase()
-  if (levelParam && (!nodeParam || !['funnel', 'campaign', 'adset', 'ad', 'lp'].includes(levelParam))) {
-    return NextResponse.json({ error: `level= needs node= and one of funnel|campaign|adset|ad|lp` }, { status: 400, headers })
+  const copyField = (searchParams.get('copyField') || 'body').trim().toLowerCase()
+  if (copyField !== 'body') {
+    return NextResponse.json({ error: `copyField=${copyField} is not available yet: only body (primary text). Headlines need Meta's title_asset breakdown feed.` }, { status: 400, headers })
+  }
+  if (levelParam && (!nodeParam || !['funnel', 'campaign', 'adset', 'ad', 'lp', 'copy'].includes(levelParam))) {
+    return NextResponse.json({ error: `level= needs node= and one of funnel|campaign|adset|ad|lp|copy` }, { status: 400, headers })
   }
 
   if (!nodeParam && campaign !== 'master' && !CAMPAIGNS.some((c) => c.slug === campaign)) {

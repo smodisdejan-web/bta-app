@@ -66,6 +66,8 @@ export const SHEETS_TABS = {
   BING_DAILY: 'bing_ads_api', // Microsoft Advertising, live 2026-09-04 (12-week test)
   CHATGPT_DAILY: 'chatgpt_ads_api', // OpenAI Ads Manager, oCPC campaign live 2026-09-14
   FB_AD_DAILY: 'fb_ad_daily_api', // Meta ad × day, all campaigns (2026-11-13) — code/facebook/sync-fb-ad-daily.js
+  FB_AD_BODY_DAILY: 'fb_ad_body_daily', // Meta ad × day × body asset (primary-text variant) — code/facebook/sync-goolets-ad-copy.js
+  FB_AD_TEXTS: 'fb_ad_texts', // Meta ad → its texts (body variants by asset id, titles, descriptions, CTA) — code/facebook/sync-goolets-ad-copy.js
   AD_LANDING: 'ad_landing', // Meta ad → landing page (ad preview / HubSpot observed) — code/facebook/sync-goolets-ad-landing.js
   GOOGLE_LP_DAILY: 'google_lp_daily_api', // Google landing_page_view × campaign × day — code/google-ads/sync-goolets-lp-view.js
   GA4_PAID_LP_UTM: 'ga4_paid_lp_utm', // GA4 paid sessions host × LP × utm_campaign × utm_content × day — code/ga4/sync-goolets-paid-lp-utm.js

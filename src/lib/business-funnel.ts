@@ -1245,6 +1245,29 @@ export function lpKeyOfUrl(url: string): string {
   try { const u = new URL(url); return lpKeyOf(u.hostname, u.pathname) } catch { return '' }
 }
 
+/** One Meta ad × day × body asset row (fb_ad_body_daily). */
+export interface BodyAssetDay { day: string; adId: string; assetId: string; impressions: number; clicks: number; linkClicks: number; spend: number }
+/** One text of one Meta ad (fb_ad_texts): field body|title|description|cta; assetId '' for the creative's own text. */
+export interface AdText { adId: string; field: 'body' | 'title' | 'description' | 'cta'; assetId: string; text: string; resolved: boolean }
+async function loadCopyFeeds(): Promise<{ bodyDaily: BodyAssetDay[]; texts: AdText[] }> {
+  return cached('copyFeeds', async () => {
+    const [bd, tx] = await Promise.all([softRows('raw:fb_ad_body_daily', SHEETS_TABS.FB_AD_BODY_DAILY), softRows('raw:fb_ad_texts', SHEETS_TABS.FB_AD_TEXTS)])
+    const bodyDaily: BodyAssetDay[] = []
+    for (const r of bd) {
+      const day = toDay(r.date); const adId = String(r.ad_id ?? '').trim(); const assetId = String(r.body_asset_id ?? '').trim()
+      if (!day || !adId || !assetId) continue
+      bodyDaily.push({ day, adId, assetId, impressions: num(r.impressions), clicks: num(r.clicks), linkClicks: num(r.link_clicks), spend: num(r.spend) })
+    }
+    const texts: AdText[] = []
+    for (const r of tx) {
+      const adId = String(r.ad_id ?? '').trim(); const field = String(r.field ?? '').trim() as AdText['field']
+      if (!adId || !['body', 'title', 'description', 'cta'].includes(field)) continue
+      texts.push({ adId, field, assetId: String(r.asset_id ?? '').trim(), text: String(r.text ?? ''), resolved: String(r.resolved ?? '1').trim() !== '0' })
+    }
+    return { bodyDaily, texts }
+  })
+}
+
 export interface AdLanding { adId: string; lp: string; url: string; source: string }
 export interface GoogleLpDay { day: string; campaign: string; lp: string; url: string; impressions: number; clicks: number; spend: number }
 export interface Ga4UtmDay { day: string; lp: string; sourceMedium: string; utmCampaign: string; utmContent: string; sessions: number }
@@ -1471,6 +1494,8 @@ export interface Datasets {
   bookingAds: BookingAdRow[]
   /** Landing-page feeds: ad → LP, Google LP × day, GA4 paid sessions by utm, HubSpot first_url. */
   lp: { adLanding: Map<string, AdLanding>; googleLp: GoogleLpDay[]; ga4Utm: Ga4UtmDay[]; hsContacts: HsContact[]; streakEmail: Map<string, string> }
+  /** Ad copy feeds: body asset × day breakdown and each ad's texts (part 4). */
+  copy: { bodyDaily: BodyAssetDay[]; texts: AdText[] }
   /** memoised leadSlug per streak row index */
   leadSlugs: (string | null)[]
   /** memoised bookingSlug per bookings row index */
@@ -2373,7 +2398,7 @@ function statusFor(cvr: number | null, bench: number | null): 'g' | 'a' | 'r' | 
  * layer (lib/funnel-nodes.ts) works on the very same rows as /api/funnel — one read, one truth.
  */
 export async function getFunnelDatasets(): Promise<Datasets> {
-  const [fb, fbSpend, google, bing, chatgpt, ga4, streak, bookings, utmIndex, utmRows, adsets, ads, bookingAds, lp] = await Promise.all([
+  const [fb, fbSpend, google, bing, chatgpt, ga4, streak, bookings, utmIndex, utmRows, adsets, ads, bookingAds, lp, copy] = await Promise.all([
     loadFb(),
     loadFbSpend(),
     loadGoogle(),
@@ -2388,6 +2413,7 @@ export async function getFunnelDatasets(): Promise<Datasets> {
     loadFbAds(),
     loadBookingAds(),
     loadLpFeeds(),
+    loadCopyFeeds(),
   ])
   return {
     fb,
@@ -2404,6 +2430,7 @@ export async function getFunnelDatasets(): Promise<Datasets> {
     ads,
     bookingAds,
     lp,
+    copy,
     leadSlugs: streak.rows.map((r) => (isFlatChannelLead(r) ? null : leadSlug(r, utmIndex))),
     bookingSlugs: bookings.rows.map((r) => bookingSlug(r)),
   }

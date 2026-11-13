@@ -7,7 +7,7 @@
 //    every funnel node = its master child; Σ campaign children + remainder = funnel.
 // 3. BOFU: Σ ad sets (fb_adset_daily_api) = campaign (fb_daily_api) per day.
 import { CAMPAIGNS, getFunnelDatasets, loadBusinessFunnel, resolveRange } from '../src/lib/business-funnel'
-import { loadFunnelNode, lpOfNode } from '../src/lib/funnel-nodes'
+import { loadFunnelNode, lpOfNode, copyPartsForVerify } from '../src/lib/funnel-nodes'
 import { FUNNELS, BOFU_CAMPAIGN, BOFU_CAMPAIGN_ID, LEAD_FORM_LP } from '../src/lib/funnel-groups'
 
 const arg = (n: string, d: string) => { const i = process.argv.indexOf(`--${n}`); return i > -1 ? process.argv[i + 1] : d }
@@ -191,6 +191,103 @@ async function pool<T>(items: T[], n: number, fn: (t: T) => Promise<void>) {
       if (lpIds.has(ifm) && !ids.has(ifm)) fail('index misses meta-instant-form/')
       console.log(`  index levels=all: ${idx.body.items.filter((i: any) => i.type === 'lp').length} LPs · every LP from the 4 lists present: ${missing.length === 0} · meta-instant-form/ ${ids.has(ifm) ? 'present' : 'absent'}`)
     }
+  }
+
+  // ── 6. Ad copy (part 4)
+  console.log('\n== 6. level=copy and copy nodes')
+  for (const rk of RANGES) {
+    const range = resolveRange(rk, '', '')
+    const keys6 = ['impressions', 'clicks', 'leads', 'ql', 'bookings', 'revenue', 'spend'] as const
+    const m = await loadFunnelNode({ node: 'master', range, channel: 'all', level: 'copy' })
+    const qlIncl = m.steps.find((s: any) => s.key === 'ql')?.qualityLeadsIncludingAsset
+    for (const k of keys6) {
+      const total = k === 'ql' ? qlIncl : (m.values as any)[k]
+      const sm = m.children.reduce((x: number, c: any) => x + (c.values[k] ?? 0), 0) + ((m.remainder?.values as any)?.[k] ?? 0)
+      if (!near(total, sm, k === 'spend' || k === 'revenue' ? 0.05 : 0.5)) fail(`${rk} master level=copy ${k}: ${total} ≠ Σ ${sm}`)
+    }
+    // Σ parts of each ad = the ad (ad level row)
+    const parts = await copyPartsForVerify(range, 'all')
+    const adL = await loadFunnelNode({ node: 'master', range, channel: 'all', level: 'ad' })
+    const byAd = new Map<string, any>()
+    for (const p of parts.parts) { const x = byAd.get(p.adId) || { n: 0, multi: p.multi }; x.n++; for (const k of ['impressions', 'clicks', 'spend', 'leads', 'ql', 'bookings', 'revenue'] as const) x[k] = (x[k] || 0) + p.values[k]; byAd.set(p.adId, x) }
+    let multiAds = 0, checked = 0
+    for (const c of adL.children) {
+      const x = byAd.get(c.id.replace(/^ad:meta:/, '')); if (!x || !x.multi) continue
+      multiAds++
+      // only ads whose every part has a resolved text are whole; others keep a part in the remainder
+      const full = parts.parts.filter((p) => p.adId === c.id.replace(/^ad:meta:/, '')).length === x.n
+      if (!full) continue
+      for (const k of ['spend', 'leads', 'bookings'] as const) if (x[k] > (c.values as any)[k] + 0.06) fail(`${rk} ${c.id} Σ parts ${k} ${x[k]} > ad ${(c.values as any)[k]}`)
+      checked++
+    }
+    // a multi-text ad whose texts all resolve: Σ parts = ad exactly
+    let exact = 0
+    const lost = new Set<string>()
+    const fl = parts.flags
+    for (const c of adL.children) {
+      const id = c.id.replace(/^ad:meta:/, ''); const x = byAd.get(id); if (!x || !x.multi) continue
+      const near2 = (k: 'spend' | 'leads' | 'impressions') => Math.abs(x[k] - ((c.values as any)[k] ?? 0)) <= (k === 'spend' ? 0.05 : 0.5)
+      if (near2('spend') && near2('leads') && near2('impressions')) exact++; else lost.add(id)
+    }
+    const share = (v: number, t: number) => (t ? ((v / t) * 100).toFixed(1) + ' %' : 'n/a')
+    const cov: any = m.coverage
+    const multiSpend = parts.parts.filter((p) => p.multi).reduce((n, p) => n + p.values.spend, 0)
+    const multiLeads = parts.parts.filter((p) => p.multi).reduce((n, p) => n + p.values.leads, 0)
+    console.log(`  ${rk}: ${m.children.length} texts · multi-text ads ${multiAds} (Σ parts = ad on ${exact}, a part in the remainder on ${lost.size}) · multi-text share of Meta copy spend ${share(multiSpend, parts.parts.reduce((n, p) => n + p.values.spend, 0))}, of copy leads ${share(multiLeads, parts.parts.reduce((n, p) => n + p.values.leads, 0))} · coverage spend ${cov?.spend.share == null ? 'n/a' : (cov.spend.share * 100).toFixed(1) + ' %'} leads ${cov?.leads.share == null ? 'n/a' : (cov.leads.share * 100).toFixed(1) + ' %'} · remainder flags ${JSON.stringify(fl)}`)
+    void checked
+    // copy node = its row
+    for (const row of m.children.slice(0, 5)) {
+      const n: any = await loadFunnelNode({ node: row.id, range, channel: 'all' })
+      for (const k of keys6) if (!near(n.values[k], (row.values as any)[k], k === 'spend' || k === 'revenue' ? 0.05 : 0.01)) fail(`${rk} ${row.id} ${k}: node ${n.values[k]} ≠ row ${(row.values as any)[k]}`)
+      for (const lv of ['ad', 'adset', 'campaign', 'lp'] as const) {
+        const l: any = await loadFunnelNode({ node: row.id, range, channel: 'all', level: lv })
+        for (const k of keys6) {
+          const sm = l.children.reduce((x: number, c: any) => x + (c.values[k] ?? 0), 0) + (l.remainder?.values[k] ?? 0)
+          if (!near(l.values[k], sm, k === 'spend' || k === 'revenue' ? 0.05 : 0.01)) fail(`${rk} ${row.id} level=${lv} ${k}: ${l.values[k]} ≠ Σ ${sm}`)
+        }
+      }
+    }
+  }
+  if (!process.argv.includes('--no-http')) {
+    const LOCAL6 = arg('local', 'http://localhost:3011')
+    const rk = RANGES[0]
+    // retry: the dev server drops idle keep-alive sockets (ECONNRESET) after the long direct checks above
+    const get = async (p: string) => {
+      for (let i = 0; ; i++) {
+        try { const r = await fetch(`${LOCAL6}${p}`, { cache: 'no-store' }); return { status: r.status, body: (await r.json().catch(() => null)) as any } }
+        catch (e) { if (i >= 2) throw e; await new Promise((s) => setTimeout(s, 1000)) }
+      }
+    }
+    const fe = await loadFunnelNode({ node: 'funnel:eb_croatia', range: resolveRange(rk, '', ''), channel: 'all', level: 'campaign' })
+    const camp = fe.children.find((c: any) => c.platform === 'meta' && (c.values.spend || 0) > 0)!
+    const cAd = await loadFunnelNode({ node: camp.id, range: resolveRange(rk, '', ''), channel: 'all', level: 'adset' })
+    const adset = cAd.children.find((c: any) => (c.values.spend || 0) > 0)!
+    const ml = await loadFunnelNode({ node: 'master', range: resolveRange(rk, '', ''), channel: 'all', level: 'lp' })
+    const lp = ml.children.find((c: any) => (c.values.spend || 0) > 0)!
+    const ids = new Set<string>()
+    for (const node of ['master', 'funnel:eb_croatia', camp.id, adset.id, lp.id]) {
+      const { status, body } = await get(`/api/funnel?range=${rk}&node=${encodeURIComponent(node)}&level=copy&nocache=1`)
+      if (status !== 200) { fail(`HTTP ${status} node=${node}&level=copy ${JSON.stringify(body).slice(0, 160)}`); continue }
+      for (const c of body.children) ids.add(c.id)
+      const s = body.children.reduce((x: number, c: any) => x + (c.values.spend ?? 0), 0) + (body.remainder?.values.spend ?? 0)
+      if (!near(body.values.spend, s, 0.05)) fail(`HTTP ${node} level=copy spend ${body.values.spend} ≠ Σ ${s}`)
+      if (body.coverage?.level !== 'copy' && body.children.length) fail(`HTTP ${node} coverage.level ${body.coverage?.level}`)
+      console.log(`  200 · node=${node.slice(0, 50).padEnd(50)} level=copy · ${String(body.children.length).padStart(3)} texts · spend Σ+remainder = node`)
+    }
+    const top = [...ids][0]
+    if (top) {
+      const n = await get(`/api/funnel?range=${rk}&node=${encodeURIComponent(top)}&nocache=1`)
+      if (n.status !== 200 || n.body?.node?.type !== 'copy' || !n.body?.node?.text) fail(`HTTP copy node ${top}: ${n.status}`)
+      const nl = await get(`/api/funnel?range=${rk}&node=${encodeURIComponent(top)}&level=lp&nocache=1`)
+      if (nl.status !== 200) fail(`HTTP copy node level=lp ${nl.status}`)
+    }
+    const t = await get(`/api/funnel?range=${rk}&node=master&level=copy&copyField=title`)
+    if (t.status !== 400) fail(`copyField=title should be 400 (not available yet), got ${t.status}`)
+    const idx = await get(`/api/funnel/index?range=${rk}&levels=all&nocache=1`)
+    const iids = new Set<string>((idx.body?.items || []).map((i: any) => i.id))
+    const miss = [...ids].filter((i) => !iids.has(i))
+    if (miss.length) fail(`index misses ${miss.length} copy id(s)`)
+    console.log(`  index levels=all: ${(idx.body?.items || []).filter((i: any) => i.type === 'copy').length} copy entries · every listed text present: ${!miss.length}`)
   }
 
   if (SKIP_PROD) { console.log(`\nfailures: ${failures}`); process.exit(failures ? 1 : 0) }
