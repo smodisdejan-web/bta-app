@@ -644,13 +644,17 @@ export async function loadFunnelNode(o: NodeOpts) {
     children.push({ ...rest, values: raw })
   }
 
+  let hiddenLeads: { leads: number; ql: number; funnel: string } | null = null
   if (parsed.type === 'master') {
     for (const f of FUNNELS) {
       const sc = funnelScope(ds, f.key)
       const v = aggregateScope(ds, sc, from, to, o.channel, bo)
       const raw = rawToValues(v, roasOk, false, true)
       const shown = f.leadsNa ? { ...raw, leads: null, ql: null } : raw
-      rawKids.push(raw)
+      // A funnel whose leads are n/a does not claim its few Streak rows: they stay in the remainder,
+      // so Σ funnels + remainder still equals master.
+      if (f.leadsNa && (raw.leads || raw.ql)) hiddenLeads = { leads: raw.leads || 0, ql: raw.ql || 0, funnel: f.label }
+      rawKids.push(shown)
       const touchesBofu = f.key === BOFU_FUNNEL_YACHT || f.key === BOFU_FUNNEL_GENERIC
       const est = touchesBofu && bofuDays.approx > 0
       children.push({
@@ -714,6 +718,7 @@ export async function loadFunnelNode(o: NodeOpts) {
     )
   }
   if (leadsNa && fdef?.leadsNa) notes.push(fdef.leadsNa)
+  if (hiddenLeads) notes.push(`The remainder includes ${hiddenLeads.leads} Streak lead(s) / ${hiddenLeads.ql} QL from ${hiddenLeads.funnel}, where leads are shown as n/a (its registrations live in HubSpot).`)
   if (bofuDays.approx || bofuDays.unsplit) {
     notes.push(
       `BOFU ad set split: ${bofuDays.feed} day(s) from fb_adset_daily_api, ${bofuDays.approx} day(s) allocated from MTD ad set shares (estimate:true), ${bofuDays.unsplit} day(s) without ad set data kept whole in EB Croatia.`
