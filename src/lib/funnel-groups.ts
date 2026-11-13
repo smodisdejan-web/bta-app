@@ -78,10 +78,8 @@ const CAMPAIGN_FUNNEL_NAMES: [string, FunnelKey][] = [
   ['Tosca - Turkey - Cold - ABO', 'asset'],
   ['Tosca - Turkey - Cold - ABO - LF', 'asset'],
   ['YOLO - August 2026', 'asset'],
-  // 2026-11-13 (Dejan): Turkish single yachts Esma Sultan, Arabella, Makri → Asset as well. The
-  // creative test ran ONLY single-yacht ad sets (Esma Sultan kids, La Bella Vita VO, Tosca Short —
-  // per utm_mapping), so the whole campaign is single-yacht.
-  ['TURKEY – Creative Test – ABO', 'asset'],
+  // TURKEY – Creative Test – ABO stays Turkey (Dejan 2026-11-13: judged per campaign, and the
+  // campaign tests several yachts).
 ]
 export const CAMPAIGN_FUNNEL = new Map<string, FunnelKey>(CAMPAIGN_FUNNEL_NAMES.map(([n, f]) => [nk(n), f]))
 
@@ -111,43 +109,25 @@ export const LP_FUNNEL_OVERRIDES: [RegExp, FunnelKey][] = [
   [/esma|arabella|makri|la-bella-vita/i, 'asset'],
 ]
 
-// ─── Single-yacht rule at ad set / ad level (part 2, 2026-11-13) ─────────────
+// ─── Single-yacht rule: PER CAMPAIGN (Dejan 2026-11-13: "sodiva po kampanji, ne po adih") ──
 //
-// Dejan: every campaign, ad set or AD for a single yacht → Asset marketing. Exceptions:
-//   - the Dalmatinčki group (Dalmatino, Nocturno, Maxita, Anima Maris) stays EB Croatia,
-//   - Oguz Khan / Caribbean is its own funnel,
-//   - BOFU "Warm - Angle …" ad sets are the confirmed GENERIC part of BOFU even where an ad
-//     features a yacht (the angle is the test, not the yacht).
-// Items only move OUT of EB Croatia and Turkey; Asset, Oguz Khan, Lead magnet and Outside keep
-// their items. Every move is listed by the API (meta.singleYachtMoves) for review.
-export const SINGLE_YACHTS = [
-  'bella', 'riva', 'ohana', 'freedom', 'yolo', 'tosca', 'belgin', 'esma', 'arabella', 'makri',
-  'la bella vita', 'premier', 'cristal', 'belleza', 'bellezza', 'eleganza', 'andeo', 'alessandro',
-]
-const YACHT_WORD = new RegExp(`(^| )(${SINGLE_YACHTS.map((y) => y.replace(/ /g, ' ')).join('|')})( |$)`)
-/** true when the (normalised) name names one of the single yachts */
-export const namesSingleYacht = (name: string): boolean => YACHT_WORD.test(nk(name))
-/** Ad sets whose items are generic by Dejan's decision, whatever their ads show. */
-export const GENERIC_ADSETS: RegExp[] = [/^warm\s*-\s*angle\b/i]
-export const MOVABLE_FUNNELS = new Set<FunnelKey>(['eb_croatia', 'turkey'])
+// A campaign for a single yacht → Asset marketing (CAMPAIGN_FUNNEL). The ONLY ad-set-level
+// exception is the BOFU campaign, whose single-yacht ad sets (Interesi/Warm Bella, Riva, Ohana) →
+// Asset. No other ad set and NO ad ever leaves its campaign's funnel: Premier reels, Freedom /
+// YOLO creatives in Early Booking, Alessandro last-minute ads, Esma ads in Landing Turkey all stay.
+// Ad sets and ads are drill-down levels inside their campaign's funnel.
+export type ItemRule = 'campaign' | 'adset' | 'umbrella'
 
-export type ItemRule = 'campaign' | 'adset' | 'ad' | 'umbrella'
-
-/**
- * Funnel of one Meta item (campaign / ad set / ad). `base` = the funnel of the campaign's umbrella.
- * Returns the funnel and which rule decided it.
- */
 export function itemFunnel(
   campaign: string,
   adset: string | null,
-  ad: string | null,
+  _ad: string | null,
   base: FunnelKey | null
 ): { funnel: FunnelKey | null; rule: ItemRule } {
   const ov = CAMPAIGN_FUNNEL.get(nk(campaign))
   if (ov) return { funnel: ov, rule: 'campaign' }
-  if (!base || !MOVABLE_FUNNELS.has(base)) return { funnel: base, rule: 'umbrella' }
-  if (adset && GENERIC_ADSETS.some((r) => r.test(adset))) return { funnel: base, rule: 'umbrella' }
-  if (adset && namesSingleYacht(adset)) return { funnel: 'asset', rule: 'adset' }
-  if (ad && namesSingleYacht(ad)) return { funnel: 'asset', rule: 'ad' }
+  if (nk(campaign) === nk(BOFU_CAMPAIGN) && adset) {
+    return BOFU_YACHT_ADSET.test(adset) ? { funnel: BOFU_FUNNEL_YACHT, rule: 'adset' } : { funnel: BOFU_FUNNEL_GENERIC, rule: 'umbrella' }
+  }
   return { funnel: base, rule: 'umbrella' }
 }

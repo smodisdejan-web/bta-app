@@ -650,7 +650,7 @@ function rollupLevel(
     }
     if (!c.adId) return null
     const info = A.ads.get(c.adId)
-    const moved = info && (info.rule === 'ad' || info.rule === 'adset') ? (info.rule as 'adset' | 'ad') : undefined
+    const moved = info && info.rule === 'adset' ? 'adset' as const : undefined
     return { key: adNodeId(c.adId), label: info?.name || c.adId, platform: 'meta', path: [fl(c.funnel), campLabel(c.campaignBase), info?.adset || ''], movedBy: moved }
   }
   const get = (k: ReturnType<typeof keyOf> & {}) => {
@@ -914,8 +914,8 @@ export function singleYachtMoves(ds: Datasets, A: Assignment, from: string, to: 
     const its = A.items(r.campaign, r.day)
     if (!its) continue
     for (const it of its) {
-      if (it.rule !== 'adset' && it.rule !== 'ad') continue
-      const k = it.rule === 'adset' ? `adset|${it.adsetId}` : `ad|${it.adId}`
+      if (it.rule !== 'adset') continue
+      const k = `adset|${it.adsetId}`
       spend.set(k, (spend.get(k) || 0) + r.spend * it.share.spend)
     }
   }
