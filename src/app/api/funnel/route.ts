@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { getFunnel } from '@/lib/funnel-cache'
+import { getFunnel, getFunnelNode } from '@/lib/funnel-cache'
+import { parseNode } from '@/lib/funnel-nodes'
 import {
   resolveRange,
   CAMPAIGNS,
@@ -135,7 +136,14 @@ export async function GET(request: Request) {
 
   const range = resolveRange(rangeParam, rawStart, rawEnd)
 
-  if (campaign !== 'master' && !CAMPAIGNS.some((c) => c.slug === campaign)) {
+  // ?node= (2026-11-13): master | funnel:<key> | umbrella:<slug> | campaign:<meta|google>:<key>[|<funnel>].
+  // Without it the response is the legacy one, byte for byte.
+  const nodeParam = (searchParams.get('node') || '').trim()
+  if (nodeParam && !parseNode(nodeParam)) {
+    return NextResponse.json({ error: `Unknown node "${nodeParam}"` }, { status: 400, headers })
+  }
+
+  if (!nodeParam && campaign !== 'master' && !CAMPAIGNS.some((c) => c.slug === campaign)) {
     return NextResponse.json(
       { error: `Unknown campaign "${campaign}"`, campaigns: [...UMBRELLA_ORDER] },
       { status: 400, headers }
@@ -154,7 +162,9 @@ export async function GET(request: Request) {
     // for every instance and viewer; the 05:45 cron and cache/clear keep it warm. ?nocache=1
     // forces a rebuild only when the cached build is older than an hour. meta.range is
     // re-stamped with what THIS request asked for (the entry is shared across range names).
-    const data = await getFunnel({ range, campaign, channel }, searchParams.get('nocache') === '1')
+    const data = nodeParam
+      ? await getFunnelNode({ range, node: nodeParam, channel }, searchParams.get('nocache') === '1')
+      : await getFunnel({ range, campaign, channel }, searchParams.get('nocache') === '1')
     const out = (data as any)?.meta?.range ? { ...data, meta: { ...(data as any).meta, range } } : data
     return NextResponse.json(out, { headers })
   } catch (err) {

@@ -1,0 +1,135 @@
+{
+ "campaignId": "120230443711160087",
+ "since": "2026-11-01",
+ "until": "2026-11-12",
+ "builtAt": "2026-11-13T09:29:42.691Z",
+ "source": "fb-dashboard/raw/adsets.json",
+ "adsets": [
+  {
+   "id": "120242483030710087",
+   "name": "Interesi - Bella",
+   "spend": 3142.75,
+   "impressions": 197856,
+   "linkClicks": 2023
+  },
+  {
+   "id": "120242407701540087",
+   "name": "Warm - Riva",
+   "spend": 1271.67,
+   "impressions": 26355,
+   "linkClicks": 707
+  },
+  {
+   "id": "120230444224880087",
+   "name": "Warm - Angle 2: Value vs cost breakdown",
+   "spend": 601.34,
+   "impressions": 26855,
+   "linkClicks": 722
+  },
+  {
+   "id": "120230444876360087",
+   "name": "Warm - Angle 3: Social proof",
+   "spend": 497.16,
+   "impressions": 17867,
+   "linkClicks": 499
+  },
+  {
+   "id": "120250998496590087",
+   "name": "Warm - Angle 2: Value vs cost breakdown - LP B",
+   "spend": 495.26,
+   "impressions": 21660,
+   "linkClicks": 627
+  },
+  {
+   "id": "120250998496560087",
+   "name": "Warm - Angle 3: Social proof - LP B",
+   "spend": 494.73,
+   "impressions": 19601,
+   "linkClicks": 530
+  },
+  {
+   "id": "120242483930080087",
+   "name": "Interesi - Ohana",
+   "spend": 376.61,
+   "impressions": 13049,
+   "linkClicks": 345
+  },
+  {
+   "id": "120230451135060087",
+   "name": "Warm - Angle 5: Emotional Reconnection",
+   "spend": 296.4,
+   "impressions": 7845,
+   "linkClicks": 235
+  },
+  {
+   "id": "120230445249100087",
+   "name": "Warm - Angle 4: Risk reversal",
+   "spend": 291.29,
+   "impressions": 14549,
+   "linkClicks": 272
+  },
+  {
+   "id": "120250998496620087",
+   "name": "Warm - Angle 5: Emotional Reconnection - LP B",
+   "spend": 290.64,
+   "impressions": 12463,
+   "linkClicks": 314
+  },
+  {
+   "id": "120250998496570087",
+   "name": "Warm - Angle 4: Risk reversal - LP B",
+   "spend": 289.46,
+   "impressions": 15896,
+   "linkClicks": 319
+  },
+  {
+   "id": "120249275347240087",
+   "name": "Warm - Angle 2: Value vs cost breakdown - AI Form",
+   "spend": 0,
+   "impressions": 0,
+   "linkClicks": 0
+  },
+  {
+   "id": "120249275224910087",
+   "name": "Warm - Angle 3: Social proof - AI Form",
+   "spend": 0,
+   "impressions": 0,
+   "linkClicks": 0
+  },
+  {
+   "id": "120249275175670087",
+   "name": "Warm - Angle 5: Emotional Reconnection - AI Forma",
+   "spend": 0,
+   "impressions": 0,
+   "linkClicks": 0
+  },
+  {
+   "id": "120242485305100087",
+   "name": "Interesi - Riva",
+   "spend": 0,
+   "impressions": 0,
+   "linkClicks": 0
+  },
+  {
+   "id": "120242482933180087",
+   "name": "Warm - Riva - Copy",
+   "spend": 0,
+   "impressions": 0,
+   "linkClicks": 0
+  },
+  {
+   "id": "120242405785910087",
+   "name": "Warm - Ohana",
+   "spend": 0,
+   "impressions": 0,
+   "linkClicks": 0
+  },
+  {
+   "id": "120242405745140087",
+   "name": "Warm - Bella - 2",
+   "spend": 0,
+   "impressions": 0,
+   "linkClicks": 0
+  }
+ ]
+}

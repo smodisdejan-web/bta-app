@@ -18,6 +18,7 @@
 
 import { unstable_cache, revalidateTag } from 'next/cache'
 import { loadBusinessFunnel, resolveRange, type Channel, type ResolvedRange } from './business-funnel'
+import { loadFunnelNode, loadFunnelIndex } from './funnel-nodes'
 
 export const FUNNEL_CACHE_TAG = 'funnel'
 const DAY_S = 24 * 60 * 60
@@ -59,4 +60,34 @@ export async function getFunnel(o: FunnelOpts, nocache = false): Promise<FunnelR
 /** Resolve a named range the way /api/funnel does (Europe/Ljubljana "today"). */
 export function funnelOptsForRange(range: string, campaign = 'master', channel: Channel = 'all'): FunnelOpts {
   return { range: resolveRange(range, '', ''), campaign, channel }
+}
+
+// ─── Node API (2026-11-13) ──────────────────────────────────────────────────
+// Same Data Cache, own keys. master / umbrella nodes reuse the cached legacy build as their base,
+// so ?node=master and ?campaign=master can never disagree.
+const NODE_KEY_VERSION = 'funnel-node-v1'
+export type NodeCacheOpts = { range: ResolvedRange; node: string; channel: Channel }
+
+export async function getFunnelNode(o: NodeCacheOpts, nocache = false) {
+  const tag = `${FUNNEL_CACHE_TAG}:node:${o.range.from}:${o.range.to}:${o.node}:${o.channel}`
+  const build = async () => {
+    const m = /^umbrella:([a-z]+)$/.exec(o.node)
+    const legacy = o.node === 'master' ? 'master' : m ? m[1] : null
+    const base = legacy ? await getFunnel({ range: o.range, campaign: legacy, channel: o.channel }, nocache) : undefined
+    return loadFunnelNode({ node: o.node, range: o.range, channel: o.channel, base })
+  }
+  if (nocache) return build()
+  return unstable_cache(build, [NODE_KEY_VERSION, o.range.from, o.range.to, o.node, o.channel], {
+    tags: [FUNNEL_CACHE_TAG, tag],
+    revalidate: DAY_S,
+  })()
+}
+
+export async function getFunnelIndex(o: { range: ResolvedRange; channel: Channel }, nocache = false) {
+  const build = () => loadFunnelIndex(o)
+  if (nocache) return build()
+  return unstable_cache(build, [NODE_KEY_VERSION, 'index', o.range.from, o.range.to, o.channel], {
+    tags: [FUNNEL_CACHE_TAG, `${FUNNEL_CACHE_TAG}:index:${o.range.from}:${o.range.to}:${o.channel}`],
+    revalidate: DAY_S,
+  })()
 }

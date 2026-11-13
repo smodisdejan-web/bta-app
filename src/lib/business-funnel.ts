@@ -697,6 +697,8 @@ export interface BookingRow {
    * channel-split key; `campaign` is the fallback signal for it (see lib/booking-channel.ts).
    */
   source: string
+  /** bookings_api.landing_page — Acq sheet column M, normalised to /path (goolets.net) or host/path */
+  landingPage: string
 }
 
 function coverageOf(days: string[]): Coverage {
@@ -1029,6 +1031,7 @@ async function loadBookings(): Promise<{ rows: BookingRow[]; coverage: Coverage;
         inquiryDay: toDay(r.inquiry_date ?? ''),
         campaign: String(r.campaign ?? ''),
         rvc: num(r.rvc),
+        landingPage: String(r.landing_page ?? '').trim(),
         source: String(r.source ?? '')
           .toLowerCase()
           .trim(),
