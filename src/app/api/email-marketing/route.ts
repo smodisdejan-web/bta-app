@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import {
   fetchTab,
-  fetchHubspotContacts,
+  fetchHubspotContactsAll,
   fetchStreakSync,
   fetchBookings,
   fetchEmailHealth,
@@ -31,7 +31,7 @@ export async function GET() {
     }
 
     const [hsContacts, streakLeads, bookings, health, growth] = await Promise.all([
-      fetchHubspotContacts(fetchSheetFn),
+      fetchHubspotContactsAll(fetchSheetFn), // 2026-11-13 (Dejan OK): all inquiry forms, not only MULTISTEP/Chat
       fetchStreakSync(fetchSheetFn),
       fetchBookings(fetchSheetFn),
       fetchEmailHealth(fetchSheetFn),
