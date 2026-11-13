@@ -37,6 +37,7 @@ import {
   type NodeScope,
   type RawStepValues,
   type ResolvedRange,
+  lpKeyOf,
 } from './business-funnel'
 import { matchSourceToCampaignCandidates } from './fuzzy-match'
 import {
@@ -53,6 +54,8 @@ import {
   LP_FUNNEL_OVERRIDES,
   UMBRELLA_FUNNEL,
   itemFunnel,
+  abOf,
+  LEAD_FORM_LP,
   type FunnelKey,
   type ItemRule,
 } from './funnel-groups'
@@ -62,8 +65,8 @@ type FunnelResponse = Awaited<ReturnType<typeof loadBusinessFunnel>>
 
 // ─── Public types ───────────────────────────────────────────────────────────
 
-export type NodeType = 'master' | 'funnel' | 'umbrella' | 'campaign' | 'adset' | 'ad'
-export type NodeLevel = 'funnel' | 'campaign' | 'adset' | 'ad'
+export type NodeType = 'master' | 'funnel' | 'umbrella' | 'campaign' | 'adset' | 'ad' | 'lp'
+export type NodeLevel = 'funnel' | 'campaign' | 'adset' | 'ad' | 'lp'
 
 export interface NodeValues {
   impressions: number | null
@@ -97,6 +100,11 @@ export interface NodeChild {
   path?: string[]
   /** single-yacht rule that placed this item when it is not its campaign's funnel */
   movedBy?: 'adset' | 'ad'
+  /** landing page rows: full URL */
+  url?: string
+  /** landing page rows: declared A/B pair */
+  abGroup?: string
+  abVariant?: 'A' | 'B'
   /** true = the value is ALLOCATED (BOFU ad set split from MTD shares), not measured. */
   estimate: NodeEstimate
 }
@@ -174,6 +182,17 @@ interface Assignment {
   bofuLeadsBy: { utm: number; sp: number; default: number }
   /** leads whose candidate ads sit in different funnels (kept in the campaign's base funnel) */
   funnelAmbiguousLeads: number
+  /** landing page (host+path/) of each lead (HubSpot first_url via e-mail), null = unknown */
+  leadLp: (string | null)[]
+  /** landing page of each booking (Acq landing via bookings_ads, else bookings_api.landing_page) */
+  bookingLp: (string | null)[]
+  /** GA4 paid session rows with their funnel / campaign / ad set / ad context */
+  ga4: { day: string; lp: string; channel: 'meta' | 'google' | 'other'; sessions: number; funnel: FunnelKey | null; campaignBase: string | null; slug: string | null; adsetId: string | null; adId: string | null }[]
+  /** ad → landing page */
+  adLp: (adId: string | null) => string | null
+  /** landing page labels / urls / ad sources */
+  lpUrl: Map<string, string>
+  googleLpImprFactor: (campaign: string, day: string) => number
 }
 
 const ONE: MetaShare = { impressions: 1, clicks: 1, clicksAll: 1, spend: 1 }
@@ -326,7 +345,7 @@ function assignmentOf(ds: Datasets): Assignment {
         if (f) out = [{ funnel: f, child: childOf(id, f), share: ONE, estimate: false }]
       }
       for (const p of out) {
-        if (p.child !== id) label(p.child, `${campaign} · ${p.funnel === 'asset' ? 'single-yacht items' : FUNNEL_BY_KEY.get(p.funnel)?.label || p.funnel}`, 'meta')
+        if (p.child !== id) label(p.child, isBofu(campaign) ? `BOFU - Landing Attainable Luxury · ${p.funnel === BOFU_FUNNEL_YACHT ? 'Bella, Riva, Ohana' : 'generic'}` : `${campaign} · ${FUNNEL_BY_KEY.get(p.funnel)?.label || p.funnel}`, 'meta')
       }
     }
     partsCache.set(key, out)
@@ -498,7 +517,99 @@ function assignmentOf(ds: Datasets): Assignment {
     return out
   }
 
+  // ── Landing pages (part 3) ──
+  const adLp = (adId: string | null) => (adId ? ds.lp.adLanding.get(adId)?.lp || null : null)
+  const lpUrl = new Map<string, string>()
+  for (const v of ds.lp.adLanding.values()) if (!lpUrl.has(v.lp)) lpUrl.set(v.lp, v.url || `https://${v.lp}`)
+  for (const v of ds.lp.googleLp) if (!lpUrl.has(v.lp)) lpUrl.set(v.lp, v.url.split('?')[0] || `https://${v.lp}`)
+  // lead → e-mail (streak_full rows carry none: borrow it from the matching streak_sync row) → HubSpot first_url
+  const emailByKey = ds.lp.streakEmail
+  const hsByEmail = new Map<string, { lp: string; url: string; day: string }>()
+  for (const c of ds.lp.hsContacts) {
+    const cur = hsByEmail.get(c.email)
+    if (!cur || (c.day && c.day < cur.day)) hsByEmail.set(c.email, { lp: c.lp, url: c.url, day: c.day })
+  }
+  for (const c of hsByEmail.values()) if (!lpUrl.has(c.lp)) lpUrl.set(c.lp, c.url || `https://${c.lp}`)
+  const leadLp: (string | null)[] = ds.streak.rows.map((l, i) => {
+    if (leadFunnel[i] === undefined) return null
+    const email = l.email || emailByKey.get(`${l.day}|${l.sp}|${l.ai}`) || ''
+    return email ? hsByEmail.get(email)?.lp || null : null
+  })
+  const baLanding = new Map<string, string>()
+  for (const r of ds.bookingAds) {
+    if (r.storno) continue
+    const k = `${r.email}|${r.month}`
+    const lp = /lead\s*form/i.test(r.landing) ? LEAD_FORM_LP : r.landing && /\//.test(r.landing) ? lpKeyOf(r.landing.split('/')[0], '/' + r.landing.split('/').slice(1).join('/')) : ''
+    if (lp && !baLanding.has(k)) baLanding.set(k, lp)
+  }
+  const bookingLp: (string | null)[] = ds.bookings.rows.map((b) => {
+    const fromAcq = b.email ? baLanding.get(`${b.email}|${b.month}`) : undefined
+    if (fromAcq) return fromAcq
+    const v = (b.landingPage || '').trim()
+    if (!v) return null
+    if (/lead\s*form/i.test(v)) return LEAD_FORM_LP
+    if (v.startsWith('/')) return lpKeyOf('goolets.net', v)
+    return lpKeyOf(v.split('/')[0], '/' + v.split('/').slice(1).join('/'))
+  })
+  lpUrl.set(LEAD_FORM_LP, 'Meta instant form (FB Lead Form)')
+  // GA4 paid sessions → context (utm_campaign = Streak SOURCE PLACEMENT for Meta, the campaign name for Google)
+  const gaCache = new Map<string, { funnel: FunnelKey | null; campaignBase: string | null; slug: string | null; adsetId: string | null; adId: string | null }>()
+  const ga4 = ds.lp.ga4Utm.map((r) => {
+    const s = r.sourceMedium
+    const channel: 'meta' | 'google' | 'other' = /face|insta|fb|meta|social|\big\b/.test(s) ? 'meta' : /google|adwords/.test(s) ? 'google' : 'other'
+    const k = `${channel}|${r.utmCampaign}|${r.utmContent}|${r.day.slice(0, 7)}`
+    let c = gaCache.get(k)
+    if (!c) {
+      c = { funnel: null, campaignBase: null, slug: null, adsetId: null, adId: null }
+      if (channel === 'google') {
+        let name = r.utmCampaign
+        try { name = decodeURIComponent(name.replace(/\+/g, ' ')) } catch {}
+        const g = googleNames.get(nk(name))
+        if (g) { c.campaignBase = campaignId('google', g); c.slug = adSlug('google', g); c.funnel = googleFunnel(g) }
+      } else if (channel === 'meta') {
+        const rows = ds.utmRows.get(nk(r.utmCampaign)) || []
+        const names = [...new Set(rows.map((u) => metaNames.get(nk(u.campaign)) || u.campaign))]
+        let name = names.length ? pin(names, r.day) : null
+        if (!name) {
+          const cands = matchSourceToCampaignCandidates(r.utmCampaign.toLowerCase(), allMeta)
+          if (cands.length) name = pin(cands, r.day)
+        }
+        if (name) {
+          c.campaignBase = campaignId('meta', name); c.slug = adSlug('meta', name)
+          const mine = rows.filter((u) => nk(u.campaign) === nk(name!))
+          const content = r.utmContent
+          let ad = /^\d{6,}$/.test(content) && adsInfo.has(content) ? adsInfo.get(content)! : null
+          if (!ad && content && content !== '(not set)') {
+            const hits = [...adsInfo.values()].filter((x) => x.campaignBase === c!.campaignBase && nk(x.name) === nk(content))
+            if (hits.length === 1) ad = hits[0]
+          }
+          const adsetIds = [...new Set(mine.map((u) => u.adsetId).filter(Boolean))]
+          c.adId = ad ? ad.id.split(':')[2] : null
+          c.adsetId = ad ? ad.adsetId : adsetIds.length === 1 ? adsetIds[0] : null
+          const adsetName = c.adsetId ? adsetsInfo.get(c.adsetId)?.name || mine.find((u) => u.adsetId === c!.adsetId)?.adset || null : null
+          const base = c.slug ? UMBRELLA_FUNNEL[c.slug] ?? null : null
+          c.funnel = adsetName || CAMPAIGN_FUNNEL.has(nk(name)) ? itemFunnel(name, adsetName, null, base).funnel
+            : isBofu(name) ? (BOFU_YACHT_SP.test(r.utmCampaign.toLowerCase()) ? BOFU_FUNNEL_YACHT : BOFU_FUNNEL_GENERIC) : base
+        }
+      }
+      gaCache.set(k, c)
+    }
+    return { day: r.day, lp: r.lp, channel, sessions: r.sessions, ...c }
+  })
+
+  // landing_page_view can report more impressions than the campaign itself (one ad, several final
+  // URLs): scale a campaign-day's LP impressions down to the campaign's own figure.
+  const gDay = new Map<string, number>(), gLp = new Map<string, number>()
+  for (const r of ds.google.rows) gDay.set(`${nk(r.campaign)}|${r.day}`, (gDay.get(`${nk(r.campaign)}|${r.day}`) || 0) + r.impressions)
+  for (const r of ds.lp.googleLp) gLp.set(`${nk(r.campaign)}|${r.day}`, (gLp.get(`${nk(r.campaign)}|${r.day}`) || 0) + r.impressions)
+  const googleLpImprFactor = (campaign: string, day: string) => {
+    const k = `${nk(campaign)}|${day}`; const s = gLp.get(k) || 0; const d = gDay.get(k) ?? s
+    return s > d && s > 0 ? d / s : 1
+  }
+
   const a: Assignment = {
+    googleLpImprFactor,
+    leadLp, bookingLp, ga4, adLp, lpUrl,
     metaParts, items, bofuMode, googleFunnel, leadFunnel, leadChild, leadCampaign, leadAdset, leadAd, leadCampaignBy,
     bookingFunnel, bookingChild, bookingCampaign, bookingAdset, bookingAd, lpFunnel, labels,
     splitCampaigns, splitAdsets, adsets: adsetsInfo, ads: adsInfo, bofuLeadsBy, funnelAmbiguousLeads: funnelAmbiguous,
@@ -618,23 +729,32 @@ export function itemScope(ds: Datasets, node: string): NodeScope | null {
   }
 }
 
-interface Ctx { funnel: FunnelKey | null; campaignBase: string | null; slug: string | null; adsetId: string | null; adId: string | null }
-type ItemAcc = Acc & { label: string; platform: 'meta' | 'google' | null; path: string[]; leadsPartial: number; movedBy?: 'adset' | 'ad'; type: NodeType }
+interface Ctx { funnel: FunnelKey | null; campaignBase: string | null; slug: string | null; adsetId: string | null; adId: string | null; lp: string | null }
+type ItemAcc = Acc & { label: string; platform: 'meta' | 'google' | null; path: string[]; leadsPartial: number; movedBy?: 'adset' | 'ad'; type: NodeType | 'lp'; url?: string; lpSeen: boolean; spendApprox: boolean }
+
+export type RollLevel = 'campaign' | 'adset' | 'ad' | 'lp' | 'node'
 
 /**
- * Flat list of every item of `level` inside a node (`inNode` on the row context). Meta spend comes
- * from the campaign feed × the item's share of that campaign-day, so Σ items + remainder = node to
- * the cent; campaign-days with no ad set / ad feed stay in the remainder at those levels.
+ * Every row (Meta spend, Google spend, Streak lead, booking, GA4 paid session) with its context
+ * (funnel, campaign, ad set, ad, landing page), filtered by `inNode` and keyed by `level`.
+ * Meta spend = campaign feed × the item's share of that campaign-day, so Σ items + remainder = node.
+ * `googleFromLp` takes Google spend from landing_page_view (needed whenever the landing page
+ * matters) instead of daily_api.
  */
 function rollupLevel(
   ds: Datasets, A: Assignment, from: string, to: string, channel: Channel, bo: AggOpts,
-  level: 'campaign' | 'adset' | 'ad', inNode: (c: Ctx) => boolean
+  level: RollLevel, inNode: (c: Ctx) => boolean, googleFromLp = level === 'lp'
 ): Map<string, ItemAcc> {
   const out = new Map<string, ItemAcc>()
   const inR = (d: string) => d >= from && d <= to
   const fl = (f: FunnelKey | null) => (f ? FUNNEL_BY_KEY.get(f)?.label || f : '')
   const campLabel = (base: string | null) => (base ? (A.labels.get(base)?.label || base) : '')
-  const keyOf = (c: Ctx): { key: string; label: string; platform: 'meta' | 'google' | null; path: string[]; movedBy?: 'adset' | 'ad' } | null => {
+  const keyOf = (c: Ctx): { key: string; label: string; platform: 'meta' | 'google' | null; path: string[]; movedBy?: 'adset' | 'ad'; url?: string } | null => {
+    if (level === 'node') return { key: 'node', label: '', platform: null, path: [] }
+    if (level === 'lp') {
+      if (!c.lp) return null
+      return { key: c.lp, label: c.lp, platform: null, path: [], url: A.lpUrl.get(c.lp) || `https://${c.lp}` }
+    }
     if (level === 'campaign') {
       if (!c.campaignBase) return null
       const key = A.splitCampaigns.has(c.campaignBase) && c.funnel ? qualify(c.campaignBase, c.funnel) : c.campaignBase
@@ -650,12 +770,11 @@ function rollupLevel(
     }
     if (!c.adId) return null
     const info = A.ads.get(c.adId)
-    const moved = info && info.rule === 'adset' ? 'adset' as const : undefined
-    return { key: adNodeId(c.adId), label: info?.name || c.adId, platform: 'meta', path: [fl(c.funnel), campLabel(c.campaignBase), info?.adset || ''], movedBy: moved }
+    return { key: adNodeId(c.adId), label: info?.name || c.adId, platform: 'meta', path: [fl(c.funnel), campLabel(c.campaignBase), info?.adset || ''] }
   }
-  const get = (k: ReturnType<typeof keyOf> & {}) => {
+  const get = (k: NonNullable<ReturnType<typeof keyOf>>) => {
     let a = out.get(k.key)
-    if (!a) out.set(k.key, (a = { ...acc(), label: k.label, platform: k.platform, path: k.path, leadsPartial: 0, movedBy: k.movedBy, type: level }))
+    if (!a) out.set(k.key, (a = { ...acc(), label: k.label, platform: k.platform, path: k.path, leadsPartial: 0, movedBy: k.movedBy, type: level === 'node' ? 'campaign' : level, url: k.url, lpSeen: false, spendApprox: false }))
     return a
   }
   if (chanIn(channel, 'meta')) {
@@ -663,9 +782,12 @@ function rollupLevel(
     const add = (campaign: string, day: string, m: { impressions: number; clicks: number; spend: number }, withSpend: boolean, withCounts: boolean) => {
       const slug = adSlug('meta', campaign)
       const base = slug ? campaignId('meta', campaign) : null
-      if (level === 'campaign') {
+      const its = A.items(campaign, day)
+      if (!its) {
+        // no item feed this day: ad set / ad / LP cannot see it (it stays in the remainder)
+        if (level === 'adset' || level === 'ad' || level === 'lp') return
         for (const p of A.metaParts(campaign, day)) {
-          const c: Ctx = { funnel: p.funnel, campaignBase: base, slug, adsetId: null, adId: null }
+          const c: Ctx = { funnel: p.funnel, campaignBase: base, slug, adsetId: null, adId: null, lp: null }
           if (!inNode(c)) continue
           const k = keyOf(c); if (!k) continue
           const a = get(k)
@@ -675,55 +797,78 @@ function rollupLevel(
         }
         return
       }
-      const its = A.items(campaign, day)
-      if (!its) return
       for (const it of its) {
-        const c: Ctx = { funnel: it.funnel, campaignBase: base, slug, adsetId: it.adsetId, adId: it.adId }
+        const lp = A.adLp(it.adId)
+        const c: Ctx = { funnel: it.funnel, campaignBase: base, slug, adsetId: it.adsetId, adId: it.adId, lp }
         if (!inNode(c)) continue
         const k = keyOf(c); if (!k) continue
         const a = get(k)
         if (withCounts) { a.impressions += m.impressions * it.share.impressions; a.clicks += m.clicks * it.share.clicks }
         if (withSpend) a.spend += m.spend * it.share.spend
+        if (lp && it.adId && ds.lp.adLanding.get(it.adId)?.source !== 'ad_preview') a.spendApprox = true
       }
     }
     for (const r of ds.fb.rows) if (inR(r.day)) add(r.campaign, r.day, r, !useApi, true)
     if (useApi) for (const r of ds.fbSpend.rows) if (inR(r.day)) add(r.campaign, r.day, { impressions: 0, clicks: 0, spend: r.spend }, true, false)
   }
-  if (level === 'campaign' && chanIn(channel, 'google')) for (const r of ds.google.rows) {
-    if (!inR(r.day)) continue
-    const f = A.googleFunnel(r.campaign)
-    const c: Ctx = { funnel: f, campaignBase: campaignId('google', r.campaign), slug: adSlug('google', r.campaign), adsetId: null, adId: null }
-    if (!inNode(c)) continue
-    const k = keyOf(c); if (!k) continue
-    const a = get(k)
-    a.impressions += r.impressions; a.clicks += r.clicks; a.spend += r.spend
+  if ((level === 'campaign' || level === 'lp' || level === 'node') && chanIn(channel, 'google')) {
+    if (googleFromLp) for (const r of ds.lp.googleLp) {
+      if (!inR(r.day)) continue
+      const g = A.googleFunnel(r.campaign)
+      const c: Ctx = { funnel: g, campaignBase: campaignId('google', r.campaign), slug: adSlug('google', r.campaign), adsetId: null, adId: null, lp: r.lp }
+      if (!inNode(c)) continue
+      const k = keyOf(c); if (!k) continue
+      const a = get(k)
+      a.impressions += r.impressions * A.googleLpImprFactor(r.campaign, r.day); a.clicks += r.clicks; a.spend += r.spend
+    } else for (const r of ds.google.rows) {
+      if (!inR(r.day)) continue
+      const f = A.googleFunnel(r.campaign)
+      const c: Ctx = { funnel: f, campaignBase: campaignId('google', r.campaign), slug: adSlug('google', r.campaign), adsetId: null, adId: null, lp: null }
+      if (!inNode(c)) continue
+      const k = keyOf(c); if (!k) continue
+      const a = get(k)
+      a.impressions += r.impressions; a.clicks += r.clicks; a.spend += r.spend
+    }
   }
   ds.streak.rows.forEach((l, i) => {
     if (!inR(l.day)) return
     if (channel !== 'all' && leadChannel(l) !== channel) return
-    const c: Ctx = { funnel: A.leadFunnel[i], campaignBase: A.leadCampaign[i], slug: ds.leadSlugs[i], adsetId: A.leadAdset[i], adId: A.leadAd[i] }
+    const c: Ctx = { funnel: A.leadFunnel[i], campaignBase: A.leadCampaign[i], slug: ds.leadSlugs[i], adsetId: A.leadAdset[i], adId: A.leadAd[i], lp: A.leadLp[i] }
     if (!inNode(c)) return
     const k = keyOf(c); if (!k) return
     const a = get(k)
     a.leads++
     if (l.ai >= 50) a.ql++
     if (level === 'campaign' && A.leadCampaignBy[i] === 'fuzzy') a.leadsPartial++
+    if (level === 'lp') a.leadsPartial++
   })
   ds.bookings.rows.forEach((b, i) => {
     if (b.month < bo.fromM || b.month > bo.toM) return
     if (channel !== 'all' && bookingChannel(b) !== channel) return
-    const c: Ctx = { funnel: A.bookingFunnel[i], campaignBase: A.bookingCampaign[i], slug: ds.bookingSlugs[i], adsetId: A.bookingAdset[i], adId: A.bookingAd[i] }
+    const c: Ctx = { funnel: A.bookingFunnel[i], campaignBase: A.bookingCampaign[i], slug: ds.bookingSlugs[i], adsetId: A.bookingAdset[i], adId: A.bookingAd[i], lp: A.bookingLp[i] }
     if (!inNode(c)) return
     const k = keyOf(c); if (!k) return
     const a = get(k)
     a.bookings++
     a.revenue += b.rvc
   })
+  // GA4 paid sessions (visitors), by the same context
+  for (const g of A.ga4) {
+    if (!inR(g.day)) continue
+    if (channel !== 'all' && g.channel !== channel) continue
+    const c: Ctx = { funnel: g.funnel, campaignBase: g.campaignBase, slug: g.slug, adsetId: g.adsetId, adId: g.adId, lp: g.lp }
+    if (!inNode(c)) continue
+    const k = keyOf(c); if (!k) continue
+    const a = get(k)
+    a.lpViews = (a.lpViews ?? 0) + g.sessions
+    a.lpSeen = true
+  }
   return out
 }
 
 function nodePredicate(type: NodeType, key: string): (c: Ctx) => boolean {
   if (type === 'master') return () => true
+  if (type === 'lp') { const lp = lpOfNode(key); return (c) => c.lp === lp }
   if (type === 'funnel') return (c) => c.funnel === key
   if (type === 'umbrella') return (c) => c.slug === key
   if (type === 'campaign') {
@@ -736,12 +881,14 @@ function nodePredicate(type: NodeType, key: string): (c: Ctx) => boolean {
     : (c) => c.adId === p.id
 }
 
-const LEVEL_ORDER: NodeLevel[] = ['funnel', 'campaign', 'adset', 'ad']
+export const lpOfNode = (id: string) => { const k = id.replace(/^lp:/, ''); try { return decodeURIComponent(k) } catch { return k } }
+export const lpNodeId = (lp: string) => `lp:${encodeURIComponent(lp)}`
 function levelsFor(type: NodeType, key: string): NodeLevel[] {
-  if (type === 'master') return ['funnel', 'campaign', 'adset', 'ad']
-  if (type === 'funnel' || type === 'umbrella') return ['campaign', 'adset', 'ad']
-  if (type === 'campaign') return /^campaign:meta:/.test(key) ? ['adset', 'ad'] : []
-  if (type === 'adset') return ['ad']
+  if (type === 'master') return ['funnel', 'campaign', 'adset', 'ad', 'lp']
+  if (type === 'funnel' || type === 'umbrella') return ['campaign', 'adset', 'ad', 'lp']
+  if (type === 'campaign') return /^campaign:meta:/.test(key) ? ['adset', 'ad', 'lp'] : ['lp']
+  if (type === 'adset') return ['ad', 'lp']
+  if (type === 'lp') return ['campaign', 'adset', 'ad']
   return []
 }
 
@@ -944,6 +1091,7 @@ export function parseNode(node: string): { type: NodeType; key: string } | null 
   if (parseCampaignId(n)) return { type: 'campaign', key: n }
   const it = parseItemId(n)
   if (it) return { type: it.kind, key: n }
+  if (/^lp:.+/.test(n)) return { type: 'lp', key: n }
   return null
 }
 
@@ -979,7 +1127,7 @@ export async function loadFunnelNode(o: NodeOpts) {
   const defaultLevel: NodeLevel | null = parsed.type === 'master' ? 'funnel' : levels[0] ?? null
   const level: NodeLevel | null = o.level ?? defaultLevel
   if (o.level && !levels.includes(o.level)) throw new Error(`level "${o.level}" is not available on ${o.node} (levels: ${levels.join(', ') || 'none'})`)
-  const resp: FunnelResponse =
+  let resp: FunnelResponse =
     o.base ||
     (await loadBusinessFunnel({
       start: o.range.from,
@@ -998,8 +1146,50 @@ export async function loadFunnelNode(o: NodeOpts) {
   const def = parsed.type === 'umbrella' ? CAMPAIGNS.find((c) => c.slug === parsed.key)! : null
   const fdef = parsed.type === 'funnel' ? FUNNEL_BY_KEY.get(parsed.key as FunnelKey)! : null
   const leadsNa = !!fdef?.leadsNa || (parsed.type === 'campaign' && false)
+  const lpKey = parsed.type === 'lp' ? lpOfNode(parsed.key) : null
+  const lpAgg = (f: string, t2: string, ob: AggOpts): RawStepValues => {
+    const m = rollupLevel(ds, A, f, t2, o.channel, ob, 'node', (c) => c.lp === lpKey, true).get('node')
+    return {
+      impressions: m ? m.impressions : 0, clicks: m ? m.clicks : 0, clicksAll: m ? m.clicks : 0,
+      lpViews: m?.lpSeen ? m.lpViews : 0, lpViewsOrganic: null, leads: m ? m.leads : 0, ql: m ? m.ql : 0, qlAll: m ? m.ql : 0,
+      bookings: m ? m.bookings : 0, revenue: m ? m.revenue : 0, bookingsCohort: 0, revenueCohort: 0, spend: m ? m.spend : 0,
+    }
+  }
   const aggNode = (f: string, t: string, ob: AggOpts): RawStepValues =>
-    scope ? aggregateScope(ds, scope, f, t, o.channel, ob) : aggregate(ds, def, f, t, o.channel, ob)
+    lpKey ? lpAgg(f, t, ob) : scope ? aggregateScope(ds, scope, f, t, o.channel, ob) : aggregate(ds, def, f, t, o.channel, ob)
+  if (lpKey) {
+    // A landing page is not one of the funnel's own scopes: rebuild the steps from its rows.
+    const c = lpAgg(from, to, bo)
+    const pwin = (resp.meta as any).benchmark?.window
+    const pv = pwin?.from ? lpAgg(pwin.from, pwin.to, { fromM: pwin.from.slice(0, 7), toM: pwin.to.slice(0, 7) }) : null
+    const keys = ['impressions', 'clicks', 'lpViews', 'leads', 'ql', 'bookings'] as const
+    const val = (v: RawStepValues, k: typeof keys[number]) => (k === 'ql' ? v.qlAll : (v as any)[k]) as number | null
+    const SRC: Record<string, string> = {
+      impressions: 'Meta ads pointing here (ad → LP map) + Google landing_page_view', clicks: 'Meta link_click + Google clicks to this page',
+      lpViews: 'GA4 · paid sessions on this page', leads: 'Streak leads whose HubSpot first_url is this page', ql: 'Streak · AI≥50', bookings: 'Acq sheet landing',
+    }
+    resp = {
+      ...resp,
+      steps: keys.map((k, i) => {
+        const prevK = i > 0 ? keys[i - 1] : null
+        const cv = prevK ? (val(c, prevK) ? (val(c, k) ?? 0) / (val(c, prevK) as number) : null) : null
+        const bm = prevK && pv ? (val(pv, prevK) ? (val(pv, k) ?? 0) / (val(pv, prevK) as number) : null) : null
+        const st = cv == null || bm == null || bm === 0 ? null : cv / bm >= 0.95 ? 'g' : cv / bm >= 0.8 ? 'a' : 'r'
+        const step: any = { key: k, label: resp.steps.find((s) => s.key === k)?.label || k, value: val(c, k), cvrFromPrev: cv, benchmarkCvr: bm, status: st, source: SRC[k] }
+        if (k === 'bookings') step.revenue = c.revenue
+        if (k === 'ql') step.qualityLeadsIncludingAsset = c.qlAll
+        return step
+      }),
+      efficiency: {
+        spend: c.spend, cpm: c.impressions ? (c.spend / (c.impressions as number)) * 1000 : null, cpc: c.clicks ? c.spend / (c.clicks as number) : null,
+        cpl: c.leads ? c.spend / (c.leads as number) : null, cpql: c.qlAll ? c.spend / (c.qlAll as number) : null,
+        costPerBooking: c.bookings ? c.spend / (c.bookings as number) : null, roas: resp.efficiency.roas !== null && c.spend > 0 ? c.revenue / c.spend : null,
+      },
+      campaignMembership: { selected: parsed.key, umbrellas: [], unattributed: { leads: 0, qualityLeads: 0, bookings: 0, revenue: 0, spend: 0, members: [] } },
+      campaignSummary: null,
+      targets: null,
+    } as FunnelResponse
+  }
   const cur = aggNode(from, to, bo)
   const nodeValues = rawToValues(cur, roasOk, leadsNa, true)
   const notes: string[] = []
@@ -1074,6 +1264,12 @@ export async function loadFunnelNode(o: NodeOpts) {
         estimate: { spend: a.est, impressions: a.est, clicks: a.est },
       })
     }
+    // Visitors per campaign (part 3): GA4 paid sessions by utm_campaign, same campaign ids.
+    const gaCamp = rollupLevel(ds, A, from, to, o.channel, bo, 'campaign', nodePredicate(parsed.type, parsed.key), false)
+    for (const ch of children) {
+      const g = gaCamp.get(ch.id)
+      if (g?.lpSeen) { ch.values = { ...ch.values, lpViews: g.lpViews }; ch.quality = { ...ch.quality, lpViews: 'exact' } }
+    }
     children.sort((x, y) => (y.values.spend || 0) - (x.values.spend || 0))
     // keep rawKids aligned with the sorted children
     rawKids.length = 0
@@ -1082,23 +1278,32 @@ export async function loadFunnelNode(o: NodeOpts) {
   }
   else if (level && level !== 'funnel') {
     // flat list of every campaign / ad set / ad inside this node (part 2)
-    const roll = rollupLevel(ds, A, from, to, o.channel, bo, level, nodePredicate(parsed.type, parsed.key))
-    for (const [id, a] of roll) {
-      const raw = valuesOf({ ...a, lpViews: null }, roasOk, false)
+    const roll = rollupLevel(ds, A, from, to, o.channel, bo, level, nodePredicate(parsed.type, parsed.key), level === 'lp' || parsed.type === 'lp')
+    for (const [id0, a] of roll) {
+      const id = level === 'lp' ? lpNodeId(id0) : id0
+      const raw = valuesOf({ ...a, lpViews: a.lpSeen ? a.lpViews : level === 'lp' ? 0 : null }, roasOk, false)
       const shown = leadsNa ? { ...raw, leads: null, ql: null } : raw
       const baseName = a.label.split(' · ')[0]
       const c0 = level === 'campaign' ? CAMPAIGNS.find((c) => c.slug === adSlug(a.platform || 'meta', baseName)) : null
+      const ab = level === 'lp' ? abOf(id0) : null
       children.push({
-        id, type: level, label: a.label, platform: a.platform, nonKpi: !!c0?.nonKpi, drillable: level !== 'ad',
+        id, type: level as NodeType, label: a.label, platform: a.platform, nonKpi: !!c0?.nonKpi, drillable: level !== 'ad',
         values: shown,
-        quality: { spend: a.est ? 'approx' : 'exact', lpViews: 'n/a', leads: leadsNa ? 'n/a' : a.leadsPartial ? 'partial' : 'exact' },
+        quality: {
+          spend: a.est || a.spendApprox ? 'approx' : 'exact',
+          lpViews: a.lpSeen || level === 'lp' ? 'exact' : 'n/a',
+          leads: leadsNa ? 'n/a' : a.leadsPartial ? 'partial' : 'exact',
+        },
         estimate: { spend: a.est, impressions: a.est, clicks: a.est },
         path: a.path.filter(Boolean),
+        ...(a.url ? { url: a.url } : {}),
+        ...(ab ? ab : {}),
         ...(a.movedBy ? { movedBy: a.movedBy } : {}),
-      })
+      } as NodeChild)
     }
     children.sort((x, y) => (y.values.spend || 0) - (x.values.spend || 0))
     for (const c of children) rawKids.push({ ...c.values })
+    if (level === 'lp') notes.push('level=lp: Meta spend reaches a landing page through the ad → LP map (ad_landing: ad preview, else the page HubSpot first_url shows for that ad); Google spend through landing_page_view (PMax / video spend without a landing page stays in the remainder); Visitors = GA4 paid sessions on the page; Leads / QL = HubSpot first_url of the lead\'s e-mail (quality.leads \'partial\'); bookings = Acq landing. Everything without a landing page stays in the remainder.')
     if (level === 'adset' || level === 'ad') notes.push(`level=${level}: Meta spend / impressions / clicks per ${level} come from the ${level === 'ad' ? 'fb_ad_daily_api (only on campaign-days where it is complete) or ' : ''}fb_adset_daily_api feed; campaign-days without it, Google spend and leads / bookings without a unique ${level} stay in the remainder. Leads reach an ${level} only through a UNIQUE utm_mapping row (quality.leads 'exact').`)
   }
   void pushChild
@@ -1111,6 +1316,16 @@ export async function loadFunnelNode(o: NodeOpts) {
   const remainder = level
     ? { label: '(not attributed lower)', values: remainderOf(reconcileBase, children, rawKids) }
     : null
+  // Visitors below the funnel level come from GA4 by utm / landing page, the node's own Visitors
+  // from GA4 by landing path: two different cuts, so they are never subtracted from each other.
+  if (remainder && level !== 'funnel' && parsed.type !== 'lp') {
+    remainder.values.lpViews = null
+    if (children.some((c) => c.values.lpViews != null)) notes.push(`Visitors on ${level} rows are GA4 paid sessions matched by utm_campaign / utm_content${level === 'lp' ? ' and landing page' : ''}; the node's own Visitors step is GA4 by landing path. They are different cuts, so remainder.lpViews is null rather than a difference of the two.`)
+  }
+  if (remainder && parsed.type === 'lp') {
+    const s = children.reduce((n, c) => n + (c.values.lpViews ?? 0), 0)
+    remainder.values.lpViews = Math.max(0, (nodeValues.lpViews ?? 0) - s)
+  }
   if (parsed.type === 'master') {
     const qlStep = resp.steps.find((s) => s.key === 'ql')
     notes.push(
@@ -1214,7 +1429,17 @@ export async function loadFunnelNode(o: NodeOpts) {
     label = scope!.label
     path.push({ id: parsed.key, label })
   }
-  const node: NodeInfo = { id: parsed.type === 'master' ? 'master' : o.node, type: parsed.type, label, path }
+  let nodeUrl: string | undefined
+  if (parsed.type === 'lp') {
+    label = lpKey!
+    nodeUrl = A.lpUrl.get(lpKey!) || `https://${lpKey}`
+    path.push({ id: lpNodeId(lpKey!), label })
+  }
+  const node: NodeInfo & { url?: string; abGroup?: string; abVariant?: 'A' | 'B' } = {
+    id: parsed.type === 'master' ? 'master' : parsed.type === 'lp' ? lpNodeId(lpKey!) : o.node, type: parsed.type, label, path,
+    ...(nodeUrl ? { url: nodeUrl } : {}),
+    ...(parsed.type === 'lp' && abOf(lpKey!) ? abOf(lpKey!)! : {}),
+  }
 
   return {
     ...resp,
@@ -1273,6 +1498,13 @@ export async function loadFunnelIndex(o: { range: ResolvedRange; channel: Channe
     for (const [id, a] of roll) {
       const lab = A.labels.get(id)
       items.push({ id, type: 'campaign', label: lab?.label || id, path: ['All campaigns · Master', f.label], platform: lab?.platform || null, funnel: f.key, spend: r2(a.spend), leads: f.leadsNa ? null : a.leads })
+    }
+  }
+  if (o.all) {
+    const roll = rollupLevel(ds, A, from, to, o.channel, bo, 'lp', () => true, true)
+    for (const [lp, x] of roll) {
+      if (!(x.spend > 0) && !x.leads && !x.bookings && !(x.lpViews && x.lpViews > 20)) continue
+      items.push({ id: lpNodeId(lp), type: 'lp', label: lp, path: ['All campaigns · Master'], platform: null, funnel: null, spend: r2(x.spend), leads: x.leads, url: x.url } as any)
     }
   }
   if (o.all) for (const lv of ['adset', 'ad'] as const) {

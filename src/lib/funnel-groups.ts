@@ -131,3 +131,21 @@ export function itemFunnel(
   }
   return { funnel: base, rule: 'umbrella' }
 }
+
+// ─── Landing page A/B pairs (part 3) — declared, never guessed ──────────────
+export interface AbGroup { group: string; variants: { A: string; B: string } }
+export const AB_GROUPS: AbGroup[] = [
+  // Meta A/B test 880748921763008 (13.–27.11.2026), one campaign per variant
+  { group: 'Dalmatinčki Offseason 2027', variants: { A: 'goolets.net/croatia-before-and-after-the-crowds/', B: 'goolets.net/before-and-after-the-crowds-croatia/' } },
+  // BOFU original ad sets vs the "- LP B" ad set copies (the A page is shared with Organic and CLG Google)
+  { group: 'BOFU Unmatched Value', variants: { A: 'goolets.net/luxury-yacht-charters-at-unmatched-value/', B: 'goolets.net/luxury-yacht-charters-unmatched-value/' } },
+]
+export function abOf(lp: string): { abGroup: string; abVariant: 'A' | 'B' } | null {
+  for (const g of AB_GROUPS) {
+    if (g.variants.A === lp) return { abGroup: g.group, abVariant: 'A' }
+    if (g.variants.B === lp) return { abGroup: g.group, abVariant: 'B' }
+  }
+  return null
+}
+/** pseudo landing page for Meta instant-form bookings ("FB Lead Form" in the Acq sheet) */
+export const LEAD_FORM_LP = 'meta-instant-form/'

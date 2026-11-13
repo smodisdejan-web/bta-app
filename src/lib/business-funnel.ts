@@ -685,6 +685,8 @@ export interface LeadRow {
   /** streak_sync.platform — 'facebook' | 'google'. The channel-split key. */
   platform: string
   ai: number
+  /** client e-mail (streak_sync "Name" column); empty on streak_full rows — joined by key in the LP layer */
+  email: string
 }
 export interface BookingRow {
   month: string
@@ -989,6 +991,7 @@ async function loadStreak(): Promise<{ rows: LeadRow[]; coverage: Coverage }> {
       rows.push({
         day,
         sp: String(r['SOURCE PLACEMENT'] ?? '').toLowerCase(),
+        email: String(r.Name ?? r.name ?? '').trim().toLowerCase(),
         detail: String(r['SOURCE DETAIL'] ?? '').toLowerCase(),
         isGoogle: /google|adwords/.test(platform) || /paid_search/i.test(cat),
         platform,
@@ -1216,6 +1219,84 @@ async function loadBookingAds(): Promise<BookingAdRow[]> {
   }
 }
 
+// ─── Landing page feeds (part 3, 2026-11-13) ────────────────────────────────
+
+/** host (no www.) + path (lower-case, trailing slash, no query) */
+export function lpKeyOf(host: string, path: string): string {
+  const h = String(host || '').trim().toLowerCase().replace(/^www\./, '')
+  let p = String(path || '').split('?')[0].split('#')[0].trim().toLowerCase()
+  try { p = decodeURIComponent(p) } catch {}
+  // Google final URLs carry ValueTrack placeholders such as /{ignore} — not part of the page
+  p = p.replace(/\/?\{[^}]*\}/g, '')
+  if (!p.startsWith('/')) p = '/' + p
+  if (!p.endsWith('/')) p += '/'
+  return h ? h + p : ''
+}
+export function lpKeyOfUrl(url: string): string {
+  try { const u = new URL(url); return lpKeyOf(u.hostname, u.pathname) } catch { return '' }
+}
+
+export interface AdLanding { adId: string; lp: string; url: string; source: string }
+export interface GoogleLpDay { day: string; campaign: string; lp: string; url: string; impressions: number; clicks: number; spend: number }
+export interface Ga4UtmDay { day: string; lp: string; sourceMedium: string; utmCampaign: string; utmContent: string; sessions: number }
+export interface HsContact { email: string; day: string; lp: string; url: string; source: string }
+
+async function softRows(key: string, tab: string): Promise<any[]> {
+  try { return await cached(key, () => fetchRows(tab)) } catch (e) {
+    console.warn(`[funnel] ${tab} unavailable`, (e as Error).message)
+    return []
+  }
+}
+
+async function loadLpFeeds(): Promise<{ adLanding: Map<string, AdLanding>; googleLp: GoogleLpDay[]; ga4Utm: Ga4UtmDay[]; hsContacts: HsContact[]; streakEmail: Map<string, string> }> {
+  return cached('lpFeeds', async () => {
+    const [al, gl, gu, hs] = await Promise.all([
+      softRows('raw:ad_landing', SHEETS_TABS.AD_LANDING),
+      softRows('raw:google_lp', SHEETS_TABS.GOOGLE_LP_DAILY),
+      softRows('raw:ga4_utm', SHEETS_TABS.GA4_PAID_LP_UTM),
+      softRows('raw:hs_all', SHEETS_TABS.HUBSPOT_CONTACTS_ALL),
+    ])
+    // streak_sync carries the client e-mail ("Name"); streak_full does not — key both by day|placement|AI
+    const ss = await softRows('raw:streak_sync', SHEETS_TABS.STREAK_SYNC)
+    const streakEmail = new Map<string, string>()
+    for (const r of ss) {
+      const day = toDay(r['Inquiry Recieved'] ?? r.inquiry_recieved)
+      const email = String(r.Name ?? '').trim().toLowerCase()
+      if (day && email.includes('@')) streakEmail.set(`${day}|${String(r['SOURCE PLACEMENT'] ?? '').toLowerCase()}|${num(r.AI ?? r.ai)}`, email)
+    }
+    const adLanding = new Map<string, AdLanding>()
+    for (const r of al) {
+      const adId = String(r.ad_id ?? '').trim()
+      const lp = lpKeyOf(r.host, r.path)
+      if (adId && lp) adLanding.set(adId, { adId, lp, url: String(r.url ?? ''), source: String(r.source ?? '') })
+    }
+    const googleLp: GoogleLpDay[] = []
+    for (const r of gl) {
+      const day = toDay(r.date); const lp = lpKeyOf(r.host, r.path)
+      if (!day || !lp) continue
+      googleLp.push({ day, campaign: String(r.campaign ?? ''), lp, url: String(r.url ?? ''), impressions: num(r.impr), clicks: num(r.clicks), spend: num(r.cost) })
+    }
+    const ga4Utm: Ga4UtmDay[] = []
+    for (const r of gu) {
+      const d = String(r.date ?? '')
+      const day = /^\d{8}$/.test(d) ? `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}` : toDay(d)
+      const lp = lpKeyOf(r.host, r.landing_page)
+      if (!day || !lp) continue
+      ga4Utm.push({ day, lp, sourceMedium: String(r.source_medium ?? '').toLowerCase(), utmCampaign: String(r.utm_campaign ?? ''), utmContent: String(r.utm_content ?? ''), sessions: num(r.sessions) })
+    }
+    const hsContacts: HsContact[] = []
+    for (const r of hs) {
+      if (!['1', 'true', 'yes'].includes(String(r.is_inquiry ?? '').trim().toLowerCase())) continue
+      const email = String(r.email ?? '').trim().toLowerCase()
+      const url = String(r.first_url ?? '')
+      const lp = lpKeyOfUrl(url)
+      if (!email || !lp) continue
+      hsContacts.push({ email, day: toDay(r.createdate), lp, url: url.split('?')[0], source: String(r.hs_analytics_source ?? '') })
+    }
+    return { adLanding, googleLp, ga4Utm, hsContacts, streakEmail }
+  })
+}
+
 async function loadUtmIndex(): Promise<Map<string, string>> {
   return cached('utmIndex', async () => {
     const byUtm = new Map<string, string>()
@@ -1378,6 +1459,8 @@ export interface Datasets {
   ads: { rows: AdDayRow[]; coverage: Coverage }
   /** Acq-sheet bookings with ad / ad set / campaign ids (bookings_ads). */
   bookingAds: BookingAdRow[]
+  /** Landing-page feeds: ad → LP, Google LP × day, GA4 paid sessions by utm, HubSpot first_url. */
+  lp: { adLanding: Map<string, AdLanding>; googleLp: GoogleLpDay[]; ga4Utm: Ga4UtmDay[]; hsContacts: HsContact[]; streakEmail: Map<string, string> }
   /** memoised leadSlug per streak row index */
   leadSlugs: (string | null)[]
   /** memoised bookingSlug per bookings row index */
@@ -2280,7 +2363,7 @@ function statusFor(cvr: number | null, bench: number | null): 'g' | 'a' | 'r' | 
  * layer (lib/funnel-nodes.ts) works on the very same rows as /api/funnel — one read, one truth.
  */
 export async function getFunnelDatasets(): Promise<Datasets> {
-  const [fb, fbSpend, google, bing, chatgpt, ga4, streak, bookings, utmIndex, utmRows, adsets, ads, bookingAds] = await Promise.all([
+  const [fb, fbSpend, google, bing, chatgpt, ga4, streak, bookings, utmIndex, utmRows, adsets, ads, bookingAds, lp] = await Promise.all([
     loadFb(),
     loadFbSpend(),
     loadGoogle(),
@@ -2294,6 +2377,7 @@ export async function getFunnelDatasets(): Promise<Datasets> {
     loadFbAdsets(),
     loadFbAds(),
     loadBookingAds(),
+    loadLpFeeds(),
   ])
   return {
     fb,
@@ -2309,6 +2393,7 @@ export async function getFunnelDatasets(): Promise<Datasets> {
     adsets,
     ads,
     bookingAds,
+    lp,
     leadSlugs: streak.rows.map((r) => (isFlatChannelLead(r) ? null : leadSlug(r, utmIndex))),
     bookingSlugs: bookings.rows.map((r) => bookingSlug(r)),
   }

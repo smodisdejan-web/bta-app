@@ -66,6 +66,9 @@ export const SHEETS_TABS = {
   BING_DAILY: 'bing_ads_api', // Microsoft Advertising, live 2026-09-04 (12-week test)
   CHATGPT_DAILY: 'chatgpt_ads_api', // OpenAI Ads Manager, oCPC campaign live 2026-09-14
   FB_AD_DAILY: 'fb_ad_daily_api', // Meta ad × day, all campaigns (2026-11-13) — code/facebook/sync-fb-ad-daily.js
+  AD_LANDING: 'ad_landing', // Meta ad → landing page (ad preview / HubSpot observed) — code/facebook/sync-goolets-ad-landing.js
+  GOOGLE_LP_DAILY: 'google_lp_daily_api', // Google landing_page_view × campaign × day — code/google-ads/sync-goolets-lp-view.js
+  GA4_PAID_LP_UTM: 'ga4_paid_lp_utm', // GA4 paid sessions host × LP × utm_campaign × utm_content × day — code/ga4/sync-goolets-paid-lp-utm.js
   BOOKINGS_ADS: 'bookings_ads', // Acq sheet paid bookings + ad/ad set/campaign ids from the J/L hyperlinks — code/sheets/sync-goolets-booking-ads.js
   FB_ADSET_DAILY: 'fb_adset_daily_api', // Meta ad set × day (BOFU first, 2026-11-13) — code/facebook/sync-fb-adset-daily.js
   // 2026-09-25: HubSpot paid contacts per (day, channel) + misrouted ChatGPT/Bing leads
