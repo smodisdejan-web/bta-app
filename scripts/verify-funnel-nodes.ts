@@ -7,8 +7,8 @@
 //    every funnel node = its master child; Σ campaign children + remainder = funnel.
 // 3. BOFU: Σ ad sets (fb_adset_daily_api) = campaign (fb_daily_api) per day.
 import { CAMPAIGNS, getFunnelDatasets, loadBusinessFunnel, resolveRange } from '../src/lib/business-funnel'
-import { loadFunnelNode } from '../src/lib/funnel-nodes'
-import { FUNNELS, BOFU_CAMPAIGN, BOFU_CAMPAIGN_ID } from '../src/lib/funnel-groups'
+import { loadFunnelNode, lpOfNode } from '../src/lib/funnel-nodes'
+import { FUNNELS, BOFU_CAMPAIGN, BOFU_CAMPAIGN_ID, LEAD_FORM_LP } from '../src/lib/funnel-groups'
 
 const arg = (n: string, d: string) => { const i = process.argv.indexOf(`--${n}`); return i > -1 ? process.argv[i + 1] : d }
 const RANGES = arg('ranges', 'this_month,last_month,3m,ytd').split(',')
@@ -87,6 +87,13 @@ async function pool<T>(items: T[], n: number, fn: (t: T) => Promise<void>) {
         const total = k === 'ql' ? qlIncl : (m.values as any)[k]
         const sm = n.children.reduce((x: number, c: any) => x + ((c.values as any)[k] ?? 0), 0) + ((n.remainder?.values as any)?.[k] ?? 0)
         if (!near(total, sm, k === 'spend' || k === 'revenue' ? 0.05 : 0.5)) fail(`${rk} master level=${lv} ${k}: ${total} ≠ Σ ${sm}`)
+      }
+      if (lv === 'lp') {
+        // canonical LP keys only: host/path/ with no query, fragment, {ValueTrack}, whitespace, double slash, undefined / null / (not set) segment
+        const okKey = (k: string) => k === LEAD_FORM_LP || (/^[a-z0-9.-]+\/([^/\s?#{}&=]+\/)*$/.test(k) && !k.split('/').some((x) => ['undefined', 'null', 'nan', '(not set)'].includes(x)))
+        const junk = n.children.map((c: any) => lpOfNode(c.id)).filter((k: string) => !okKey(k))
+        if (junk.length) fail(`${rk} level=lp junk LP keys: ${junk.slice(0, 5).join(' | ')}`)
+        if (new Set(n.children.map((c: any) => c.id)).size !== n.children.length) fail(`${rk} level=lp duplicate LP ids`)
       }
       const cv: any = n.coverage
       console.log(`  level=${lv.padEnd(8)} items ${String(n.children.length).padStart(4)} · leads ${cv?.leads.share == null ? 'n/a' : (cv.leads.share * 100).toFixed(1) + ' %'} · QL ${cv?.ql.share == null ? 'n/a' : (cv.ql.share * 100).toFixed(1) + ' %'} · bookings ${cv?.bookings.share == null ? 'n/a' : (cv.bookings.share * 100).toFixed(1) + ' %'} · spend ${cv?.spend.share == null ? 'n/a' : (cv.spend.share * 100).toFixed(1) + ' %'}`)

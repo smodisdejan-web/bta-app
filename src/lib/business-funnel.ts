@@ -1222,15 +1222,24 @@ async function loadBookingAds(): Promise<BookingAdRow[]> {
 // ─── Landing page feeds (part 3, 2026-11-13) ────────────────────────────────
 
 /** host (no www.) + path (lower-case, trailing slash, no query) */
+/** Path segments that are artefacts, never part of a page: JS `undefined` / `null` appended to a URL. */
+const LP_JUNK_SEGMENTS = new Set(['undefined', 'null', 'nan'])
+/**
+ * Canonical landing-page key `host/path/`: lower case, no www, no query / fragment, no ValueTrack
+ * `{…}` placeholders (host or path), no empty / `undefined` / `null` segments. Returns '' when the
+ * page is unknown: GA4 `(not set)`, or a "path" that is free text (whitespace) rather than a URL path.
+ */
 export function lpKeyOf(host: string, path: string): string {
-  const h = String(host || '').trim().toLowerCase().replace(/^www\./, '')
+  const h = String(host || '').trim().toLowerCase().replace(/^www\./, '').replace(/\{[^}]*\}/g, '')
   let p = String(path || '').split('?')[0].split('#')[0].trim().toLowerCase()
   try { p = decodeURIComponent(p) } catch {}
+  if (p === '(not set)' || /^\/?\(not set\)\/?$/.test(p)) return ''
   // Google final URLs carry ValueTrack placeholders such as /{ignore} — not part of the page
-  p = p.replace(/\/?\{[^}]*\}/g, '')
-  if (!p.startsWith('/')) p = '/' + p
-  if (!p.endsWith('/')) p += '/'
-  return h ? h + p : ''
+  p = p.replace(/\{[^}]*\}/g, '')
+  if (/\s/.test(p)) return ''
+  const segs = p.split('/').filter((x) => x && !LP_JUNK_SEGMENTS.has(x))
+  p = '/' + segs.join('/') + (segs.length ? '/' : '')
+  return h && /^[a-z0-9.-]+$/.test(h) ? h + p : ''
 }
 export function lpKeyOfUrl(url: string): string {
   try { const u = new URL(url); return lpKeyOf(u.hostname, u.pathname) } catch { return '' }
@@ -1280,8 +1289,9 @@ async function loadLpFeeds(): Promise<{ adLanding: Map<string, AdLanding>; googl
     for (const r of gu) {
       const d = String(r.date ?? '')
       const day = /^\d{8}$/.test(d) ? `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}` : toDay(d)
+      // lp '' = GA4 (not set) / junk: the session still counts for its utm (campaign / ad set / ad), not for any page
       const lp = lpKeyOf(r.host, r.landing_page)
-      if (!day || !lp) continue
+      if (!day) continue
       ga4Utm.push({ day, lp, sourceMedium: String(r.source_medium ?? '').toLowerCase(), utmCampaign: String(r.utm_campaign ?? ''), utmContent: String(r.utm_content ?? ''), sessions: num(r.sessions) })
     }
     const hsContacts: HsContact[] = []
