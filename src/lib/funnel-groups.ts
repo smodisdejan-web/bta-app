@@ -18,6 +18,8 @@
 //   - Google "Posamezne ladje - Leads" (several yachts) → EB Croatia
 //   - BROKER partnership → Outside (boost umbrella)
 //   - Lead magnet: leads are n/a — the quiz registrations land in HubSpot, not Streak
+// CONFIRMED by Dejan 2026-11-13: all of the above; plus Turkish single yachts Esma Sultan,
+// Arabella, Makri → Asset (LP paths + TURKEY – Creative Test, whose ad sets are all single-yacht).
 
 import { nk } from './business-funnel'
 
@@ -76,6 +78,10 @@ const CAMPAIGN_FUNNEL_NAMES: [string, FunnelKey][] = [
   ['Tosca - Turkey - Cold - ABO', 'asset'],
   ['Tosca - Turkey - Cold - ABO - LF', 'asset'],
   ['YOLO - August 2026', 'asset'],
+  // 2026-11-13 (Dejan): Turkish single yachts Esma Sultan, Arabella, Makri → Asset as well. The
+  // creative test ran ONLY single-yacht ad sets (Esma Sultan kids, La Bella Vita VO, Tosca Short —
+  // per utm_mapping), so the whole campaign is single-yacht.
+  ['TURKEY – Creative Test – ABO', 'asset'],
 ]
 export const CAMPAIGN_FUNNEL = new Map<string, FunnelKey>(CAMPAIGN_FUNNEL_NAMES.map(([n, f]) => [nk(n), f]))
 
@@ -101,4 +107,6 @@ export const LP_FUNNEL_OVERRIDES: [RegExp, FunnelKey][] = [
   [/^\/charter-yolo/i, 'asset'],
   [/^\/best-superyacht-deal-of-summer-2027-turkey/i, 'asset'],
   [/tosca|belgin/i, 'asset'],
+  // Turkish single yachts (Dejan 2026-11-13): /yacht-rentals/esma-sultan, /…/arabella…, /…/queen-of-makri
+  [/esma|arabella|makri/i, 'asset'],
 ]

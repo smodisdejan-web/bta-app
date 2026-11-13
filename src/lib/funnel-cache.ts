@@ -65,7 +65,7 @@ export function funnelOptsForRange(range: string, campaign = 'master', channel: 
 // ─── Node API (2026-11-13) ──────────────────────────────────────────────────
 // Same Data Cache, own keys. master / umbrella nodes reuse the cached legacy build as their base,
 // so ?node=master and ?campaign=master can never disagree.
-const NODE_KEY_VERSION = 'funnel-node-v1'
+const NODE_KEY_VERSION = 'funnel-node-v2'
 export type NodeCacheOpts = { range: ResolvedRange; node: string; channel: Channel }
 
 export async function getFunnelNode(o: NodeCacheOpts, nocache = false) {
@@ -83,10 +83,10 @@ export async function getFunnelNode(o: NodeCacheOpts, nocache = false) {
   })()
 }
 
-export async function getFunnelIndex(o: { range: ResolvedRange; channel: Channel }, nocache = false) {
+export async function getFunnelIndex(o: { range: ResolvedRange; channel: Channel; umbrellas?: boolean }, nocache = false) {
   const build = () => loadFunnelIndex(o)
   if (nocache) return build()
-  return unstable_cache(build, [NODE_KEY_VERSION, 'index', o.range.from, o.range.to, o.channel], {
+  return unstable_cache(build, [NODE_KEY_VERSION, 'index', o.range.from, o.range.to, o.channel, o.umbrellas ? 'u' : ''], {
     tags: [FUNNEL_CACHE_TAG, `${FUNNEL_CACHE_TAG}:index:${o.range.from}:${o.range.to}:${o.channel}`],
     revalidate: DAY_S,
   })()

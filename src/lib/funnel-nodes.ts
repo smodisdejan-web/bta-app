@@ -749,6 +749,11 @@ export async function loadFunnelNode(o: NodeOpts) {
     previous = { from: pw.from, to: pw.to, values: rawToValues(pv, whole, leadsNa, true) }
   }
   const stepKeyMap: Record<string, keyof NodeValues> = { impressions: 'impressions', clicks: 'clicks', lpViews: 'lpViews', leads: 'leads', ql: 'ql', bookings: 'bookings' }
+  // Bookings are month-granular at source: on a window that is not whole months the QL → booking
+  // rate compares a part-month lead count with whole-month bookings. Flag it and drop that
+  // benchmark/status (the rate itself stays, labelled by the flag).
+  const bookingsWindowMismatch = meta.bookingsWindow.from !== from || meta.bookingsWindow.to !== to
+  const roundCount = (v: any) => (typeof v === 'number' ? Math.round(v) : v)
   const steps = resp.steps.map((s) => {
     const k = stepKeyMap[s.key]
     let prevVal = previous && k ? previous.values[k] : null
@@ -756,7 +761,15 @@ export async function loadFunnelNode(o: NodeOpts) {
       const pv = aggregate(ds, null, pw.from, pw.to, o.channel, { fromM: pw.from.slice(0, 7), toM: pw.to.slice(0, 7) })
       prevVal = pv.ql
     }
-    const st: any = { ...s, previousValue: prevVal }
+    // Step values are whole numbers, like `values` (the BOFU ad set split allocates fractions).
+    const st: any = {
+      ...s,
+      value: roundCount(s.value),
+      previousValue: roundCount(prevVal),
+      ...(s.key === 'clicks' ? { clicksAll: roundCount((s as any).clicksAll) } : {}),
+      ...(s.channels ? { channels: s.channels.map((c: any) => ({ ...c, value: roundCount(c.value) })) } : {}),
+    }
+    if (s.key === 'bookings' && bookingsWindowMismatch) { st.benchmarkCvr = null; st.status = null; st.benchmarkSuppressed = 'bookingsWindowMismatch' }
     if (leadsNa && (s.key === 'leads' || s.key === 'ql')) { st.value = null; st.cvrFromPrev = null; st.status = null; st.previousValue = null }
     if (s.key === 'bookings' && previous) st.previousRevenue = previous.values.revenue
     return st
@@ -790,7 +803,18 @@ export async function loadFunnelNode(o: NodeOpts) {
 
   return {
     ...resp,
-    meta: { ...meta, node: node.id, notes: [...(meta.notes || []), ...notes] },
+    meta: {
+      ...meta,
+      node: node.id,
+      bookingsWindowMismatch,
+      notes: [
+        ...(meta.notes || []),
+        ...notes,
+        ...(bookingsWindowMismatch
+          ? [`bookingsWindowMismatch: bookings cover whole months ${meta.bookingsWindow.from}…${meta.bookingsWindow.to}, the window is ${from}…${to}. The QL → booking benchmark and status are suppressed on this view (steps[bookings].benchmarkSuppressed).`]
+          : []),
+      ],
+    },
     steps,
     node,
     funnels: FUNNEL_LIST,
@@ -808,7 +832,7 @@ export type FunnelNodeResponse = Awaited<ReturnType<typeof loadFunnelNode>>
 
 // ─── Search index ───────────────────────────────────────────────────────────
 
-export async function loadFunnelIndex(o: { range: ResolvedRange; channel: Channel }) {
+export async function loadFunnelIndex(o: { range: ResolvedRange; channel: Channel; umbrellas?: boolean }) {
   const master = await loadFunnelNode({ node: 'master', range: o.range, channel: o.channel })
   const items: { id: string; type: NodeType; label: string; path: string[]; platform: 'meta' | 'google' | null; funnel: FunnelKey | null; spend: number | null; leads: number | null }[] = []
   items.push({ id: 'master', type: 'master', label: 'All campaigns · Master', path: [], platform: null, funnel: null, spend: master.values.spend, leads: master.values.leads })
@@ -833,9 +857,10 @@ export async function loadFunnelIndex(o: { range: ResolvedRange; channel: Channe
       items.push({ id, type: 'campaign', label: lab?.label || id, path: ['All campaigns · Master', f.label], platform: lab?.platform || null, funnel: f.key, spend: r2(a.spend), leads: f.leadsNa ? null : a.leads })
     }
   }
-  for (const c of CAMPAIGNS) {
+  // Umbrellas are an internal grouping: only listed with ?umbrellas=1, labelled as such.
+  if (o.umbrellas) for (const c of CAMPAIGNS) {
     const fk = UMBRELLA_FUNNEL[c.slug] ?? null
-    items.push({ id: `umbrella:${c.slug}`, type: 'umbrella', label: c.name, path: ['All campaigns · Master', ...(fk ? [FUNNEL_BY_KEY.get(fk)!.label] : [])], platform: null, funnel: fk, spend: null, leads: null })
+    items.push({ id: `umbrella:${c.slug}`, type: 'umbrella', label: `${c.name} (internal umbrella)`, path: ['All campaigns · Master', ...(fk ? [FUNNEL_BY_KEY.get(fk)!.label] : [])], platform: null, funnel: fk, spend: null, leads: null })
   }
   return { meta: { range: o.range, channel: o.channel, effectiveWindow: meta.effectiveWindow, generatedAt: new Date().toISOString() }, items }
 }
