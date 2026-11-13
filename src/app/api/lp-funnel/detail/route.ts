@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { fetchTab, fetchHubspotContacts, fetchStreakSync, fetchGA4LandingPages, fetchBookings } from '@/lib/sheetsData'
+import { fetchTab, fetchHubspotContactsAll, fetchStreakSync, fetchGA4LandingPages, fetchBookings } from '@/lib/sheetsData'
 import { joinHubspotStreak, filterByDateRange, aggregateGA4ByLP, buildEmailToLpMap, resolveBookingLp, filterBookingsByBookingMonth, type JoinedLead } from '@/lib/lp-attribution'
 
 export const dynamic = 'force-dynamic'
@@ -50,7 +50,7 @@ export async function GET(request: Request) {
     }
 
     const [hsContacts, streakLeads, ga4Rows, bookings] = await Promise.all([
-      fetchHubspotContacts(fetchSheetFn),
+      fetchHubspotContactsAll(fetchSheetFn),
       fetchStreakSync(fetchSheetFn),
       fetchGA4LandingPages(fetchSheetFn),
       fetchBookings(fetchSheetFn),

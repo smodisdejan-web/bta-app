@@ -49,6 +49,7 @@ export const SHEETS_TABS = {
 
   BOOKINGS: 'bookings_api', // CUTOVER 2026-06-15: web-app feed for 'bookings' is stale (no June); bookings_api is a fresh mirror of the live tab (sync-goolets-bookings.js)
   HUBSPOT_CONTACTS: 'hubspot_contacts',
+  HUBSPOT_CONTACTS_ALL: 'hubspot_contacts_all', // 4c1a full sync from 2026-01-01, NO form filter (CLG/Turkey/Gulet Expert NEW forms, CSY, concierge) — is_inquiry, first_host, form_name
   GA4_LANDING_PAGES: 'ga4_landing_pages',
   GA4_AI_SESSIONS: 'ga4_ai_sessions', // AI-assistant sessions, split by hostName (code/ga4/sync-goolets-ai-sessions.js). Separate tab because ga4_landing_pages carries no host — see that script's header.
   GA4_HOST_SESSIONS: 'ga4_host_sessions', // ALL sessions per host × date — denominator for "how much of this site's traffic is AI".

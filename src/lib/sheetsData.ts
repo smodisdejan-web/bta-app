@@ -2010,6 +2010,32 @@ export async function fetchHubspotContacts(
   }
 }
 
+/**
+ * hubspot_contacts_all (2026-11-13): every HubSpot contact created since 2026-01-01, with no form
+ * filter. `hubspot_contacts` (4c1 delta) only keeps contacts whose form name contains
+ * MULTISTEP / Multi / Chat, so the CLG, Turkey NEW, Gulet Expert, croatiansuperyachts and
+ * concierge forms never reached the LP attribution. Only inquiries (is_inquiry = 1) are returned,
+ * which is what the old tab contained by construction (inquiry forms only).
+ * Caveat: the tab starts 2026-01-01 — windows before that have no HubSpot leads here.
+ */
+export async function fetchHubspotContactsAll(
+  fetchSheetFn: (args: { sheetUrl: string; tab: string }) => Promise<any[][]>,
+  sheetUrl?: string
+): Promise<HubSpotContactRow[]> {
+  const url = sheetUrl || getSheetsUrl() || DEFAULT_WEB_APP_URL
+  try {
+    const raw = await fetchSheetFn({ sheetUrl: url, tab: SHEETS_TABS.HUBSPOT_CONTACTS_ALL })
+    if (!raw || raw.length < 2) return []
+    const [header, ...data] = raw
+    const iq = header.findIndex((h: any) => String(h || '').trim().toLowerCase() === 'is_inquiry')
+    const kept = iq < 0 ? data : data.filter((r) => ['1', 'true', 'yes'].includes(String(r[iq] ?? '').trim().toLowerCase()))
+    return mapHubspotContacts([header, ...kept])
+  } catch (error) {
+    console.error('Error fetching hubspot_contacts_all:', error)
+    return []
+  }
+}
+
 export async function fetchStreakSyncFb(
   fetchSheetFn: (args: { sheetUrl: string; tab: string }) => Promise<any[][]>,
   sheetUrl?: string

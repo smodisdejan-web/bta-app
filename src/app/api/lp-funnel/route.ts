@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import {
   fetchTab,
-  fetchHubspotContacts,
+  fetchHubspotContactsAll,
   fetchStreakSync,
   fetchGA4LandingPages,
   fetchBookings,
@@ -51,7 +51,7 @@ export async function GET(request: Request) {
     }
 
     const [hsContacts, streakLeads, ga4Rows, bookings] = await Promise.all([
-      fetchHubspotContacts(fetchSheetFn),
+      fetchHubspotContactsAll(fetchSheetFn),
       fetchStreakSync(fetchSheetFn),
       fetchGA4LandingPages(fetchSheetFn),
       fetchBookings(fetchSheetFn),
