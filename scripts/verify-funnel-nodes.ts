@@ -80,7 +80,7 @@ async function pool<T>(items: T[], n: number, fn: (t: T) => Promise<void>) {
       const rem = (m.remainder?.values as any)?.[k] ?? 0
       if (!near(total, s + rem + lm, k === 'spend' || k === 'revenue' ? 0.05 : 0.5)) fail(`${rk} master ${k}: total ${total} ≠ Σ funnels ${s} + remainder ${rem}`)
     }
-    for (const lv of ['campaign', 'adset', 'ad'] as const) {
+    for (const lv of ['campaign', 'adset', 'ad', 'lp'] as const) {
       const n = await loadFunnelNode({ node: 'master', range, channel: 'all', level: lv })
       for (const k of keys) {
         if (k === 'lpViews') continue
