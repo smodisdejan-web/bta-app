@@ -575,10 +575,15 @@ const funnelRetriable = (status: number) => FUNNEL_RETRY_STATUS.has(status) || s
 const funnelJitter = (ms: number) => Math.round(ms * (0.8 + Math.random() * 0.4))
 
 /** Fetch a tab as an array of objects. Handles both response shapes the web app emits. */
-async function fetchRows(tab: string): Promise<any[]> {
+// Per-attempt timeout (2026-11-14): without one, a hung Apps Script socket waits for undici's
+// 300 s header timeout on EVERY attempt (seen overnight: a cold start hung ~15 min). Core tabs get
+// 120 s per attempt (the 27 MB GA4 tab needs well under that); the optional part 3/4 tabs read
+// through softRows get 90 s × 2 attempts and degrade to stale / empty instead of holding master.
+const FETCH_TIMEOUT_MS = 120_000
+async function fetchRows(tab: string, o: { timeoutMs?: number; attempts?: number } = {}): Promise<any[]> {
   const url = `${SHEET_URL()}?tab=${encodeURIComponent(tab)}`
   let lastErr: unknown = null
-  const attempts = FUNNEL_RETRY_BACKOFF_MS.length + 1
+  const attempts = Math.min(o.attempts ?? Infinity, FUNNEL_RETRY_BACKOFF_MS.length + 1)
 
   for (let attempt = 0; attempt < attempts; attempt++) {
     let reason = ''
@@ -586,7 +591,7 @@ async function fetchRows(tab: string): Promise<any[]> {
     // will never fix itself). A network error leaves it false and gets the backoff.
     let fatal = false
     try {
-      const res = await fetch(url, { cache: 'no-store', next: { revalidate: 0 } })
+      const res = await fetch(url, { cache: 'no-store', next: { revalidate: 0 }, signal: AbortSignal.timeout(o.timeoutMs ?? FETCH_TIMEOUT_MS) } as any)
       if (!res.ok) {
         lastErr = new Error(`${tab}: ${res.status} ${res.statusText}`)
         if (!funnelRetriable(res.status)) { fatal = true; throw lastErr }
@@ -633,7 +638,7 @@ async function fetchRows(tab: string): Promise<any[]> {
     }
 
     const wait = FUNNEL_RETRY_BACKOFF_MS[attempt]
-    if (wait == null) break
+    if (wait == null || attempt + 1 >= attempts) break
     console.warn(`[funnel] retry ${attempt + 1}/${FUNNEL_RETRY_BACKOFF_MS.length} ${tab}: ${reason} — waiting ${wait} ms`)
     await new Promise((r) => setTimeout(r, funnelJitter(wait)))
   }
@@ -1249,6 +1254,14 @@ export function lpKeyOfUrl(url: string): string {
 export interface BodyAssetDay { day: string; adId: string; assetId: string; impressions: number; clicks: number; linkClicks: number; spend: number }
 /** One text of one Meta ad (fb_ad_texts): field body|title|description|cta; assetId '' for the creative's own text. */
 export interface AdText { adId: string; field: 'body' | 'title' | 'description' | 'cta'; assetId: string; text: string; resolved: boolean }
+/** Fill ds.copy (part 4) on demand; a failing tab degrades to empty / stale, never throws. */
+export async function ensureCopyFeeds(ds: Datasets): Promise<Datasets> {
+  if (ds.copy.texts.length || ds.copy.bodyDaily.length) return ds
+  const c = await loadCopyFeeds()
+  ds.copy.bodyDaily = c.bodyDaily
+  ds.copy.texts = c.texts
+  return ds
+}
 async function loadCopyFeeds(): Promise<{ bodyDaily: BodyAssetDay[]; texts: AdText[] }> {
   return cached('copyFeeds', async () => {
     const [bd, tx] = await Promise.all([softRows('raw:fb_ad_body_daily', SHEETS_TABS.FB_AD_BODY_DAILY), softRows('raw:fb_ad_texts', SHEETS_TABS.FB_AD_TEXTS)])
@@ -1274,7 +1287,7 @@ export interface Ga4UtmDay { day: string; lp: string; sourceMedium: string; utmC
 export interface HsContact { email: string; day: string; lp: string; url: string; source: string }
 
 async function softRows(key: string, tab: string): Promise<any[]> {
-  try { return await cached(key, () => fetchRows(tab)) } catch (e) {
+  try { return await cached(key, () => fetchRows(tab, { timeoutMs: 90_000, attempts: 2 })) } catch (e) {
     console.warn(`[funnel] ${tab} unavailable`, (e as Error).message)
     return []
   }
@@ -1494,7 +1507,9 @@ export interface Datasets {
   bookingAds: BookingAdRow[]
   /** Landing-page feeds: ad → LP, Google LP × day, GA4 paid sessions by utm, HubSpot first_url. */
   lp: { adLanding: Map<string, AdLanding>; googleLp: GoogleLpDay[]; ga4Utm: Ga4UtmDay[]; hsContacts: HsContact[]; streakEmail: Map<string, string> }
-  /** Ad copy feeds: body asset × day breakdown and each ad's texts (part 4). */
+  /** Ad copy feeds: body asset × day breakdown and each ad's texts (part 4). Loaded LAZILY by
+   *  ensureCopyFeeds() — only level=copy, copy nodes and the index need them (the 33.5k-row
+   *  fb_ad_body_daily tab takes ~48 s from Apps Script cold); empty until then. */
   copy: { bodyDaily: BodyAssetDay[]; texts: AdText[] }
   /** memoised leadSlug per streak row index */
   leadSlugs: (string | null)[]
@@ -2398,7 +2413,7 @@ function statusFor(cvr: number | null, bench: number | null): 'g' | 'a' | 'r' | 
  * layer (lib/funnel-nodes.ts) works on the very same rows as /api/funnel — one read, one truth.
  */
 export async function getFunnelDatasets(): Promise<Datasets> {
-  const [fb, fbSpend, google, bing, chatgpt, ga4, streak, bookings, utmIndex, utmRows, adsets, ads, bookingAds, lp, copy] = await Promise.all([
+  const [fb, fbSpend, google, bing, chatgpt, ga4, streak, bookings, utmIndex, utmRows, adsets, ads, bookingAds, lp] = await Promise.all([
     loadFb(),
     loadFbSpend(),
     loadGoogle(),
@@ -2413,8 +2428,8 @@ export async function getFunnelDatasets(): Promise<Datasets> {
     loadFbAds(),
     loadBookingAds(),
     loadLpFeeds(),
-    loadCopyFeeds(),
   ])
+  const copy = { bodyDaily: [] as BodyAssetDay[], texts: [] as AdText[] }
   return {
     fb,
     fbSpend,

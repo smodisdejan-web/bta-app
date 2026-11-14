@@ -248,9 +248,13 @@ async function pool<T>(items: T[], n: number, fn: (t: T) => Promise<void>) {
     console.log(`  ${rk}: ${m.children.length} texts · multi-text ads ${multiAds} (Σ parts = ad on ${exact}, a part in the remainder on ${lost.size}) · multi-text share of Meta copy spend ${share(multiSpend, parts.parts.reduce((n, p) => n + p.values.spend, 0))}, of copy leads ${share(multiLeads, parts.parts.reduce((n, p) => n + p.values.leads, 0))} · coverage spend ${cov?.spend.share == null ? 'n/a' : (cov.spend.share * 100).toFixed(1) + ' %'} leads ${cov?.leads.share == null ? 'n/a' : (cov.leads.share * 100).toFixed(1) + ' %'} · remainder flags ${JSON.stringify(fl)}`)
     void checked
     // copy node = its row
-    for (const row of m.children.slice(0, 5)) {
+    for (const row of [...m.children.slice(0, 5), ...m.children.filter((c: any) => c.leadsBelowBookings).slice(0, 3)]) {
       const n: any = await loadFunnelNode({ node: row.id, range, channel: 'all' })
       for (const k of keys6) if (!near(n.values[k], (row.values as any)[k], k === 'spend' || k === 'revenue' ? 0.05 : 0.01)) fail(`${rk} ${row.id} ${k}: node ${n.values[k]} ≠ row ${(row.values as any)[k]}`)
+      const rw: any = row
+      if (!!n.node.leadsBelowBookings !== !!rw.leadsBelowBookings) fail(`${rk} ${row.id} leadsBelowBookings node ${n.node.leadsBelowBookings} ≠ row ${rw.leadsBelowBookings}`)
+      if (JSON.stringify(n.estimate) !== JSON.stringify(rw.estimate)) fail(`${rk} ${row.id} estimate node ≠ row`)
+      for (const g of ['measured', 'estimated'] as const) for (const [k, v] of Object.entries(rw.split?.[g] || {})) if (!near(n.split?.[g]?.[k], v, 0.01)) fail(`${rk} ${row.id} split.${g}.${k} node ${n.split?.[g]?.[k]} ≠ row ${v}`)
       for (const lv of ['ad', 'adset', 'campaign', 'lp'] as const) {
         const l: any = await loadFunnelNode({ node: row.id, range, channel: 'all', level: lv })
         for (const k of keys6) {
