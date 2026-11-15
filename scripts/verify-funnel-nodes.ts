@@ -70,6 +70,8 @@ async function pool<T>(items: T[], n: number, fn: (t: T) => Promise<void>) {
     const m = await loadFunnelNode({ node: 'master', range, channel: 'all' })
     const keys = ['impressions', 'clicks', 'lpViews', 'leads', 'ql', 'bookings', 'revenue', 'spend', 'activeOpps'] as const
     console.log('  master', JSON.stringify(m.values))
+    { const bd = (m as any).bofuSplit?.days; if (bd?.unsplit) fail(`${rk} BOFU split: ${bd.unsplit} real hole day(s) (pending ${bd.pending}, noDelivery ${bd.noDelivery})`); else console.log(`  BOFU days ${JSON.stringify(bd)}`) }
+    { const lmr: any = m.children.find((c: any) => c.id === 'funnel:lead_magnet'); if (!lmr || lmr.values.emails == null) fail(`${rk} master lead_magnet row has no emails`) }
     for (const c of m.children) console.log(`    ${c.id.padEnd(24)} spend ${c.values.spend} leads ${c.values.leads} ql ${c.values.ql} bk ${c.values.bookings} rvc ${c.values.revenue} lp ${c.values.lpViews}${c.estimate.spend ? ' (estimate)' : ''}`)
     console.log('    remainder              ', JSON.stringify(m.remainder?.values))
     const qlIncl = m.steps.find((s: any) => s.key === 'ql')?.qualityLeadsIncludingAsset

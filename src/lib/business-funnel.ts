@@ -1324,8 +1324,8 @@ export function lpKeyOfUrl(url: string): string {
 /** Lead magnet (2026-11-16): quiz e-mails from HubSpot and their later paid Streak inquiry. */
 export type QuizKind = 'matchmaker' | 'csy'
 export interface QuizContact { email: string; day: string; quiz: QuizKind; utmCampaign: string; utmContent: string; utmTerm: string }
-export interface StreakByEmail { day: string; ai: number }
-export async function loadLeadMagnet(): Promise<{ contacts: QuizContact[]; streakByEmail: Map<string, StreakByEmail[]>; streakSince: string }> {
+export interface StreakByEmail { day: string; ai: number; channel?: string }
+export async function loadLeadMagnet(): Promise<{ contacts: QuizContact[]; streakByEmail: Map<string, StreakByEmail[]>; streakSince: string; source: 'streak_email_index' | 'streak_sync' }> {
   return cached('leadMagnet', async () => {
     const [hs, ss] = [await softRows('raw:hs_all', SHEETS_TABS.HUBSPOT_CONTACTS_ALL), await softRows('raw:streak_sync', SHEETS_TABS.STREAK_SYNC)]
     const contacts: QuizContact[] = []
@@ -1340,6 +1340,26 @@ export async function loadLeadMagnet(): Promise<{ contacts: QuizContact[]; strea
       if (!quiz) continue
       contacts.push({ email, day, quiz, utmCampaign: String(r.utm_campaign ?? '').trim(), utmContent: String(r.utm_content ?? '').trim(), utmTerm: String(r.utm_term ?? '').trim() })
     }
+    // ALL Streak boxes by hashed e-mail (streak_email_index); paid-only streak_sync as fallback
+    const idx = await softRows('raw:streak_email_index', SHEETS_TABS.STREAK_EMAIL_INDEX)
+    const byHash = new Map<string, StreakByEmail[]>()
+    let idxSince = '9999'
+    for (const r of idx) {
+      const h = String(r.email_sha256 ?? ''); const day = toDay(r.inquiry_day)
+      if (!h || !day) continue
+      if (day < idxSince) idxSince = day
+      const a = byHash.get(h) || []; a.push({ day, ai: num(r.ai), channel: String(r.source_category ?? '') }); byHash.set(h, a)
+    }
+    if (byHash.size) {
+      const { createHash } = await import('crypto')
+      const streakByEmail = new Map<string, StreakByEmail[]>()
+      for (const k of contacts) {
+        if (streakByEmail.has(k.email)) continue
+        const a = byHash.get(createHash('sha256').update(k.email).digest('hex'))
+        if (a) streakByEmail.set(k.email, [...a].sort((x, y) => (x.day < y.day ? -1 : 1)))
+      }
+      return { contacts, streakByEmail, streakSince: idxSince, source: 'streak_email_index' as const }
+    }
     const streakByEmail = new Map<string, StreakByEmail[]>()
     let since = '9999'
     for (const r of ss) {
@@ -1349,7 +1369,7 @@ export async function loadLeadMagnet(): Promise<{ contacts: QuizContact[]; strea
       const a = streakByEmail.get(email) || []; a.push({ day, ai: num(r.AI ?? r.ai) }); streakByEmail.set(email, a)
     }
     for (const a of streakByEmail.values()) a.sort((x, y) => (x.day < y.day ? -1 : 1))
-    return { contacts, streakByEmail, streakSince: since }
+    return { contacts, streakByEmail, streakSince: since, source: 'streak_sync' as const }
   })
 }
 

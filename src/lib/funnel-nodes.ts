@@ -1093,9 +1093,14 @@ function unqualOf(s: Record<SalesBucket, number> | null) {
   }
 }
 
+/** Smallest previous-period base (denominator) for a step benchmark; below it benchmarkCvr / status are null. */
+export const MIN_BENCH_BASE = 20
+
 // ─── Ad creative preview (2026-11-16) ───────────────────────────────────────
 const META_ACCOUNT = '2422256151414958'
-type CreativeMeta = { body?: string; headline?: string; format?: string; story?: string; ig?: string; thumb?: boolean }
+/** absolute host for assets the portal (other origin) loads; override with BTA_PUBLIC_BASE_URL */
+const PUBLIC_BASE = (process.env.BTA_PUBLIC_BASE_URL || 'https://gooletsaiagent.vercel.app').replace(/\/$/, '')
+type CreativeMeta = { body?: string; headline?: string; format?: string; story?: string; ig?: string; thumb?: boolean; video?: string }
 const CREATIVE_META = (adCreativeMeta as any).ads as Record<string, CreativeMeta>
 /** What the UI needs to show an ad: permanent thumbnail, first texts, landing page, links. */
 export function creativeOf(A: Assignment, adId: string) {
@@ -1103,13 +1108,17 @@ export function creativeOf(A: Assignment, adId: string) {
   const [pageId, postId] = String(m.story || '').split('_')
   return {
     adId,
-    thumbUrl: m.thumb ? `/mtd-thumbs/${adId}.jpg` : null,
+    thumbUrl: m.thumb ? `${PUBLIC_BASE}/mtd-thumbs/${adId}.jpg` : null,
     body: m.body || null,
     headline: m.headline || null,
     landingUrl: A.lpUrl.get(A.adLp(adId) || '') || (A.adLp(adId) ? `https://${A.adLp(adId)}` : null),
     format: m.format || null,
     adsManagerUrl: `https://adsmanager.facebook.com/adsmanager/manage/ads?act=${META_ACCOUNT}&selected_ad_ids=${adId}`,
     postUrl: pageId && postId ? `https://www.facebook.com/${pageId}/posts/${postId}` : null,
+    // tested 16.11. without login: the ad posts open publicly (page title = post text)
+    postUrlPublic: pageId && postId ? true : null,
+    /** the ad's video on the Goolets page (public permalink, tested 16.11.) */
+    videoUrl: m.video || null,
   }
 }
 
@@ -1510,9 +1519,17 @@ export async function loadFunnelNode(o: NodeOpts) {
   const children: NodeChild[] = []
   const rawKids: NodeValues[] = []
   // pending = days after the ad-set feed's last day (the newest day not synced yet) — neutral, not a hole
-  let bofuDays = { feed: 0, approx: 0, unsplit: 0, pending: 0 }
+  // noDelivery = the BOFU campaign spent nothing that day (nothing to split — not a hole)
+  let bofuDays = { feed: 0, approx: 0, unsplit: 0, pending: 0, noDelivery: 0 }
   const adsetMax = ds.adsets.coverage.max || ''
-  for (let d = from; d <= to; d = addDays(d, 1)) { const m = A.bofuMode(d); if (m === 'unsplit' && adsetMax && d > adsetMax) bofuDays.pending++; else bofuDays[m]++ }
+  const bofuSpendDays = new Set(ds.fbSpend.rows.filter((r) => r.campaign === BOFU_CAMPAIGN && r.spend > 0).map((r) => r.day))
+  for (let d = from; d <= to; d = addDays(d, 1)) {
+    const m = A.bofuMode(d)
+    if (m !== 'unsplit') bofuDays[m]++
+    else if (adsetMax && d > adsetMax) bofuDays.pending++
+    else if (!bofuSpendDays.has(d)) bofuDays.noDelivery++
+    else bofuDays.unsplit++
+  }
 
   const pushChild = (c: Omit<NodeChild, 'values'> & { raw: NodeValues }) => {
     const { raw, ...rest } = c
@@ -1819,6 +1836,15 @@ export async function loadFunnelNode(o: NodeOpts) {
     return st
   })
   { const lst = steps.find((x) => x.key === 'lpViews'); if (lst) lst.quality = nodeQuality.lpViews }
+  // low-volume benchmark gate: the previous period's base of each step must be ≥ MIN_BENCH_BASE
+  if (previous) {
+    const order = ['impressions', 'clicks', 'lpViews', 'leads', 'ql', 'bookings']
+    for (let i = 1; i < order.length; i++) {
+      const st: any = steps.find((x) => x.key === order[i]); if (!st || st.benchmarkCvr == null) continue
+      const base = (previous.values as any)[order[i - 1]]
+      if (base == null || base < MIN_BENCH_BASE) { st.benchmarkCvr = null; st.status = null; st.benchmarkSuppressed = st.benchmarkSuppressed || 'lowVolume' }
+    }
+  }
   // PROVISIONAL step, appended LAST so the existing step order does not move (node API only)
   {
     const qlv = nodeValues.ql, aov = nodeValues.activeOpps ?? null, pq = previous?.values.ql, pa = previous?.values.activeOpps
@@ -2064,6 +2090,23 @@ export async function loadFunnelNode(o: NodeOpts) {
     nodeUrl = A.lpUrl.get(lpKey!) || `https://${lpKey}`
     path.push({ id: lpNodeId(lpKey!), label })
   }
+  // ── master: lead-magnet row gets its e-mail metrics for display (not part of any master sum) ──
+  if (parsed.type === 'master' && level === 'funnel') {
+    const lmRow = children.find((c) => c.id === 'funnel:lead_magnet')
+    if (lmRow) {
+      const lm = await loadLeadMagnet()
+      let emails = 0, later = 0
+      for (const k of lm.contacts) {
+        if (k.day < from || k.day > to) continue
+        emails++
+        if ((lm.streakByEmail.get(k.email) || []).some((x) => x.day >= k.day)) later++
+      }
+      const sp = lmRow.values.spend || 0
+      Object.assign(lmRow.values, { emails, laterLeads: later, costPerEmail: emails ? sp / emails : null, costPerLaterLead: later ? sp / later : null })
+      ;(lmRow as any).stepModel = 'lead_magnet'
+    }
+  }
+
   // ── creative preview on ad rows / ad nodes ──
   for (const c of children) if (c.type === 'ad') (c as any).creative = creativeOf(A, c.id.replace(/^ad:meta:/, ''))
 
@@ -2099,7 +2142,7 @@ export async function loadFunnelNode(o: NodeOpts) {
     }
     const lagDays: number[] = []
     const agg = (f: string, t2: string, pred: (c: Ctx) => boolean, ob: AggOpts, collectLag = false) => {
-      let emails = 0, later = 0, ql = 0, bookings = 0, revenue = 0, utm = 0, immature = 0
+      let emails = 0, later = 0, ql = 0, bookings = 0, revenue = 0, utm = 0, immature = 0, laterPaid = 0
       const today = todayLjubljana()
       const byQuiz: Record<string, number> = {}
       for (const k of all) {
@@ -2107,13 +2150,13 @@ export async function loadFunnelNode(o: NodeOpts) {
         emails++; if (k.utm) utm++
         byQuiz[k.q] = (byQuiz[k.q] || 0) + 1
         const s2 = (lm.streakByEmail.get(k.email) || []).find((x) => x.day >= k.day)
-        if (s2) { later++; if (s2.ai >= 50) ql++; if (collectLag) lagDays.push((Date.parse(s2.day) - Date.parse(k.day)) / 864e5) }
+        if (s2) { later++; if (s2.ai >= 50) ql++; if (!s2.channel || /^PAID_/.test(s2.channel)) laterPaid++; if (collectLag) lagDays.push((Date.parse(s2.day) - Date.parse(k.day)) / 864e5) }
         else if ((Date.parse(today) - Date.parse(k.day)) / 864e5 < (k.q === 'csy' ? 60 : 12)) immature++
         const b = bkByEmail.get(k.email)
         if (b && b.n) { bookings += b.n; revenue += b.rvc }
       }
       void ob
-      return { emails, later, ql, bookings, revenue: r2(revenue), utm, immature, byQuiz }
+      return { emails, later, ql, bookings, revenue: r2(revenue), utm, immature, byQuiz, laterPaid }
     }
     const pred0 = predFor(parsed.type === 'funnel' ? 'funnel:lead_magnet' : o.node) || (() => false)
     const cur2 = agg(from, to, pred0, bo, true)
@@ -2126,14 +2169,16 @@ export async function loadFunnelNode(o: NodeOpts) {
     })
     const rate = (a: number | null | undefined, b: number | null | undefined) => (a != null && b ? a / b : null)
     const mk = (key: string, label: string, value: number | null, prevVal: number | null, prevKey: number | null, prevPrev: number | null, source: string) =>
-      ({ key, label, value, previousValue: prevVal, cvrFromPrev: rate(value, prevKey), benchmarkCvr: rate(prevVal, prevPrev), source })
+      ({ key, label, value, previousValue: prevVal, cvrFromPrev: rate(value, prevKey),
+         // benchmark only when the previous period's base has ≥ MIN_BENCH_BASE (a 1-of-1 rate is not a benchmark)
+         benchmarkCvr: prevPrev != null && prevPrev >= MIN_BENCH_BASE ? rate(prevVal, prevPrev) : null, source })
     const pv = previous?.values
     lmSteps = [
       mk('impressions', 'Impressions', nodeValues.impressions, pv?.impressions ?? null, null, null, 'Meta'),
       mk('clicks', 'Clicks', nodeValues.clicks, pv?.clicks ?? null, nodeValues.impressions, pv?.impressions ?? null, 'Meta link clicks'),
       mk('lpViews', 'Visitors', nodeValues.lpViews, pv?.lpViews ?? null, nodeValues.clicks, pv?.clicks ?? null, 'GA4 paid sessions by utm (goolets.net only; the CSY quiz site is not in the GA4 property → n/a)'),
       mk('emails', 'E-mail submitted', cur2.emails, prev2?.emails ?? null, nodeValues.lpViews ?? nodeValues.clicks, pv?.lpViews ?? pv?.clicks ?? null, 'HubSpot hubspot_contacts_all: conversion "Yacht matchmaker start…" (goolets.net) / CSY Yacht Quiz, by createdate'),
-      mk('laterLeads', 'Later inquiry (Streak)', cur2.later, prev2?.later ?? null, cur2.emails, prev2?.emails ?? null, `First PAID Streak inquiry (streak_sync, from ${lm.streakSince}) with the same e-mail on/after the quiz day`),
+      mk('laterLeads', 'Later inquiry (Streak)', cur2.later, prev2?.later ?? null, cur2.emails, prev2?.emails ?? null, lm.source === 'streak_email_index' ? 'First Streak inquiry in ANY channel (streak_email_index: hashed e-mail, all boxes) on/after the quiz day' : `First PAID Streak inquiry (streak_sync, from ${lm.streakSince}) on/after the quiz day`),
       mk('ql', 'QL', cur2.ql, prev2?.ql ?? null, cur2.later, prev2?.later ?? null, 'Streak AI ≥ 50 of that inquiry'),
       { ...mk('bookings', 'Booking', cur2.bookings, prev2?.bookings ?? null, cur2.ql, prev2?.ql ?? null, 'Acq sheet (bookings_ads) by e-mail, any month'), revenue: cur2.revenue },
     ]
@@ -2143,8 +2188,9 @@ export async function loadFunnelNode(o: NodeOpts) {
       utmCoverage: { emails: cur2.emails, withUtmMapping: cur2.utm, share: cur2.emails ? cur2.utm / cur2.emails : null, note: 'E-mails reach a campaign by the quiz (one campaign per quiz) and an ad set / ad only through a unique UTM Mapping row for the contact\'s utm_campaign.' },
       lagDays: { median: sl.length ? sl[Math.floor(sl.length / 2)] : null, p90: sl.length ? sl[Math.floor(sl.length * 0.9)] : null, n: sl.length },
       maturity: { immatureEmails: cur2.immature, note: 'Later inquiries arrive with a lag (Matchmaker median ~1 day, p90 7–12 days; CSY ~49 days): e-mails newer than 12 days (Matchmaker) / 60 days (CSY) without an inquiry yet are not final.' },
-      overlap: { laterLeads: cur2.later, note: 'Every later inquiry is a PAID Streak lead already counted in its own funnel (Leads/QL there). It is shown here only; never added to master totals.' },
-      limits: 'Later inquiries are matched in streak_sync (paid, from its first day) — organic / direct inquiries after a quiz are not seen here.',
+      overlap: { laterLeads: cur2.later, paid: cur2.laterPaid, note: 'Later inquiries are shown here only and never added to master totals: the paid ones are already counted in their own funnel; the organic / direct ones are not part of the paid funnel at all.' },
+      matchSource: lm.source,
+      limits: lm.source === 'streak_email_index' ? 'Streak e-mail index from the weekly full pipeline scan (slim cache): inquiries newer than that scan are not seen yet.' : 'Later inquiries are matched in streak_sync (paid, from its first day) — organic / direct inquiries after a quiz are not seen here.',
     }
     // children of lead-magnet nodes: e-mails / later leads per row by the same attribution
     const sumC = { emails: 0, later: 0, ql: 0 }

@@ -69,7 +69,10 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/branding') ||
     pathname.startsWith('/icons') ||
     pathname.startsWith('/images') ||
-    pathname.startsWith('/fonts')
+    pathname.startsWith('/fonts') ||
+    // thumbnails of PUBLISHED Meta ads, shown by the portal (other origin) in the Funnel tab — 2026-11-16.
+    // Only *.jpg directly under /mtd-thumbs/ (no listing, no subpaths).
+    /^\/mtd-thumbs\/[0-9]+\.jpg$/.test(pathname)
 
   const PUBLIC_PATHS = [
     '/unlock',
