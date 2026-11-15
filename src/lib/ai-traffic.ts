@@ -359,7 +359,7 @@ export interface AiStep {
  * AI Robot Handled so tam NEkvalificirani, Standard pa kvalificiran.
  */
 const STREAK_QUALIFIED =
-  'Standard, SQL, SQL Prime, VIP, Ultra VIP, Paper Work, Start Finalisation, Won'
+  'Engaged (ex Standard), SQL, SQL Prime, Shortlist (ex VIP), One Yacht (ex Ultra VIP), Paper Work, Start Finalisation, Won'
 const STREAK_CLOSING = 'Paper Work, Start Finalisation, Won'
 
 export interface AiTrafficResponse {
@@ -488,7 +488,7 @@ export async function loadAiTraffic(opts: { start: string; end: string }): Promi
           'Counted: salesqualifiedlead · opportunity · customer.',
           'Not counted: subscriber · lead · marketingqualifiedlead (MQL).',
           `Roughly equivalent in Streak: ${STREAK_QUALIFIED}.`,
-          'The Streak line is for orientation only — these numbers come from HubSpot and the two are not reconciled one to one. Note that in Streak, MQL, CQL and AI Robot Handled count as UNqualified, while Standard counts as qualified.',
+          'The Streak line is for orientation only — these numbers come from HubSpot and the two are not reconciled one to one. Note that in Streak, Unqualified (ex MQL), CQL and AI Robot Handled count as UNqualified, while Standard counts as qualified.',
         ],
       },
     },

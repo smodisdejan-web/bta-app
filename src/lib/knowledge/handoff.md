@@ -89,11 +89,12 @@ Streak ima polje **"AI"** (ne "Exit - AI Score") ki je numerični quality score 
 
 ## 3.2 Streak Pipeline Stages — kvalifikacija
 
-**Qualified (dober lead):** Standard, SQL, SQL Prime, VIP, Ultra VIP, Paper Work, Start Finalisation, Won
+**Qualified (dober lead):** Engaged (ex Standard), SQL, SQL Prime, Shortlist (ex VIP), One Yacht (ex Ultra VIP), Paper Work, Start Finalisation, Won  
+_Streak preimenovanje 13.11.2026 (Simon Finc): FIRST REPLY → OFFER SENT, STANDARD → ENGAGED, VIP → SHORTLIST, ULTRA VIP → ONE YACHT, MQL → UNQUALIFIED; nova faza RECEIVED ONLY (stranka odgovorila na kratko). Alias map: src/lib/streak-stages.ts._
 
-**Pending:** First Reply
+**Pending:** Offer Sent (ex First Reply), Received Only (nova)
 
-**Unqualified:** MQL, AI Robot Handled, CQL
+**Unqualified:** Unqualified (ex MQL), AI Robot Handled, CQL
 
 **Disqualified:** Black Listed
 

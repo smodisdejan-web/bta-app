@@ -1,3 +1,4 @@
+import { SAL_KEYS, ENGAGED_KEYS, stageKeyOf, normStage } from '@/lib/streak-stages'
 import { NextResponse } from 'next/server'
 
 import {
@@ -70,38 +71,21 @@ const SPEND_ANOMALY_THRESHOLD = 1000
 // QL (AI ≥ 50) is not comparable across campaign types. Also deliberately NOT derived
 // from form field content (group size, budget range) — a short form collects fewer
 // fields and would be penalised for that alone, which is exactly the bias we're testing.
-const SAL_STAGES = new Set([
-  'standard',
-  'sql',
-  'sql prime',
-  'vip',
-  'ultra vip',
-  'paper work',
-  'start finalisation',
-  'start finalization',
-  'won',
-])
-
-// ENGAGED = the lead answered at least once ('First Reply') or went further.
-// SAL is the metric we care about, but on RareOps only ~13% of leads ever reach it,
-// so over a two-week window SAL is too rare to separate two variants. Engaged sits at
-// ~56% on the same traffic, moves with the same underlying quality, and is still
-// form-agnostic — so it is the signal that is actually readable inside a test window.
-const ENGAGED_STAGES = new Set([...SAL_STAGES, 'first reply'])
-
-function normaliseStage(stage: unknown): string {
-  return String(stage ?? '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim()
-}
-
+// Stage sets come from lib/streak-stages (alias map, 2026-11-15): Streak renamed FIRST REPLY → OFFER
+// SENT, STANDARD → ENGAGED, VIP → SHORTLIST, ULTRA VIP → ONE YACHT and added emoji suffixes on
+// 13.11.2026 — exact-name sets here silently dropped SAL to ~0. Same buckets as before:
+// SAL = the old Qualified set; ENGAGED = SAL + OFFER SENT (old FIRST REPLY) + RECEIVED ONLY.
+// (WON 2027 / WON 2028 now count as won — the old exact set missed them.)
 function isSalStage(stage: unknown): boolean {
-  return SAL_STAGES.has(normaliseStage(stage))
+  return SAL_KEYS.has(stageKeyOf(stage))
 }
 
 function isEngagedStage(stage: unknown): boolean {
-  return ENGAGED_STAGES.has(normaliseStage(stage))
+  return ENGAGED_KEYS.has(stageKeyOf(stage))
+}
+
+function normaliseStage(stage: unknown): string {
+  return normStage(stage)
 }
 
 type VariantDebug = {
