@@ -963,9 +963,12 @@ async function loadFlatChannel(
       return parseFlatChannelRows(raw)
     })
   } catch (e) {
-    // core channel (Dejan 16.11.): last good copy (stale) was already tried by cached(); none → 503
-    console.warn(`[funnel] ${tab} unavailable`, (e as Error).message)
-    throw e
+    // Bing / ChatGPT (2026-11-16): small flat channels. Last good copy was already tried by cached();
+    // without one the channel renders n/a (never 0) and the response is flagged DEGRADED (red banner)
+    // — not a 503 for the whole funnel. The totals then visibly exclude this channel.
+    console.warn(`[funnel] ${tab} unavailable — ${key} renders n/a, not 0`, (e as Error).message)
+    noteFeedIssue(tab, 'degraded', true, `${(e as Error).message} — ${key} shown as n/a, excluded from totals`)
+    return { rows: [], coverage: { min: '', max: '' } }
   }
 }
 
@@ -2541,8 +2544,8 @@ export async function getFunnelDatasets(): Promise<Datasets> {
     core('fb_daily_api', loadFb()),
     core('fb_ads_api', loadFbSpend()),
     core('daily_api (Google)', loadGoogle()),
-    core('bing_ads_api', loadBing()),
-    core('chatgpt_ads_api', loadChatgpt()),
+    loadBing(),      // degraded-not-503: see loadFlatChannel
+    loadChatgpt(),
     core('ga4', loadGa4()),
     core('streak_full / streak_sync', loadStreak()),
     core('bookings_api', loadBookings()),

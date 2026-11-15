@@ -23,7 +23,7 @@ import { loadFunnelNode, loadFunnelIndex } from './funnel-nodes'
 
 export const FUNNEL_CACHE_TAG = 'funnel'
 const DAY_S = 24 * 60 * 60
-const KEY_VERSION = 'funnel-v3'
+const KEY_VERSION = 'funnel-v4'
 export const REFRESH_MIN_AGE_MS = 60 * 60 * 1000
 
 export type FunnelResponse = Awaited<ReturnType<typeof loadBusinessFunnel>>
@@ -78,7 +78,7 @@ export function funnelOptsForRange(range: string, campaign = 'master', channel: 
 // ─── Node API (2026-11-13) ──────────────────────────────────────────────────
 // Same Data Cache, own keys. master / umbrella nodes reuse the cached legacy build as their base,
 // so ?node=master and ?campaign=master can never disagree.
-const NODE_KEY_VERSION = 'funnel-node-v15'
+const NODE_KEY_VERSION = 'funnel-node-v16'
 export type NodeCacheOpts = { range: ResolvedRange; node: string; channel: Channel; level?: 'funnel' | 'campaign' | 'adset' | 'ad' | 'lp' | 'copy' }
 
 export async function getFunnelNode(o: NodeCacheOpts, nocache = false) {
