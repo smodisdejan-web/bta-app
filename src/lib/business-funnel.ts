@@ -963,9 +963,9 @@ async function loadFlatChannel(
       return parseFlatChannelRows(raw)
     })
   } catch (e) {
-    console.warn(`[funnel] ${tab} unavailable — ${key} renders n/a, not 0`, (e as Error).message)
-    noteFeedIssue(tab, 'degraded', false, `${(e as Error).message} — channel shows n/a`)
-    return { rows: [], coverage: { min: '', max: '' } }
+    // core channel (Dejan 16.11.): last good copy (stale) was already tried by cached(); none → 503
+    console.warn(`[funnel] ${tab} unavailable`, (e as Error).message)
+    throw e
   }
 }
 
@@ -1068,12 +1068,9 @@ async function loadStreak(): Promise<{ rows: LeadRow[]; coverage: Coverage }> {
 
   return cached('streak', async () => {
     const [fullRaw, syncRaw] = await Promise.all([
-      cached('raw:streak_full', () => fetchRows(SHEETS_TABS.STREAK_FULL)).catch((e) => {
-        // last good copy is served by cached(); with none, history before streak_sync is missing — flagged
-        console.warn('[funnel] streak_full unavailable, using streak_sync only', (e as Error).message)
-        noteFeedIssue('streak_full', 'degraded', true, `${(e as Error).message} — leads before ${'2026-06-11'} missing`)
-        return [] as any[]
-      }),
+      // last good copy is served (stale) by cached(); with none the funnel answers 503 — never
+      // leads from streak_sync only (Dejan 16.11.: no partial numbers)
+      cached('raw:streak_full', () => fetchRows(SHEETS_TABS.STREAK_FULL)),
       fetchRows(SHEETS_TABS.STREAK_SYNC),
     ])
     const full = parse(fullRaw)
@@ -2533,15 +2530,22 @@ function statusFor(cvr: number | null, bench: number | null): 'g' | 'a' | 'r' | 
  * layer (lib/funnel-nodes.ts) works on the very same rows as /api/funnel — one read, one truth.
  */
 export async function getFunnelDatasets(): Promise<Datasets> {
+  // Core feeds: a read that fails with no last good copy becomes a FeedUnavailableError (→ HTTP 503,
+  // degraded) instead of partial numbers (Dejan 16.11.). cached() already served stale where it could.
+  const core = <T>(feed: string, p: Promise<T>): Promise<T> => p.then((v) => { clearFeedIssue(feed); return v }, (e) => {
+    if ((e as any)?.name === 'FeedUnavailableError') throw e
+    noteFeedIssue(feed, 'degraded', true, (e as Error).message)
+    throw new FeedUnavailableError(feed, (e as Error).message)
+  })
   const [fb, fbSpend, google, bing, chatgpt, ga4, streak, bookings, utmIndex, utmRows, adsets, ads, bookingAds, lp] = await Promise.all([
-    loadFb(),
-    loadFbSpend(),
-    loadGoogle(),
-    loadBing(),
-    loadChatgpt(),
-    loadGa4(),
-    loadStreak(),
-    loadBookings(),
+    core('fb_daily_api', loadFb()),
+    core('fb_ads_api', loadFbSpend()),
+    core('daily_api (Google)', loadGoogle()),
+    core('bing_ads_api', loadBing()),
+    core('chatgpt_ads_api', loadChatgpt()),
+    core('ga4', loadGa4()),
+    core('streak_full / streak_sync', loadStreak()),
+    core('bookings_api', loadBookings()),
     loadUtmIndex(),
     loadUtmRows(),
     loadFbAdsets(),
