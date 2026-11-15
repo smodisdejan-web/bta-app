@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { getFeedHealth } from '@/lib/business-funnel'
 import { getFunnelIndex } from '@/lib/funnel-cache'
 import { resolveRange, RANGE_KEYS, type Channel } from '@/lib/business-funnel'
 
@@ -25,6 +26,7 @@ export async function GET(request: Request) {
     return NextResponse.json(data, { headers })
   } catch (e) {
     console.error('[funnel/index] failed', e)
+    if ((e as any)?.name === 'FeedUnavailableError') return NextResponse.json({ error: (e as Error).message, degraded: true, feed: (e as any).feed, feedHealth: getFeedHealth() }, { status: 503, headers: { ...headers, 'Cache-Control': 'no-store' } })
     return NextResponse.json({ error: (e as Error).message }, { status: 500, headers })
   }
 }

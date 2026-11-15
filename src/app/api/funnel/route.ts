@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { getFeedHealth } from '@/lib/business-funnel'
 import { getFunnel, getFunnelNode } from '@/lib/funnel-cache'
 import { parseNode } from '@/lib/funnel-nodes'
 import {
@@ -177,6 +178,14 @@ export async function GET(request: Request) {
     return NextResponse.json(out, { headers })
   } catch (err) {
     console.error('[funnel] failed', err)
+    // A core feed could not be read and there is no last good copy: say so instead of answering
+    // with another source (2026-11-16). The UI shows a banner, nothing is cached.
+    if ((err as any)?.name === 'FeedUnavailableError') {
+      return NextResponse.json(
+        { error: (err as Error).message, degraded: true, feed: (err as any).feed, feedHealth: getFeedHealth() },
+        { status: 503, headers: { ...headers, 'Cache-Control': 'no-store' } }
+      )
+    }
     return NextResponse.json(
       { error: (err as Error).message || 'Failed to build funnel' },
       { status: 500, headers }

@@ -522,25 +522,58 @@ export function resolveRange(
 // "instant" and "times out".
 
 const TTL_MS = 15 * 60 * 1000
+/** a degraded / stale result is retried after this, never held for the full TTL (2026-11-16) */
+const DEGRADED_TTL_MS = 60 * 1000
 const memo = new Map<string, { at: number; data: any }>()
 const inflight = new Map<string, Promise<any>>()
+
+// ─── Feed health (2026-11-16) ───────────────────────────────────────────────
+// A failed read is NEVER replaced silently by another / older source. Either the last good copy is
+// served (stale: true, with its timestamp) or the feed is reported degraded with the reason; both
+// travel to the response (meta.feedHealth) so the UI can show a banner, and both make the result
+// short-lived (DEGRADED_TTL_MS here, and no Data Cache write in lib/funnel-cache).
+export interface FeedIssue { feed: string; kind: 'stale' | 'degraded'; core: boolean; reason: string; lastGoodAt: string | null; at: string }
+const feedIssues = new Map<string, FeedIssue>()
+export function noteFeedIssue(feed: string, kind: FeedIssue['kind'], core: boolean, reason: string, lastGoodAt: number | null = null) {
+  feedIssues.set(feed, { feed, kind, core, reason: String(reason).slice(0, 300), lastGoodAt: lastGoodAt ? new Date(lastGoodAt).toISOString() : null, at: new Date().toISOString() })
+}
+const clearFeedIssue = (feed: string) => feedIssues.delete(feed)
+/** Current feed issues (older than 2 × TTL are dropped — they belong to a previous build). */
+export function getFeedHealth() {
+  const now = Date.now()
+  for (const [k, v] of feedIssues) if (now - Date.parse(v.at) > 2 * TTL_MS) feedIssues.delete(k)
+  const issues = [...feedIssues.values()]
+  return { ok: issues.length === 0, degraded: issues.some((i) => i.kind === 'degraded' && i.core), stale: issues.some((i) => i.kind === 'stale'), issues }
+}
+/** The core Meta feed could not be read and there is no last good copy: the funnel must not answer with another source. */
+export class FeedUnavailableError extends Error {
+  feed: string
+  constructor(feed: string, reason: string) { super(`${feed} unavailable: ${reason}`); this.feed = feed; this.name = 'FeedUnavailableError' }
+}
 
 async function cached<T>(key: string, fn: () => Promise<T>): Promise<T> {
   const hit = memo.get(key)
   if (hit && Date.now() - hit.at < TTL_MS) return hit.data as T
   const running = inflight.get(key)
   if (running) return running as Promise<T>
+  const issuesBefore = feedIssues.size
   const p = fn()
     .then((data) => {
-      memo.set(key, { at: Date.now(), data })
+      // a build that recorded a new feed issue is kept only briefly
+      const short = feedIssues.size > issuesBefore
+      memo.set(key, { at: short ? Date.now() - TTL_MS + DEGRADED_TTL_MS : Date.now(), data })
       inflight.delete(key)
+      if (!short) clearFeedIssue(key)
       return data
     })
     .catch((e) => {
       inflight.delete(key)
-      // Serve stale rather than blow up the whole funnel on one flaky Apps Script call.
+      // Serve the LAST GOOD copy (flagged stale) rather than blow up on one flaky Apps Script call;
+      // retry it after DEGRADED_TTL_MS, not after the full TTL.
       if (hit) {
         console.warn(`[funnel] ${key} failed, serving stale`, (e as Error).message)
+        noteFeedIssue(key, 'stale', !key.startsWith('raw:'), (e as Error).message, hit.at)
+        memo.set(key, { at: Date.now() - TTL_MS + DEGRADED_TTL_MS, data: hit.data })
         return hit.data as T
       }
       throw e
@@ -581,6 +614,17 @@ const funnelJitter = (ms: number) => Math.round(ms * (0.8 + Math.random() * 0.4)
 // 120 s per attempt (the 27 MB GA4 tab needs well under that); the optional part 3/4 tabs read
 // through softRows get 90 s × 2 attempts and degrade to stale / empty instead of holding master.
 const FETCH_TIMEOUT_MS = 120_000
+// Apps Script allows ~30 simultaneous executions per user, shared with every sync and report that
+// reads the same web app: a cold build here used to fire ~25 tab reads at once ("Too many
+// simultaneous invocations", 16.11.). At most APPS_SCRIPT_SLOTS reads run at a time per lambda.
+const APPS_SCRIPT_SLOTS = 6
+let slotsBusy = 0
+const slotQueue: (() => void)[] = []
+async function withAppsScriptSlot<T>(fn: () => Promise<T>): Promise<T> {
+  if (slotsBusy >= APPS_SCRIPT_SLOTS) await new Promise<void>((r) => slotQueue.push(r))
+  slotsBusy++
+  try { return await fn() } finally { slotsBusy--; slotQueue.shift()?.() }
+}
 async function fetchRows(tab: string, o: { timeoutMs?: number; attempts?: number } = {}): Promise<any[]> {
   const url = `${SHEET_URL()}?tab=${encodeURIComponent(tab)}`
   let lastErr: unknown = null
@@ -592,7 +636,7 @@ async function fetchRows(tab: string, o: { timeoutMs?: number; attempts?: number
     // will never fix itself). A network error leaves it false and gets the backoff.
     let fatal = false
     try {
-      const res = await fetch(url, { cache: 'no-store', next: { revalidate: 0 }, signal: AbortSignal.timeout(o.timeoutMs ?? FETCH_TIMEOUT_MS) } as any)
+      const res = await withAppsScriptSlot(() => fetch(url, { cache: 'no-store', next: { revalidate: 0 }, signal: AbortSignal.timeout(o.timeoutMs ?? FETCH_TIMEOUT_MS) } as any))
       if (!res.ok) {
         lastErr = new Error(`${tab}: ${res.status} ${res.statusText}`)
         if (!funnelRetriable(res.status)) { fatal = true; throw lastErr }
@@ -620,6 +664,7 @@ async function fetchRows(tab: string, o: { timeoutMs?: number; attempts?: number
             fatal = true
             throw new Error(`${tab}: ${String((data as any).error ?? JSON.stringify(data)).slice(0, 200)}`)
           }
+          clearFeedIssue(tab)   // a good read of this tab ends any earlier issue reported for it
           if (!Array.isArray(data) || data.length === 0) return []
           if (Array.isArray(data[0])) {
             const header = (data[0] as any[]).map((h) => String(h))
@@ -761,9 +806,18 @@ async function loadFb(): Promise<{ rows: AdDay[]; coverage: Coverage }> {
     // past its 300s budget (a timed-out daily_api then dropped Google out of the funnel
     // entirely). fb_daily_api supersedes it on every metric and is the verified-accurate feed,
     // so fb_ads_raw is now a pure fallback, read only when the full-year tab is unusable.
-    const full = await loadFbFull()
+    // 2026-11-16: a failed / empty fb_daily_api is NOT replaced by fb_ads_raw any more (it ends
+    // 2026-10-01 and cut windows to one day with wrong spend, seen on prod 16.11.). loadFbFull()
+    // throws, cached() serves the last good copy (stale) or the funnel answers with an explicit error.
+    let full: { rows: AdDay[]; coverage: Coverage }
+    try { full = await loadFbFull() } catch (e) {
+      // reached only when there is no last good copy either (cached() would have served it, flagged stale)
+      noteFeedIssue('fb_daily_api', 'degraded', true, (e as Error).message)
+      throw e
+    }
     if (full.rows.length) return full
-    return loadFbLegacy()
+    noteFeedIssue('fb_daily_api', 'degraded', true, 'fb_daily_api returned no rows')
+    throw new FeedUnavailableError('fb_daily_api', 'no rows')
   })
 }
 
@@ -812,8 +866,9 @@ async function loadFbFull(): Promise<{ rows: AdDay[]; coverage: Coverage }> {
     try {
       raw = await fetchRows(SHEETS_TABS.FB_DAILY_FULL)
     } catch (e) {
-      console.warn('[funnel] fb_daily_api unavailable, falling back to fb_ads_raw', (e as Error).message)
-      return { rows: [], coverage: { min: '', max: '' } }
+      // no silent fallback: let cached() serve the last good copy, else the request fails loudly
+      console.warn('[funnel] fb_daily_api unavailable', (e as Error).message)
+      throw new FeedUnavailableError('fb_daily_api', (e as Error).message)
     }
     const rows: AdDay[] = []
     for (const r of raw) {
@@ -909,6 +964,7 @@ async function loadFlatChannel(
     })
   } catch (e) {
     console.warn(`[funnel] ${tab} unavailable — ${key} renders n/a, not 0`, (e as Error).message)
+    noteFeedIssue(tab, 'degraded', false, `${(e as Error).message} — channel shows n/a`)
     return { rows: [], coverage: { min: '', max: '' } }
   }
 }
@@ -1012,8 +1068,10 @@ async function loadStreak(): Promise<{ rows: LeadRow[]; coverage: Coverage }> {
 
   return cached('streak', async () => {
     const [fullRaw, syncRaw] = await Promise.all([
-      fetchRows(SHEETS_TABS.STREAK_FULL).catch((e) => {
+      cached('raw:streak_full', () => fetchRows(SHEETS_TABS.STREAK_FULL)).catch((e) => {
+        // last good copy is served by cached(); with none, history before streak_sync is missing — flagged
         console.warn('[funnel] streak_full unavailable, using streak_sync only', (e as Error).message)
+        noteFeedIssue('streak_full', 'degraded', true, `${(e as Error).message} — leads before ${'2026-06-11'} missing`)
         return [] as any[]
       }),
       fetchRows(SHEETS_TABS.STREAK_SYNC),
@@ -1110,6 +1168,7 @@ async function loadUtmRows(): Promise<Map<string, UtmRow[]>> {
       }
     } catch (e) {
       console.warn('[funnel] utm_mapping rows unavailable', (e as Error).message)
+      noteFeedIssue('utm_mapping(rows)', 'degraded', false, (e as Error).message)
     }
     return out
   })
@@ -1153,6 +1212,7 @@ async function loadFbAdsets(): Promise<{ rows: AdsetDay[]; coverage: Coverage }>
     })
   } catch (e) {
     console.warn('[funnel] fb_adset_daily_api unavailable — BOFU split falls back', (e as Error).message)
+    noteFeedIssue('fb_adset_daily_api', 'degraded', false, `${(e as Error).message} — BOFU split from MTD shares`)
     return { rows: [], coverage: { min: '', max: '' } }
   }
 }
@@ -1190,6 +1250,7 @@ async function loadFbAds(): Promise<{ rows: AdDayRow[]; coverage: Coverage }> {
     })
   } catch (e) {
     console.warn('[funnel] fb_ad_daily_api unavailable', (e as Error).message)
+    noteFeedIssue('fb_ad_daily_api', 'degraded', false, `${(e as Error).message} — ad / copy level empty`)
     return { rows: [], coverage: { min: '', max: '' } }
   }
 }
@@ -1229,6 +1290,7 @@ async function loadBookingAds(): Promise<BookingAdRow[]> {
     })
   } catch (e) {
     console.warn('[funnel] bookings_ads unavailable', (e as Error).message)
+    noteFeedIssue('bookings_ads', 'degraded', false, (e as Error).message)
     return []
   }
 }
@@ -1341,6 +1403,7 @@ export interface HsContact { email: string; day: string; lp: string; url: string
 async function softRows(key: string, tab: string): Promise<any[]> {
   try { return await cached(key, () => fetchRows(tab, { timeoutMs: 90_000, attempts: 2 })) } catch (e) {
     console.warn(`[funnel] ${tab} unavailable`, (e as Error).message)
+    noteFeedIssue(tab, 'degraded', false, (e as Error).message)
     return []
   }
 }
@@ -1408,6 +1471,7 @@ async function loadUtmIndex(): Promise<Map<string, string>> {
       }
     } catch (e) {
       console.warn('[funnel] utm_mapping unavailable, falling back to regex only', (e as Error).message)
+      noteFeedIssue('utm_mapping', 'degraded', false, `${(e as Error).message} — lead placement by regex only`)
     }
     return byUtm
   })

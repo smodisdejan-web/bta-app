@@ -85,9 +85,11 @@ export const ACTIVE_OPPS_DEFS = {
 export const ACTIVE_OPPS_DEFAULT: keyof typeof ACTIVE_OPPS_DEFS = 'A'
 
 /** Sales sub-funnel buckets (node API salesStages, 2026-11-15): funnel order, then terminal buckets. */
-export const SALES_FUNNEL_ORDER = ['offer_sent', 'received_only', 'engaged', 'shortlist', 'one_yacht', 'sql', 'closing', 'won'] as const
+export const SALES_FUNNEL_ORDER = ['offer_sent', 'received_only', 'engaged', 'shortlist', 'one_yacht', 'closing', 'won'] as const
+/** SQL / SQL PRIME: a side bucket next to the chain, not part of stage-to-stage rates (Dejan 16.11., until Simon confirms) */
+export const SALES_SIDE = ['sql'] as const
 export const SALES_TERMINAL = ['unqualified', 'cql', 'black_listed', 'ai_robot', 'unassigned', 'archive', 'unknown'] as const
-export type SalesBucket = typeof SALES_FUNNEL_ORDER[number] | typeof SALES_TERMINAL[number]
+export type SalesBucket = typeof SALES_FUNNEL_ORDER[number] | typeof SALES_SIDE[number] | typeof SALES_TERMINAL[number]
 export function salesBucketOf(k: StageKey): SalesBucket {
   switch (k) {
     case 'sql': case 'sql_prime': return 'sql'

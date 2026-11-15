@@ -17,7 +17,7 @@
 // src/data/bofu-adset-mtd.json (flagged `estimate`), and days outside both stay unsplit in
 // EB Croatia (flagged).
 
-import { ACTIVE_OPPS_DEFS, ACTIVE_OPPS_DEFAULT, type StageKey, SALES_FUNNEL_ORDER, SALES_TERMINAL, salesBucketOf, NOT_HUMAN_STAGED, type SalesBucket } from './streak-stages'
+import { ACTIVE_OPPS_DEFS, ACTIVE_OPPS_DEFAULT, type StageKey, SALES_FUNNEL_ORDER, SALES_SIDE, SALES_TERMINAL, salesBucketOf, NOT_HUMAN_STAGED, type SalesBucket } from './streak-stages'
 import {
   CAMPAIGNS,
   UMBRELLA_ORDER,
@@ -1061,7 +1061,7 @@ function copyRows(parts: CopyPart[], info: Map<string, AdCopyInfo>) {
 // ─── Sales stages (2026-11-15) ──────────────────────────────────────────────
 
 type StageCounts = Partial<Record<SalesBucket, number>>
-const SALES_ALL: SalesBucket[] = [...SALES_FUNNEL_ORDER, ...SALES_TERMINAL]
+const SALES_ALL: SalesBucket[] = [...SALES_FUNNEL_ORDER, ...SALES_SIDE, ...SALES_TERMINAL]
 /** leads in the window per lead id → bucket, with the same context the QL attribution uses */
 function leadStageRows(ds: Datasets, A: Assignment, from: string, to: string, channel: Channel) {
   const out: { i: number; c: Ctx; b: SalesBucket }[] = []
@@ -1081,9 +1081,12 @@ const stageFull = (s: StageCounts | null, scale = 1): Record<SalesBucket, number
   s ? (Object.fromEntries(SALES_ALL.map((k) => [k, Math.round((s[k] || 0) * scale * 1000) / 1000])) as Record<SalesBucket, number>) : null
 /** unqualified / leads a human has staged (excludes AI ROBOT, UNASSIGNED, unknown names) */
 function unqualOf(s: Record<SalesBucket, number> | null) {
-  if (!s) return { unqualifiedShare: null, unqualified: null, humanStaged: null }
+  if (!s) return { unqualifiedShare: null, unqualified: null, humanStaged: null, cql: null, unqualifiedInclCqlShare: null }
   const human = SALES_ALL.filter((k) => !NOT_HUMAN_STAGED.has(k)).reduce((n, k) => n + s[k], 0)
-  return { unqualifiedShare: human > 0 ? s.unqualified / human : null, unqualified: s.unqualified, humanStaged: Math.round(human * 1000) / 1000 }
+  return {
+    unqualifiedShare: human > 0 ? s.unqualified / human : null, unqualified: s.unqualified, humanStaged: Math.round(human * 1000) / 1000,
+    cql: s.cql, unqualifiedInclCqlShare: human > 0 ? (s.unqualified + s.cql) / human : null,
+  }
 }
 
 // ─── Video: hook / hold rate (2026-11-15) ────────────────────────────────────
@@ -1895,7 +1898,7 @@ export async function loadFunnelNode(o: NodeOpts) {
       if (pn.type === 'funnel' && FUNNEL_BY_KEY.get(pn.key as FunnelKey)?.leadsNa) return null
       return countOf(lsr, predOf(id)!)
     }
-    const H_ALL = [...SALES_FUNNEL_ORDER, 'unqualified', 'cql']
+    const H_ALL = [...SALES_FUNNEL_ORDER, 'sql', 'unqualified', 'cql']
     const r3x = (x: number) => Math.round(x * 1000) / 1000
     const everFull = (t: SC | null) => (t ? Object.fromEntries(H_ALL.map((k) => [k, r3x(t.ever[k] || 0)])) : null)
     const nodeId0 = parsed.type === 'master' ? 'master' : parsed.type === 'lp' ? lpNodeId(lpKey!) : o.node
@@ -1939,7 +1942,7 @@ export async function loadFunnelNode(o: NodeOpts) {
       for (const k of [...SALES_FUNNEL_ORDER].reverse()) { acc += nodeSt[k]; atLeast[k] = r3x(acc) }
       // history: reachedAtLeast = ever in this stage OR any later one in funnel order (per lead)
       const reached: Record<string, number> = Object.fromEntries(SALES_FUNNEL_ORDER.map((k) => [k, 0]))
-      const days: Record<string, number[]> = Object.fromEntries(SALES_FUNNEL_ORDER.map((k) => [k, []]))
+      const days: Record<string, number[]> = Object.fromEntries([...SALES_FUNNEL_ORDER, 'sql'].map((k) => [k, []]))
       const pred = parsed.type === 'copy' ? null : predOf(nodeId0)
       let withHist = 0, inWin = 0
       if (pred) for (const r of lsr) {
@@ -1950,7 +1953,7 @@ export async function loadFunnelNode(o: NodeOpts) {
         let later = false
         for (const k of [...SALES_FUNNEL_ORDER].reverse()) { if (ever.has(k)) later = true; if (later) reached[k]++ }
         const l = ds.streak.rows[r.i]
-        if (h) for (const k of SALES_FUNNEL_ORDER) { const d = h[k as keyof typeof h]; if (d) days[k].push((Date.parse(d) - Date.parse(l.day)) / 864e5) }
+        if (h) for (const k of [...SALES_FUNNEL_ORDER, 'sql']) { const d = h[k as keyof typeof h]; if (d) days[k].push((Date.parse(d) - Date.parse(l.day)) / 864e5) }
       }
       const med = (xs: number[]) => { if (xs.length < 10) return null; const s2 = [...xs].sort((a, b) => a - b); return s2[Math.floor(s2.length / 2)] }
       bk.salesStages = {
@@ -1959,8 +1962,9 @@ export async function loadFunnelNode(o: NodeOpts) {
         everIn: pred ? Object.fromEntries(SALES_FUNNEL_ORDER.map((k) => [k, nodeEver![k]])) : null,
         reachedAtLeast: pred ? reached : null,
         medianDaysToStage: pred ? Object.fromEntries(SALES_FUNNEL_ORDER.map((k) => [k, med(days[k])])) : null,
+        side: { sql: { label: 'SQL / SQL PRIME (outside the chain)', current: nodeSt.sql, everIn: pred ? nodeEver!.sql : null, medianDaysToStage: pred ? med(days.sql) : null } },
         historyFrom: STAGE_HISTORY_FROM, historyPartial: from < STAGE_HISTORY_FROM, leadsWithHistory: pred ? withHist : null, leads: pred ? inWin : null,
-        note: 'counts = CURRENT stage. everIn = leads that were in that stage at any time since their inquiry (streak_stage_log: Streak timeline backfill + daily diffs). reachedAtLeast = in that stage or any LATER one in funnel order (a lead that jumped to SQL counts for engaged) — stage-to-stage rates use reachedAtLeast. medianDaysToStage = inquiry → first entry, null when n < 10. Copy nodes keep basis current.',
+        note: 'Chain = offer_sent → received_only → engaged → shortlist → one_yacht → closing → won; SQL / SQL PRIME is a side bucket (side.sql), not in the chain or its rates. counts = CURRENT stage (all buckets incl. sql). everIn = leads that were in that stage at any time since their inquiry (streak_stage_log: Streak timeline backfill + daily diffs). reachedAtLeast = in that stage or any LATER one in funnel order (SQL does not count) — stage-to-stage rates use reachedAtLeast. medianDaysToStage = inquiry → first entry, null when n < 10. Copy nodes keep basis current.',
         unqualifiedRule: 'unqualifiedShare = UNQUALIFIED (ex MQL) / leads with a human-set stage (all buckets except ai_robot, unassigned, unknown).',
       }
     }
