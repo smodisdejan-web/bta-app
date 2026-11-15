@@ -68,9 +68,10 @@ export function stageKeyOf(stage: unknown): StageKey {
 export const SAL_KEYS = new Set<StageKey>(['engaged', 'sql', 'sql_prime', 'shortlist', 'one_yacht', 'paper_work', 'start_finalisation', 'won'])
 /** Booked / closing */
 export const CLOSING_KEYS = new Set<StageKey>(['paper_work', 'start_finalisation', 'finalisation', 'finalised', 'cruise', 'won', 'after_cruise_direct', 'after_cruise_agency'])
-/** Old "Engaged" = SAL + FIRST REPLY (now OFFER SENT). RECEIVED ONLY is NOT engaged and NOT an active
- *  opportunity (Dejan 2026-11-15, to confirm with Simon / Aymen): its own step between OFFER SENT and ENGAGED. */
-export const ENGAGED_KEYS = new Set<StageKey>([...SAL_KEYS, 'offer_sent'])
+/** "Engaged" = the client engaged. OFFER SENT (old FIRST REPLY = the reply came from Goolets sales, not the
+ *  client) and RECEIVED ONLY are NOT engaged (Dejan 2026-11-15, to confirm with Simon / Aymen). Until then
+ *  Engaged equals the SAL set. */
+export const ENGAGED_KEYS = new Set<StageKey>([...SAL_KEYS])
 export const UNQUALIFIED_KEYS = new Set<StageKey>(['unqualified', 'cql', 'ai_robot', 'black_listed', 'agency_archive', 'old_agency', 'no_longer_travelling'])
 
 /**

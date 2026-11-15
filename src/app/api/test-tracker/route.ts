@@ -74,7 +74,7 @@ const SPEND_ANOMALY_THRESHOLD = 1000
 // Stage sets come from lib/streak-stages (alias map, 2026-11-15): Streak renamed FIRST REPLY → OFFER
 // SENT, STANDARD → ENGAGED, VIP → SHORTLIST, ULTRA VIP → ONE YACHT and added emoji suffixes on
 // 13.11.2026 — exact-name sets here silently dropped SAL to ~0. Same buckets as before:
-// SAL = the old Qualified set; ENGAGED = SAL + OFFER SENT (old FIRST REPLY). RECEIVED ONLY is not engaged (Dejan 15.11.).
+// SAL = the old Qualified set; ENGAGED = SAL (OFFER SENT and RECEIVED ONLY are not engaged, Dejan 15.11., to confirm with Simon / Aymen).
 // (WON 2027 / WON 2028 now count as won — the old exact set missed them.)
 function isSalStage(stage: unknown): boolean {
   return SAL_KEYS.has(stageKeyOf(stage))
