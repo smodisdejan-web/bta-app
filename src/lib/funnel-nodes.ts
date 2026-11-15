@@ -17,6 +17,7 @@
 // src/data/bofu-adset-mtd.json (flagged `estimate`), and days outside both stay unsplit in
 // EB Croatia (flagged).
 
+import { ACTIVE_OPPS_DEFS, ACTIVE_OPPS_DEFAULT, type StageKey } from './streak-stages'
 import {
   CAMPAIGNS,
   UMBRELLA_ORDER,
@@ -26,6 +27,7 @@ import {
   bookingChannel,
   getFunnelDatasets,
   ensureCopyFeeds,
+  ensureVideoFeed,
   isFlatChannelLead,
   leadChannel,
   loadBusinessFunnel,
@@ -80,6 +82,8 @@ export interface NodeValues {
   revenue: number | null
   spend: number | null
   roas: number | null
+  /** PROVISIONAL (meta.activeOpps): leads whose Streak stage is an open opportunity; attributed like QL */
+  activeOpps?: number | null
 }
 
 export interface NodeEstimate {
@@ -873,6 +877,7 @@ function rollupLevel(
     const a = get(k)
     a.leads++
     if (l.ai >= 50) a.ql++
+    if (isAO(l)) a.ao++
     if (level === 'campaign' && A.leadCampaignBy[i] === 'fuzzy') a.leadsPartial++
     if (level === 'lp') a.leadsPartial++
   })
@@ -961,10 +966,10 @@ function copyInfoOf(ds: Datasets): Map<string, AdCopyInfo> {
   return m
 }
 
-type CopyMetrics = { impressions: number; clicks: number; spend: number; lpViews: number; leads: number; ql: number; bookings: number; revenue: number }
-const CM_KEYS: (keyof CopyMetrics)[] = ['impressions', 'clicks', 'spend', 'lpViews', 'leads', 'ql', 'bookings', 'revenue']
+type CopyMetrics = { impressions: number; clicks: number; spend: number; lpViews: number; leads: number; ql: number; ao: number; bookings: number; revenue: number }
+const CM_KEYS: (keyof CopyMetrics)[] = ['impressions', 'clicks', 'spend', 'lpViews', 'leads', 'ql', 'ao', 'bookings', 'revenue']
 const MEASURED: (keyof CopyMetrics)[] = ['impressions', 'clicks', 'spend']
-const cm0 = (): CopyMetrics => ({ impressions: 0, clicks: 0, spend: 0, lpViews: 0, leads: 0, ql: 0, bookings: 0, revenue: 0 })
+const cm0 = (): CopyMetrics => ({ impressions: 0, clicks: 0, spend: 0, lpViews: 0, leads: 0, ql: 0, ao: 0, bookings: 0, revenue: 0 })
 
 /** One ad's share of one text inside the window. */
 export interface CopyPart { adId: string; copyId: string; text: string; values: CopyMetrics; multi: boolean; lpSeen: boolean; utmLoss: boolean; est: boolean; spendApprox: boolean }
@@ -995,7 +1000,7 @@ function copyParts(ds: Datasets, A: Assignment, from: string, to: string, channe
   const addLost = (v: CopyMetrics) => { for (const k of CM_KEYS) lost[k] += v[k] }
   for (const [nodeId, a] of adRoll) {
     const adId = nodeId.replace(/^ad:meta:/, '')
-    const tot: CopyMetrics = { impressions: a.impressions, clicks: a.clicks, spend: a.spend, lpViews: a.lpSeen ? (a.lpViews ?? 0) : 0, leads: a.leads, ql: a.ql, bookings: a.bookings, revenue: a.revenue }
+    const tot: CopyMetrics = { impressions: a.impressions, clicks: a.clicks, spend: a.spend, lpViews: a.lpSeen ? (a.lpViews ?? 0) : 0, leads: a.leads, ql: a.ql, ao: a.ao, bookings: a.bookings, revenue: a.revenue }
     const inf = info.get(adId)
     const base = { adId, lpSeen: a.lpSeen, utmLoss: a.utmLoss, est: a.est, spendApprox: a.spendApprox }
     if (!inf) { flags.noTextFeed.ads++; flags.noTextFeed.spend += a.spend; addLost(tot); continue }
@@ -1015,7 +1020,7 @@ function copyParts(ds: Datasets, A: Assignment, from: string, to: string, channe
       const sp = S > 0 ? x.spend / S : I > 0 ? x.impressions / I : 1 / assets.length
       const im = I > 0 ? x.impressions / I : sp
       const lc = L > 0 ? x.linkClicks / L : C > 0 ? x.clicks / C : sp
-      return { impressions: im, clicks: lc, spend: sp, lpViews: lc, leads: lc, ql: lc, bookings: lc, revenue: lc } as CopyMetrics
+      return { impressions: im, clicks: lc, spend: sp, lpViews: lc, leads: lc, ql: lc, ao: lc, bookings: lc, revenue: lc } as CopyMetrics
     }
     assets.sort((p, q) => p[0].localeCompare(q[0]))
     const done = cm0()
@@ -1048,10 +1053,47 @@ function copyRows(parts: CopyPart[], info: Map<string, AdCopyInfo>) {
   return rows
 }
 
+// ─── Video: hook / hold rate (2026-11-15) ────────────────────────────────────
+
+/** Raw video counts of a node / row (Meta only). videoImpressions/videoSpend = ads with video_plays > 0. */
+export interface VideoCounts { impressions: number; videoImpressions: number; views3s: number; thruplays: number; spend: number; videoSpend: number }
+const vz = (): VideoCounts => ({ impressions: 0, videoImpressions: 0, views3s: 0, thruplays: 0, spend: 0, videoSpend: 0 })
+/** hookRate = 3-second video views / impressions of video ads; holdRate = ThruPlays / 3-second views. */
+export function videoRates(v: VideoCounts | null) {
+  if (!v) return { hookRate: null, holdRate: null, videoSpendShare: null }
+  return {
+    hookRate: v.videoImpressions > 0 ? v.views3s / v.videoImpressions : null,
+    holdRate: v.views3s > 0 ? v.thruplays / v.views3s : null,
+    videoSpendShare: v.spend > 0 ? v.videoSpend / v.spend : null,
+  }
+}
+function videoCtx(A: Assignment, adId: string): Ctx {
+  const info = A.ads.get(adId)
+  return { funnel: info?.funnel ?? null, campaignBase: info?.campaignBase ?? null, slug: info ? adSlug('meta', info.campaign) : null, adsetId: info?.adsetId ?? null, adId, lp: A.adLp(adId) }
+}
+/** per ad (window) and the node total for `pred` */
+function videoByAd(ds: Datasets, A: Assignment, from: string, to: string, channel: Channel, pred: (c: Ctx) => boolean): Map<string, VideoCounts> {
+  const out = new Map<string, VideoCounts>()
+  if (!chanIn(channel, 'meta')) return out
+  for (const r of ds.video) {
+    if (r.day < from || r.day > to) continue
+    if (!pred(videoCtx(A, r.adId))) continue
+    const v = out.get(r.adId) || vz()
+    v.impressions += r.impressions; v.spend += r.spend
+    if (r.plays > 0) { v.videoImpressions += r.impressions; v.views3s += r.views3s; v.thruplays += r.thruplays; v.videoSpend += r.spend }
+    out.set(r.adId, v)
+  }
+  return out
+}
+const vsum = (m: Iterable<VideoCounts>) => { const t = vz(); for (const v of m) for (const k of Object.keys(t) as (keyof VideoCounts)[]) t[k] += v[k]; return t }
+const vround = (v: VideoCounts): VideoCounts => ({ impressions: Math.round(v.impressions), videoImpressions: Math.round(v.videoImpressions), views3s: Math.round(v.views3s * 1000) / 1000, thruplays: Math.round(v.thruplays * 1000) / 1000, spend: r2(v.spend), videoSpend: r2(v.videoSpend) })
+
 // ─── Values / rollups ───────────────────────────────────────────────────────
 
-type Acc = { impressions: number; clicks: number; lpViews: number | null; leads: number; ql: number; bookings: number; revenue: number; spend: number; est: boolean }
-const acc = (): Acc => ({ impressions: 0, clicks: 0, lpViews: null, leads: 0, ql: 0, bookings: 0, revenue: 0, spend: 0, est: false })
+type Acc = { impressions: number; clicks: number; lpViews: number | null; leads: number; ql: number; ao: number; bookings: number; revenue: number; spend: number; est: boolean }
+const acc = (): Acc => ({ impressions: 0, clicks: 0, lpViews: null, leads: 0, ql: 0, ao: 0, bookings: 0, revenue: 0, spend: 0, est: false })
+/** active sales opportunity (PROVISIONAL definition, lib/streak-stages) */
+const isAO = (l: { stage: StageKey }) => ACTIVE_OPPS_DEFS[ACTIVE_OPPS_DEFAULT].keys.has(l.stage)
 
 const chanIn = (view: Channel, ch: 'meta' | 'google') => view === 'all' || view === ch
 
@@ -1108,6 +1150,7 @@ function rollupCampaigns(
     const a = get(s.child)
     a.leads++
     if (l.ai >= 50) a.ql++
+    if (isAO(l)) a.ao++
   })
   ds.bookings.rows.forEach((b, i) => {
     if (b.month < bo.fromM || b.month > bo.toM) return
@@ -1123,7 +1166,7 @@ function rollupCampaigns(
 
 const r2 = (x: number) => Math.round(x * 100) / 100
 
-function valuesOf(a: { impressions: number | null; clicks: number | null; lpViews: number | null; leads: number | null; ql: number | null; bookings: number | null; revenue: number | null; spend: number | null }, roasOk: boolean, leadsNa: boolean): NodeValues {
+function valuesOf(a: { impressions: number | null; clicks: number | null; lpViews: number | null; leads: number | null; ql: number | null; bookings: number | null; revenue: number | null; spend: number | null; ao?: number | null }, roasOk: boolean, leadsNa: boolean): NodeValues {
   return {
     impressions: a.impressions == null ? null : Math.round(a.impressions),
     clicks: a.clicks == null ? null : Math.round(a.clicks),
@@ -1134,13 +1177,14 @@ function valuesOf(a: { impressions: number | null; clicks: number | null; lpView
     revenue: a.revenue == null ? null : r2(a.revenue),
     spend: a.spend == null ? null : r2(a.spend),
     roas: roasOk && a.spend && a.spend > 0 && a.revenue != null ? a.revenue / a.spend : null,
+    activeOpps: leadsNa || a.ao == null ? null : a.ao,
   }
 }
 
 const rawToValues = (v: RawStepValues, roasOk: boolean, leadsNa = false, qlAll = true): NodeValues =>
   valuesOf({ impressions: v.impressions, clicks: v.clicks, lpViews: v.lpViews, leads: v.leads, ql: qlAll ? v.qlAll : v.ql, bookings: v.bookings, revenue: v.revenue, spend: v.spend }, roasOk, leadsNa)
 
-const ADDITIVE: (keyof NodeValues)[] = ['impressions', 'clicks', 'lpViews', 'leads', 'ql', 'bookings', 'revenue', 'spend']
+const ADDITIVE: (keyof NodeValues)[] = ['impressions', 'clicks', 'lpViews', 'leads', 'ql', 'bookings', 'revenue', 'spend', 'activeOpps']
 
 function remainderOf(node: NodeValues, children: NodeChild[], rawChildren: NodeValues[]): NodeValues {
   const out: any = {}
@@ -1268,6 +1312,7 @@ export async function loadFunnelNode(o: NodeOpts) {
   if (!parsed) throw new Error(`Unknown node "${o.node}"`)
   const ds = await getFunnelDatasets()
   if (parsed.type === 'copy' || o.level === 'copy') await ensureCopyFeeds(ds)
+  await ensureVideoFeed(ds)
   const A = assignmentOf(ds)
   for (const r of ds.fbSpend.rows) A.metaParts(r.campaign, r.day)
   for (const r of ds.google.rows) A.googleFunnel(r.campaign)
@@ -1374,6 +1419,14 @@ export async function loadFunnelNode(o: NodeOpts) {
   }
   const cur = aggNode(from, to, bo)
   const nodeValues = rawToValues(cur, roasOk, leadsNa, true)
+  // Active sales opportunities (PROVISIONAL): same attribution as QL — the lead context of the node.
+  const aoOf = (f: string, t2: string, ob: AggOpts): number | null => {
+    if (leadsNa) return null
+    if (copyKey) { const ps = copyPartsOf(f, t2, ob).parts.filter((p) => p.copyId === copyKey); return r3(ps.reduce((n, p) => n + p.values.ao, 0)) }
+    const pred = parsed.type === 'umbrella' ? (c: Ctx) => c.slug === parsed.key : nodePredicate(parsed.type, parsed.key)
+    return rollupLevel(ds, A, f, t2, o.channel, ob, 'node', pred, false).get('node')?.ao ?? 0
+  }
+  nodeValues.activeOpps = aoOf(from, to, bo)
   if (copyKey) {
     // a text is a split of ads: keep its fractions, like its row (3 decimals)
     for (const k of ['impressions', 'clicks', 'lpViews', 'leads', 'ql', 'bookings'] as const) { const v = (cur as any)[k === 'ql' ? 'qlAll' : k]; if (nodeValues[k] != null && typeof v === 'number') nodeValues[k] = r3(v) }
@@ -1411,8 +1464,8 @@ export async function loadFunnelNode(o: NodeOpts) {
     for (const f of FUNNELS) {
       const sc = funnelScope(ds, f.key)
       const v = aggregateScope(ds, sc, from, to, o.channel, bo)
-      const raw = rawToValues(v, roasOk, false, true)
-      const shown = f.leadsNa ? { ...raw, leads: null, ql: null } : raw
+      const raw = { ...rawToValues(v, roasOk, false, true), activeOpps: rollupLevel(ds, A, from, to, o.channel, bo, 'node', (c) => c.funnel === f.key, false).get('node')?.ao ?? 0 }
+      const shown = f.leadsNa ? { ...raw, leads: null, ql: null, activeOpps: null } : raw
       // A funnel whose leads are n/a does not claim its few Streak rows: they stay in the remainder,
       // so Σ funnels + remainder still equals master.
       if (f.leadsNa && (raw.leads || raw.ql)) hiddenLeads = { leads: raw.leads || 0, ql: raw.ql || 0, funnel: f.label }
@@ -1453,7 +1506,7 @@ export async function loadFunnelNode(o: NodeOpts) {
     for (const [id, a] of roll) {
       const lab = A.labels.get(id)
       const raw = valuesOf({ ...a, lpViews: null }, roasOk, false)
-      const shown = leadsNa ? { ...raw, leads: null, ql: null } : raw
+      const shown = leadsNa ? { ...raw, leads: null, ql: null, activeOpps: null } : raw
       rawKids.push(raw)
       const baseName = lab?.label?.split(' · ')[0] || ''
       const c0 = CAMPAIGNS.find((c) => c.slug === adSlug(lab?.platform || 'meta', baseName))
@@ -1491,14 +1544,14 @@ export async function loadFunnelNode(o: NodeOpts) {
     const vals = (v: CopyMetrics, lpSeen: boolean): NodeValues => {
       const raw = valuesOf({ ...v, lpViews: lpSeen ? v.lpViews : null }, roasOk, false)
       // keep the fractional split (decimals allowed); valuesOf rounds impressions / clicks
-      return { ...raw, impressions: r3(v.impressions), clicks: r3(v.clicks), leads: raw.leads == null ? null : r3(raw.leads), ql: raw.ql == null ? null : r3(raw.ql), bookings: raw.bookings == null ? null : r3(raw.bookings), lpViews: raw.lpViews == null ? null : r3(raw.lpViews) }
+      return { ...raw, impressions: r3(v.impressions), clicks: r3(v.clicks), leads: raw.leads == null ? null : r3(raw.leads), ql: raw.ql == null ? null : r3(raw.ql), bookings: raw.bookings == null ? null : r3(raw.bookings), lpViews: raw.lpViews == null ? null : r3(raw.lpViews), activeOpps: raw.activeOpps == null ? null : r3(raw.activeOpps) }
     }
     if (!copyKey) {
       const rows = copyRows(cp.parts, cp.info)
       for (const r of rows.values()) {
         const multi = r.multiAds.size > 0
         const v = vals(r.values, r.lpSeen)
-        const shown = leadsNa ? { ...v, leads: null, ql: null } : v
+        const shown = leadsNa ? { ...v, leads: null, ql: null, activeOpps: null } : v
         children.push({
           id: r.id, type: 'copy', label: copyLabel(r.text), platform: 'meta', nonKpi: false, drillable: true,
           values: shown, quality: q(r.values, r.lpSeen, r.utmLoss, multi, r.est),
@@ -1507,7 +1560,7 @@ export async function loadFunnelNode(o: NodeOpts) {
           headlines: [...r.headlines], descriptions: [...r.descriptions], ctas: [...r.ctas],
           adsCount: r.ads.size, multiTextAds: r.multiAds.size,
           ...(r.values.bookings > r.values.leads ? { leadsBelowBookings: true, flagNote: LEADS_BELOW_BOOKINGS_NOTE } : {}),
-          split: { measured: r.measured, estimated: { lpViews: r.estimated.lpViews, leads: r.estimated.leads, ql: r.estimated.ql, bookings: r.estimated.bookings, revenue: r.estimated.revenue } },
+          split: { measured: r.measured, estimated: { lpViews: r.estimated.lpViews, leads: r.estimated.leads, ql: r.estimated.ql, ao: r.estimated.ao, bookings: r.estimated.bookings, revenue: r.estimated.revenue } },
           path: [],
         } as any)
       }
@@ -1550,7 +1603,7 @@ export async function loadFunnelNode(o: NodeOpts) {
     for (const [id0, a] of roll) {
       const id = level === 'lp' ? lpNodeId(id0) : id0
       const raw = valuesOf({ ...a, lpViews: a.lpSeen ? a.lpViews : level === 'lp' ? 0 : null }, roasOk, false)
-      const shown = leadsNa ? { ...raw, leads: null, ql: null } : raw
+      const shown = leadsNa ? { ...raw, leads: null, ql: null, activeOpps: null } : raw
       const baseName = a.label.split(' · ')[0]
       const c0 = level === 'campaign' ? CAMPAIGNS.find((c) => c.slug === adSlug(a.platform || 'meta', baseName)) : null
       const ab = level === 'lp' ? abOf(id0) : null
@@ -1580,7 +1633,7 @@ export async function loadFunnelNode(o: NodeOpts) {
   // Master: the QL step EXCLUDES the AI-inflated ASSET umbrella, children count it. The remainder
   // is therefore reconciled against qualityLeadsIncludingAsset — never against the step value.
   const reconcileBase: NodeValues =
-    parsed.type === 'master' ? rawToValues(cur, roasOk, false, true) : nodeValues
+    parsed.type === 'master' ? { ...rawToValues(cur, roasOk, false, true), activeOpps: nodeValues.activeOpps } : nodeValues
   const remainder = level
     ? { label: '(not attributed lower)', values: remainderOf(reconcileBase, children, rawKids) }
     : null
@@ -1674,6 +1727,7 @@ export async function loadFunnelNode(o: NodeOpts) {
     // ROAS only when the previous window is whole months (bookings are month-granular at source).
     const whole = pw.from.endsWith('-01') && pw.to === monthEnd(pw.to.slice(0, 7))
     previous = { from: pw.from, to: pw.to, values: rawToValues(pv, whole, leadsNa, true) }
+    previous.values.activeOpps = aoOf(pw.from, pw.to, { fromM: pw.from.slice(0, 7), toM: pw.to.slice(0, 7) })
     if (utmVisNode) { const pvis = visOf(pw.from, pw.to, { fromM: pw.from.slice(0, 7), toM: pw.to.slice(0, 7) }); previous.values.lpViews = pvis?.lpSeen ? Math.round(pvis.lpViews as number) : null }
   }
   const stepKeyMap: Record<string, keyof NodeValues> = { impressions: 'impressions', clicks: 'clicks', lpViews: 'lpViews', leads: 'leads', ql: 'ql', bookings: 'bookings' }
@@ -1703,6 +1757,16 @@ export async function loadFunnelNode(o: NodeOpts) {
     return st
   })
   { const lst = steps.find((x) => x.key === 'lpViews'); if (lst) lst.quality = nodeQuality.lpViews }
+  // PROVISIONAL step, appended LAST so the existing step order does not move (node API only)
+  {
+    const qlv = nodeValues.ql, aov = nodeValues.activeOpps ?? null, pq = previous?.values.ql, pa = previous?.values.activeOpps
+    const cv = aov != null && qlv ? aov / qlv : null, bm = pa != null && pq ? pa / pq : null
+    steps.push({
+      key: 'activeOpps', label: 'Active sales opportunities', value: aov, previousValue: pa ?? null,
+      cvrFromPrev: cv, benchmarkCvr: bm, status: null, provisional: true,
+      source: `Streak stage (current) · ${ACTIVE_OPPS_DEFS[ACTIVE_OPPS_DEFAULT].text} Rate = active opps / QL.`,
+    } as any)
+  }
   if (utmVisNode) {
     // Visitors step (and the Leads step's rate) from the node's GA4-by-utm visitors
     const rate = (a: number | null | undefined, b: number | null | undefined) => (a != null && b ? a / b : null)
@@ -1725,6 +1789,39 @@ export async function loadFunnelNode(o: NodeOpts) {
         st.status = stOf(st.cvrFromPrev, st.benchmarkCvr)
       }
     }
+  }
+
+  // ── video (hook / hold rate, Meta only; image ads count in impressions/spend, not in the rates) ──
+  const vAll = videoByAd(ds, A, from, to, o.channel, () => true)
+  const copyVideo = (parts: CopyPart[]) => {
+    const t = vz()
+    for (const p of parts) {
+      const v = vAll.get(p.adId); if (!v || !(v.spend > 0 || v.impressions > 0)) continue
+      // this text's share of the ad: its spend share (impressions when the ad has no spend)
+      const sh = v.spend > 0 ? Math.min(1, p.values.spend / v.spend) : v.impressions > 0 ? Math.min(1, p.values.impressions / v.impressions) : 0
+      for (const k of Object.keys(t) as (keyof VideoCounts)[]) t[k] += v[k] * sh
+    }
+    return t
+  }
+  const videoOfId = (id: string, type: NodeType): VideoCounts | null => {
+    if (type === 'copy') return copyCp ? copyVideo(copyCp.parts.filter((p) => p.copyId === id)) : copyVideo(copyPartsOf(from, to, bo).parts.filter((p) => p.copyId === id))
+    const pn = parseNode(id); if (!pn) return null
+    const pred = pn.type === 'umbrella' ? (c: Ctx) => c.slug === pn.key : nodePredicate(pn.type, pn.key)
+    return vsum(videoByAd(ds, A, from, to, o.channel, pred).values())
+  }
+  const nodeVideo = videoOfId(parsed.type === 'master' ? 'master' : parsed.type === 'lp' ? lpNodeId(lpKey!) : o.node, parsed.type)
+  Object.assign(nodeValues, videoRates(nodeVideo))
+  const mineParts = copyKey ? copyPartsOf(from, to, bo).parts.filter((p) => p.copyId === copyKey) : []
+  for (const c of children) {
+    let v: VideoCounts | null
+    if (copyKey) {
+      // copy node: only this text's share of the ads under this child
+      const pn = parseNode(c.id)
+      const pred = pn ? nodePredicate(pn.type, pn.key) : () => false
+      v = copyVideo(mineParts.filter((p) => pred(videoCtx(A, p.adId))))
+    } else v = videoOfId(c.id, c.type)
+    ;(c as any).video = v ? vround(v) : null
+    Object.assign(c.values, videoRates(v ? vround(v) : null))
   }
 
   // ── node info / path ──
@@ -1786,7 +1883,7 @@ export async function loadFunnelNode(o: NodeOpts) {
     const multi = (rows?.multiAds.size ?? 0) > 0
     copyTop = {
       estimate: { spend: !!rows?.est, impressions: !!rows?.est, clicks: !!rows?.est, leads: multi, ql: multi, bookings: multi, revenue: multi },
-      split: rows ? { measured: rows.measured, estimated: { lpViews: rows.estimated.lpViews, leads: rows.estimated.leads, ql: rows.estimated.ql, bookings: rows.estimated.bookings, revenue: rows.estimated.revenue } } : null,
+      split: rows ? { measured: rows.measured, estimated: { lpViews: rows.estimated.lpViews, leads: rows.estimated.leads, ql: rows.estimated.ql, ao: rows.estimated.ao, bookings: rows.estimated.bookings, revenue: rows.estimated.revenue } } : null,
     }
     path.push({ id: o.node, label })
   }
@@ -1808,6 +1905,11 @@ export async function loadFunnelNode(o: NodeOpts) {
       ...meta,
       node: node.id,
       bookingsWindowMismatch,
+      activeOpps: {
+        provisional: true, definition: ACTIVE_OPPS_DEFAULT, text: ACTIVE_OPPS_DEFS[ACTIVE_OPPS_DEFAULT].text,
+        candidates: Object.fromEntries(Object.entries(ACTIVE_OPPS_DEFS).map(([k, v]) => [k, v.text])),
+        note: 'Counted on leads by inquiry date in the window, current Streak stage, attributed exactly like QL. Switches when Dejan / Simon confirm the definition.',
+      },
       notes: [
         ...(meta.notes || []),
         ...notes,
@@ -1822,6 +1924,7 @@ export async function loadFunnelNode(o: NodeOpts) {
     levels,
     level,
     quality: nodeQuality,
+    video: nodeVideo ? { ...vround(nodeVideo), note: 'Meta only. hookRate = 3-second video views / impressions of video ads (video_plays > 0); holdRate = ThruPlays / 3-second views; videoSpendShare = video ads\' share of Meta spend. 3-second views = spend / cost_per_video_view (Meta MCP has no ad-level 3_second_video_plays).' } : null,
     values: parsed.type === 'master' ? { ...nodeValues, qlStep: resp.steps.find((s) => s.key === 'ql')?.value ?? null } : nodeValues,
     children,
     remainder,
@@ -1902,4 +2005,23 @@ export async function copyPartsForVerify(range: ResolvedRange, channel: Channel,
   for (const r of ds.fbSpend.rows) A.metaParts(r.campaign, r.day)
   for (const r of ds.google.rows) A.googleFunnel(r.campaign)
   return copyParts(ds, A, range.from, range.to, channel, { fromM: range.from.slice(0, 7), toM: range.to.slice(0, 7) }, () => true)
+}
+
+/** Verify / proposal helper: leads per funnel × Streak stage, and per candidate definition (PROVISIONAL). */
+export async function activeOppsBreakdown(range: ResolvedRange, channel: Channel = 'all') {
+  const ds = await getFunnelDatasets()
+  const A = assignmentOf(ds)
+  for (const r of ds.fbSpend.rows) A.metaParts(r.campaign, r.day)
+  for (const r of ds.google.rows) A.googleFunnel(r.campaign)
+  const byFunnel: Record<string, { leads: number; ql: number; stages: Record<string, number>; defs: Record<string, number> }> = {}
+  ds.streak.rows.forEach((l, i) => {
+    if (l.day < range.from || l.day > range.to) return
+    if (channel !== 'all' && leadChannel(l) !== channel) return
+    const f = A.leadFunnel[i] || '(no funnel)'
+    const x = (byFunnel[f] ||= { leads: 0, ql: 0, stages: {}, defs: {} })
+    x.leads++; if (l.ai >= 50) x.ql++
+    x.stages[l.stage] = (x.stages[l.stage] || 0) + 1
+    for (const [k, d] of Object.entries(ACTIVE_OPPS_DEFS)) if (d.keys.has(l.stage)) x.defs[k] = (x.defs[k] || 0) + 1
+  })
+  return byFunnel
 }

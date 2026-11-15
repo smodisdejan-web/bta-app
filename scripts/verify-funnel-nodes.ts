@@ -68,7 +68,7 @@ async function pool<T>(items: T[], n: number, fn: (t: T) => Promise<void>) {
     console.log(`\n==== ${rk} ${range.from}…${range.to}`)
     // ── 2. invariants
     const m = await loadFunnelNode({ node: 'master', range, channel: 'all' })
-    const keys = ['impressions', 'clicks', 'lpViews', 'leads', 'ql', 'bookings', 'revenue', 'spend'] as const
+    const keys = ['impressions', 'clicks', 'lpViews', 'leads', 'ql', 'bookings', 'revenue', 'spend', 'activeOpps'] as const
     console.log('  master', JSON.stringify(m.values))
     for (const c of m.children) console.log(`    ${c.id.padEnd(24)} spend ${c.values.spend} leads ${c.values.leads} ql ${c.values.ql} bk ${c.values.bookings} rvc ${c.values.revenue} lp ${c.values.lpViews}${c.estimate.spend ? ' (estimate)' : ''}`)
     console.log('    remainder              ', JSON.stringify(m.remainder?.values))
@@ -191,6 +191,28 @@ async function pool<T>(items: T[], n: number, fn: (t: T) => Promise<void>) {
       if (lpIds.has(ifm) && !ids.has(ifm)) fail('index misses meta-instant-form/')
       console.log(`  index levels=all: ${idx.body.items.filter((i: any) => i.type === 'lp').length} LPs · every LP from the 4 lists present: ${missing.length === 0} · meta-instant-form/ ${ids.has(ifm) ? 'present' : 'absent'}`)
     }
+  }
+
+  // ── 7. Video: hook / hold rate (Σ children video counts vs node)
+  console.log('\n== 7. Video counts (hookRate = 3-s views / video-ad impressions)')
+  for (const rk of RANGES) {
+    const range = resolveRange(rk, '', '')
+    const out: string[] = []
+    for (const [node, lv] of [['master', 'funnel'], ['master', 'campaign'], ['master', 'ad'], ['funnel:eb_croatia', 'campaign'], ['master', 'lp'], ['master', 'copy']] as const) {
+      const n: any = await loadFunnelNode({ node, range, channel: 'all', level: lv })
+      const tot = n.video?.views3s ?? 0
+      const sum = n.children.reduce((x: number, c: any) => x + (c.video?.views3s ?? 0), 0)
+      if (sum > tot + 1) fail(`${rk} ${node} level=${lv} Σ children 3-s views ${sum} > node ${tot}`)
+      if ((lv === 'campaign' && node === 'master') || lv === 'ad') { if (Math.abs(sum - tot) > Math.max(1, tot * 0.001)) fail(`${rk} ${node} level=${lv} Σ 3-s views ${sum} ≠ node ${tot}`) }
+      for (const c of n.children) {
+        const v = c.video
+        if (v && v.videoImpressions > 0 && c.values.hookRate == null) fail(`${rk} ${c.id} hookRate null with video impressions`)
+        if (v && v.videoImpressions === 0 && c.values.hookRate != null) fail(`${rk} ${c.id} hookRate on an image-only row`)
+      }
+      out.push(`${node}/${lv} Σ ${Math.round(sum)} of ${Math.round(tot)} (${tot ? ((sum / tot) * 100).toFixed(1) : 'n/a'} %)`)
+    }
+    const m: any = await loadFunnelNode({ node: 'master', range, channel: 'all' })
+    console.log(`  ${rk}: hookRate ${m.values.hookRate == null ? 'n/a' : (m.values.hookRate * 100).toFixed(1) + ' %'} · holdRate ${m.values.holdRate == null ? 'n/a' : (m.values.holdRate * 100).toFixed(1) + ' %'} · video share of Meta spend ${m.values.videoSpendShare == null ? 'n/a' : (m.values.videoSpendShare * 100).toFixed(1) + ' %'} · ${out.join(' · ')}`)
   }
 
   // ── 6. Ad copy (part 4)

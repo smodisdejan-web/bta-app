@@ -41,6 +41,7 @@
 // first, then the placement/campaign-name matchers, then the umbrella regexes in an explicit
 // order. Whatever matches nothing is reported as the unattributed remainder.
 
+import { stageKeyOf, type StageKey } from './streak-stages'
 import { DEFAULT_WEB_APP_URL, getSheetsUrl, SHEETS_TABS } from './config'
 import { toDay } from './day'
 import { isRelevantPage } from './ga4-landing-pages'
@@ -692,6 +693,8 @@ export interface LeadRow {
   ai: number
   /** client e-mail (streak_sync "Name" column); empty on streak_full rows — joined by key in the LP layer */
   email: string
+  /** canonical Streak stage (lib/streak-stages; streak_full rows take the CURRENT stage from streak_sync when the box is there) */
+  stage: StageKey
 }
 export interface BookingRow {
   month: string
@@ -1001,6 +1004,7 @@ async function loadStreak(): Promise<{ rows: LeadRow[]; coverage: Coverage }> {
         isGoogle: /google|adwords/.test(platform) || /paid_search/i.test(cat),
         platform,
         ai: num(r.AI ?? r.ai),
+        stage: stageKeyOf(r.Stage ?? r.stage),
       })
     }
     return { rows, coverage: coverageOf(rows.map((r) => r.day)) }
@@ -1016,6 +1020,11 @@ async function loadStreak(): Promise<{ rows: LeadRow[]; coverage: Coverage }> {
     ])
     const full = parse(fullRaw)
     const sync = parse(syncRaw)
+    // streak_full is a periodic scan: its Stage is as old as the scan. Take the current stage from
+    // streak_sync for the same box (day | placement | AI score) when it is there (2026-11-15).
+    const cur = new Map<string, StageKey>()
+    for (const r of sync.rows) cur.set(`${r.day}|${r.sp}|${r.ai}`, r.stage)
+    for (const r of full.rows) { const st = cur.get(`${r.day}|${r.sp}|${r.ai}`); if (st && st !== 'unknown') r.stage = st }
     if (!full.rows.length) return sync
     if (!sync.rows.length) return full
     // streak_full's last day is partial (the scan stops mid-day) — it comes from streak_sync.
@@ -1250,6 +1259,24 @@ export function lpKeyOfUrl(url: string): string {
   try { const u = new URL(url); return lpKeyOf(u.hostname, u.pathname) } catch { return '' }
 }
 
+/** One Meta ad × day video row (fb_ad_video_daily). video = video_plays > 0. */
+export interface AdVideoDay { day: string; adId: string; impressions: number; spend: number; plays: number; views3s: number; thruplays: number }
+async function loadAdVideo(): Promise<AdVideoDay[]> {
+  return cached('adVideo', async () => {
+    const out: AdVideoDay[] = []
+    for (const r of await softRows('raw:fb_ad_video_daily', SHEETS_TABS.FB_AD_VIDEO_DAILY)) {
+      const day = toDay(r.date); const adId = String(r.ad_id ?? '').trim()
+      if (!day || !adId) continue
+      out.push({ day, adId, impressions: num(r.impressions), spend: num(r.spend), plays: num(r.video_plays), views3s: num(r.video_3s), thruplays: num(r.thruplays) })
+    }
+    return out
+  })
+}
+/** Fill ds.video on demand (hook / hold rate, 2026-11-15). */
+export async function ensureVideoFeed(ds: Datasets): Promise<Datasets> {
+  if (!ds.video.length) ds.video = await loadAdVideo()
+  return ds
+}
 /** One Meta ad × day × body asset row (fb_ad_body_daily). */
 export interface BodyAssetDay { day: string; adId: string; assetId: string; impressions: number; clicks: number; linkClicks: number; spend: number }
 /** One text of one Meta ad (fb_ad_texts): field body|title|description|cta; assetId '' for the creative's own text. */
@@ -1511,6 +1538,8 @@ export interface Datasets {
    *  ensureCopyFeeds() — only level=copy, copy nodes and the index need them (the 33.5k-row
    *  fb_ad_body_daily tab takes ~48 s from Apps Script cold); empty until then. */
   copy: { bodyDaily: BodyAssetDay[]; texts: AdText[] }
+  /** Meta ad × day video metrics (fb_ad_video_daily), loaded by ensureVideoFeed(); empty until then. */
+  video: AdVideoDay[]
   /** memoised leadSlug per streak row index */
   leadSlugs: (string | null)[]
   /** memoised bookingSlug per bookings row index */
@@ -2446,6 +2475,7 @@ export async function getFunnelDatasets(): Promise<Datasets> {
     bookingAds,
     lp,
     copy,
+    video: [],
     leadSlugs: streak.rows.map((r) => (isFlatChannelLead(r) ? null : leadSlug(r, utmIndex))),
     bookingSlugs: bookings.rows.map((r) => bookingSlug(r)),
   }
