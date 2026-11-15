@@ -29,6 +29,9 @@ import {
   ensureCopyFeeds,
   ensureVideoFeed,
   ensureStageHistory,
+  loadLeadMagnet,
+  type QuizKind,
+  type QuizContact,
   leadHistoryKeys,
   STAGE_HISTORY_FROM,
   isFlatChannelLead,
@@ -66,6 +69,7 @@ import {
   type ItemRule,
 } from './funnel-groups'
 import bofuMtd from '../data/bofu-adset-mtd.json'
+import adCreativeMeta from '../data/ad-creative-meta.json'
 import { createHash } from 'crypto'
 
 type FunnelResponse = Awaited<ReturnType<typeof loadBusinessFunnel>>
@@ -1089,6 +1093,26 @@ function unqualOf(s: Record<SalesBucket, number> | null) {
   }
 }
 
+// ─── Ad creative preview (2026-11-16) ───────────────────────────────────────
+const META_ACCOUNT = '2422256151414958'
+type CreativeMeta = { body?: string; headline?: string; format?: string; story?: string; ig?: string; thumb?: boolean }
+const CREATIVE_META = (adCreativeMeta as any).ads as Record<string, CreativeMeta>
+/** What the UI needs to show an ad: permanent thumbnail, first texts, landing page, links. */
+export function creativeOf(A: Assignment, adId: string) {
+  const m = CREATIVE_META[adId] || {}
+  const [pageId, postId] = String(m.story || '').split('_')
+  return {
+    adId,
+    thumbUrl: m.thumb ? `/mtd-thumbs/${adId}.jpg` : null,
+    body: m.body || null,
+    headline: m.headline || null,
+    landingUrl: A.lpUrl.get(A.adLp(adId) || '') || (A.adLp(adId) ? `https://${A.adLp(adId)}` : null),
+    format: m.format || null,
+    adsManagerUrl: `https://adsmanager.facebook.com/adsmanager/manage/ads?act=${META_ACCOUNT}&selected_ad_ids=${adId}`,
+    postUrl: pageId && postId ? `https://www.facebook.com/${pageId}/posts/${postId}` : null,
+  }
+}
+
 // ─── Video: hook / hold rate (2026-11-15) ────────────────────────────────────
 
 /** Raw video counts of a node / row (Meta only). videoImpressions/videoSpend = ads with video_plays > 0. */
@@ -1485,8 +1509,10 @@ export async function loadFunnelNode(o: NodeOpts) {
   // ── children ──
   const children: NodeChild[] = []
   const rawKids: NodeValues[] = []
-  let bofuDays = { feed: 0, approx: 0, unsplit: 0 }
-  for (let d = from; d <= to; d = addDays(d, 1)) bofuDays[A.bofuMode(d)]++
+  // pending = days after the ad-set feed's last day (the newest day not synced yet) — neutral, not a hole
+  let bofuDays = { feed: 0, approx: 0, unsplit: 0, pending: 0 }
+  const adsetMax = ds.adsets.coverage.max || ''
+  for (let d = from; d <= to; d = addDays(d, 1)) { const m = A.bofuMode(d); if (m === 'unsplit' && adsetMax && d > adsetMax) bofuDays.pending++; else bofuDays[m]++ }
 
   const pushChild = (c: Omit<NodeChild, 'values'> & { raw: NodeValues }) => {
     const { raw, ...rest } = c
@@ -1734,9 +1760,9 @@ export async function loadFunnelNode(o: NodeOpts) {
   }
   if (leadsNa && fdef?.leadsNa) notes.push(fdef.leadsNa)
   if (hiddenLeads) notes.push(`The remainder includes ${hiddenLeads.leads} Streak lead(s) / ${hiddenLeads.ql} QL from ${hiddenLeads.funnel}, where leads are shown as n/a (its registrations live in HubSpot).`)
-  if (bofuDays.approx || bofuDays.unsplit) {
+  if (bofuDays.approx || bofuDays.unsplit || bofuDays.pending) {
     notes.push(
-      `BOFU ad set split: ${bofuDays.feed} day(s) from fb_adset_daily_api, ${bofuDays.approx} day(s) allocated from MTD ad set shares (estimate:true), ${bofuDays.unsplit} day(s) without ad set data kept whole in EB Croatia.`
+      `BOFU ad set split: ${bofuDays.feed} day(s) from fb_adset_daily_api, ${bofuDays.approx} day(s) allocated from MTD ad set shares (estimate:true), ${bofuDays.unsplit} day(s) without ad set data kept whole in EB Croatia (a hole)${bofuDays.pending ? `, ${bofuDays.pending} newest day(s) after the feed's last day ${adsetMax} pending (not an error)` : ''}.`
     )
   }
   if (A.funnelAmbiguousLeads) notes.push(`${A.funnelAmbiguousLeads} lead(s) over the whole Streak feed carry a utm that several ads share across funnels (single-yacht ad vs generic ad in one campaign, e.g. earlybook2027_tier1); they stay in the campaign's own funnel because the ad cannot be told apart. Unique utm_content per ad (SOP, new ads) removes this.`)
@@ -2038,11 +2064,107 @@ export async function loadFunnelNode(o: NodeOpts) {
     nodeUrl = A.lpUrl.get(lpKey!) || `https://${lpKey}`
     path.push({ id: lpNodeId(lpKey!), label })
   }
+  // ── creative preview on ad rows / ad nodes ──
+  for (const c of children) if (c.type === 'ad') (c as any).creative = creativeOf(A, c.id.replace(/^ad:meta:/, ''))
+
+  // ── Lead magnet step model (2026-11-16): quiz → e-mail → later paid Streak inquiry → QL → booking ──
+  let lmSteps: any[] | null = null
+  let lmMeta: any = null
+  const inLM = (parsed.type === 'funnel' && parsed.key === 'lead_magnet') || path.some((p) => p.id === 'funnel:lead_magnet')
+  if (inLM) {
+    const lm = await loadLeadMagnet()
+    const QUIZ_CAMPAIGN: Record<QuizKind, RegExp> = { matchmaker: /^Yacht Matchmaker - Lead Magnet/i, csy: /^CSY - Yacht Matchmaker/i }
+    const campOfQuiz = new Map<QuizKind, string>()
+    const quizLive = new Map<QuizKind, { from: string; to: string }>()
+    for (const r of ds.fbSpend.rows) for (const q of ['matchmaker', 'csy'] as QuizKind[]) if (QUIZ_CAMPAIGN[q].test(r.campaign) && r.spend > 0) {
+      campOfQuiz.set(q, campaignId('meta', r.campaign))
+      const x = quizLive.get(q) || { from: r.day, to: r.day }; if (r.day < x.from) x.from = r.day; if (r.day > x.to) x.to = r.day; quizLive.set(q, x)
+    }
+    const bkByEmail = new Map<string, { n: number; rvc: number }>()
+    for (const b of ds.bookingAds) { if (b.storno) continue; const x = bkByEmail.get(b.email) || { n: 0, rvc: 0 }; x.n++; x.rvc += b.rvc; bkByEmail.set(b.email, x) }
+    type CC = { q: QuizKind; c: Ctx; email: string; day: string; utm: boolean }
+    const ctxOf = (k: QuizContact): CC => {
+      const rows = k.utmCampaign ? ds.utmRows.get(nk(k.utmCampaign)) || [] : []
+      const one = rows.length === 1 ? rows[0] : null
+      // without a utm row: the quiz's campaign, but only while it was spending (earlier quiz e-mails are organic)
+      const live = quizLive.get(k.quiz)
+      const camp = one ? campaignId('meta', one.campaign) : live && k.day >= live.from && k.day <= addDays(live.to, 1) ? campOfQuiz.get(k.quiz) || null : null
+      return { q: k.quiz, email: k.email, day: k.day, utm: !!one, c: { funnel: 'lead_magnet' as FunnelKey, campaignBase: camp, slug: null, adsetId: one?.adsetId || null, adId: one?.adId || null, lp: null } }
+    }
+    const all = lm.contacts.map(ctxOf)
+    const predFor = (id: string): ((c: Ctx) => boolean) | null => {
+      if (id === 'funnel:lead_magnet') return () => true
+      const pn = parseNode(id); if (!pn) return null
+      return nodePredicate(pn.type, pn.key)
+    }
+    const lagDays: number[] = []
+    const agg = (f: string, t2: string, pred: (c: Ctx) => boolean, ob: AggOpts, collectLag = false) => {
+      let emails = 0, later = 0, ql = 0, bookings = 0, revenue = 0, utm = 0, immature = 0
+      const today = todayLjubljana()
+      const byQuiz: Record<string, number> = {}
+      for (const k of all) {
+        if (k.day < f || k.day > t2 || !pred(k.c)) continue
+        emails++; if (k.utm) utm++
+        byQuiz[k.q] = (byQuiz[k.q] || 0) + 1
+        const s2 = (lm.streakByEmail.get(k.email) || []).find((x) => x.day >= k.day)
+        if (s2) { later++; if (s2.ai >= 50) ql++; if (collectLag) lagDays.push((Date.parse(s2.day) - Date.parse(k.day)) / 864e5) }
+        else if ((Date.parse(today) - Date.parse(k.day)) / 864e5 < (k.q === 'csy' ? 60 : 12)) immature++
+        const b = bkByEmail.get(k.email)
+        if (b && b.n) { bookings += b.n; revenue += b.rvc }
+      }
+      void ob
+      return { emails, later, ql, bookings, revenue: r2(revenue), utm, immature, byQuiz }
+    }
+    const pred0 = predFor(parsed.type === 'funnel' ? 'funnel:lead_magnet' : o.node) || (() => false)
+    const cur2 = agg(from, to, pred0, bo, true)
+    const pw3 = (resp.meta as any).benchmark?.window
+    const prev2 = pw3?.from ? agg(pw3.from, pw3.to, pred0, bo) : null
+    const spend = nodeValues.spend || 0
+    Object.assign(nodeValues, {
+      emails: cur2.emails, laterLeads: cur2.later, laterQl: cur2.ql, lmBookings: cur2.bookings, lmRevenue: cur2.revenue,
+      costPerEmail: cur2.emails ? spend / cur2.emails : null, costPerLaterLead: cur2.later ? spend / cur2.later : null,
+    })
+    const rate = (a: number | null | undefined, b: number | null | undefined) => (a != null && b ? a / b : null)
+    const mk = (key: string, label: string, value: number | null, prevVal: number | null, prevKey: number | null, prevPrev: number | null, source: string) =>
+      ({ key, label, value, previousValue: prevVal, cvrFromPrev: rate(value, prevKey), benchmarkCvr: rate(prevVal, prevPrev), source })
+    const pv = previous?.values
+    lmSteps = [
+      mk('impressions', 'Impressions', nodeValues.impressions, pv?.impressions ?? null, null, null, 'Meta'),
+      mk('clicks', 'Clicks', nodeValues.clicks, pv?.clicks ?? null, nodeValues.impressions, pv?.impressions ?? null, 'Meta link clicks'),
+      mk('lpViews', 'Visitors', nodeValues.lpViews, pv?.lpViews ?? null, nodeValues.clicks, pv?.clicks ?? null, 'GA4 paid sessions by utm (goolets.net only; the CSY quiz site is not in the GA4 property → n/a)'),
+      mk('emails', 'E-mail submitted', cur2.emails, prev2?.emails ?? null, nodeValues.lpViews ?? nodeValues.clicks, pv?.lpViews ?? pv?.clicks ?? null, 'HubSpot hubspot_contacts_all: conversion "Yacht matchmaker start…" (goolets.net) / CSY Yacht Quiz, by createdate'),
+      mk('laterLeads', 'Later inquiry (Streak)', cur2.later, prev2?.later ?? null, cur2.emails, prev2?.emails ?? null, `First PAID Streak inquiry (streak_sync, from ${lm.streakSince}) with the same e-mail on/after the quiz day`),
+      mk('ql', 'QL', cur2.ql, prev2?.ql ?? null, cur2.later, prev2?.later ?? null, 'Streak AI ≥ 50 of that inquiry'),
+      { ...mk('bookings', 'Booking', cur2.bookings, prev2?.bookings ?? null, cur2.ql, prev2?.ql ?? null, 'Acq sheet (bookings_ads) by e-mail, any month'), revenue: cur2.revenue },
+    ]
+    const sl = [...lagDays].sort((a, b) => a - b)
+    lmMeta = {
+      stepModel: 'lead_magnet', emailsByQuiz: cur2.byQuiz,
+      utmCoverage: { emails: cur2.emails, withUtmMapping: cur2.utm, share: cur2.emails ? cur2.utm / cur2.emails : null, note: 'E-mails reach a campaign by the quiz (one campaign per quiz) and an ad set / ad only through a unique UTM Mapping row for the contact\'s utm_campaign.' },
+      lagDays: { median: sl.length ? sl[Math.floor(sl.length / 2)] : null, p90: sl.length ? sl[Math.floor(sl.length * 0.9)] : null, n: sl.length },
+      maturity: { immatureEmails: cur2.immature, note: 'Later inquiries arrive with a lag (Matchmaker median ~1 day, p90 7–12 days; CSY ~49 days): e-mails newer than 12 days (Matchmaker) / 60 days (CSY) without an inquiry yet are not final.' },
+      overlap: { laterLeads: cur2.later, note: 'Every later inquiry is a PAID Streak lead already counted in its own funnel (Leads/QL there). It is shown here only; never added to master totals.' },
+      limits: 'Later inquiries are matched in streak_sync (paid, from its first day) — organic / direct inquiries after a quiz are not seen here.',
+    }
+    // children of lead-magnet nodes: e-mails / later leads per row by the same attribution
+    const sumC = { emails: 0, later: 0, ql: 0 }
+    for (const c of children) {
+      const pr = predFor(c.id); if (!pr) continue
+      const x = agg(from, to, pr, bo)
+      sumC.emails += x.emails; sumC.later += x.later; sumC.ql += x.ql
+      Object.assign(c.values, { emails: x.emails, laterLeads: x.later, laterQl: x.ql, costPerEmail: x.emails && c.values.spend ? c.values.spend / x.emails : null, costPerLaterLead: x.later && c.values.spend ? c.values.spend / x.later : null })
+    }
+    // e-mails whose utm points outside these rows (or to no unique ad set / ad) stay in the remainder
+    if (remainder && children.length) Object.assign(remainder.values, { emails: cur2.emails - sumC.emails, laterLeads: cur2.later - sumC.later, laterQl: cur2.ql - sumC.ql })
+  }
+
   const node: NodeInfo & { url?: string; abGroup?: string; abVariant?: 'A' | 'B' } = {
     id: parsed.type === 'master' ? 'master' : parsed.type === 'lp' ? lpNodeId(lpKey!) : o.node, type: parsed.type, label, path,
     ...(nodeUrl ? { url: nodeUrl } : {}),
     ...(parsed.type === 'lp' && abOf(lpKey!) ? abOf(lpKey!)! : {}),
     ...(copyNode || {}),
+    ...(lmMeta ? { stepModel: 'lead_magnet' as const } : {}),
+    ...(parsed.type === 'ad' ? { creative: creativeOf(A, parseItemId(parsed.key)!.id) } : {}),
   }
 
   return {
@@ -2051,6 +2173,7 @@ export async function loadFunnelNode(o: NodeOpts) {
       ...meta,
       node: node.id,
       bookingsWindowMismatch,
+      ...(lmMeta ? { leadMagnet: lmMeta } : {}),
       activeOpps: {
         provisional: true, definition: ACTIVE_OPPS_DEFAULT, text: ACTIVE_OPPS_DEFS[ACTIVE_OPPS_DEFAULT].text,
         candidates: Object.fromEntries(Object.entries(ACTIVE_OPPS_DEFS).map(([k, v]) => [k, v.text])),
@@ -2065,6 +2188,7 @@ export async function loadFunnelNode(o: NodeOpts) {
       ],
     },
     steps,
+    ...(lmSteps ? { lmSteps } : {}),
     node,
     funnels: FUNNEL_LIST,
     levels,

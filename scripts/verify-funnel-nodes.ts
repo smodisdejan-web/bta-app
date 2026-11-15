@@ -193,6 +193,20 @@ async function pool<T>(items: T[], n: number, fn: (t: T) => Promise<void>) {
     }
   }
 
+  // ── 9. Lead magnet step model: Σ rows + remainder = node for e-mails / later leads
+  console.log('\n== 9. Lead magnet (stepModel lead_magnet)')
+  for (const rk of RANGES) {
+    const n: any = await loadFunnelNode({ node: 'funnel:lead_magnet', range: resolveRange(rk, '', ''), channel: 'all', level: 'campaign' })
+    if (n.node.stepModel !== 'lead_magnet' || !n.lmSteps) { fail(`${rk} lead_magnet stepModel / lmSteps missing`); continue }
+    for (const k of ['emails', 'laterLeads', 'laterQl']) {
+      const sum = n.children.reduce((x: number, c: any) => x + (c.values[k] ?? 0), 0) + (n.remainder?.values[k] ?? 0)
+      if (sum !== n.values[k]) fail(`${rk} lead_magnet ${k} ${n.values[k]} ≠ Σ ${sum}`)
+    }
+    const m: any = await loadFunnelNode({ node: 'master', range: resolveRange(rk, '', ''), channel: 'all' })
+    if (m.values.emails != null || m.lmSteps) fail(`${rk} master must not carry lead-magnet steps`)
+    console.log(`  ${rk}: e-mails ${n.values.emails} · later inquiries ${n.values.laterLeads} · QL ${n.values.laterQl} · master untouched`)
+  }
+
   // ── 8. Sales stages: Σ rows + remainder = node per stage bucket
   console.log('\n== 8. salesStages / values.stage (current Streak stage)')
   for (const rk of RANGES) {

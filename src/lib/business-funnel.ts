@@ -1321,6 +1321,38 @@ export function lpKeyOfUrl(url: string): string {
   try { const u = new URL(url); return lpKeyOf(u.hostname, u.pathname) } catch { return '' }
 }
 
+/** Lead magnet (2026-11-16): quiz e-mails from HubSpot and their later paid Streak inquiry. */
+export type QuizKind = 'matchmaker' | 'csy'
+export interface QuizContact { email: string; day: string; quiz: QuizKind; utmCampaign: string; utmContent: string; utmTerm: string }
+export interface StreakByEmail { day: string; ai: number }
+export async function loadLeadMagnet(): Promise<{ contacts: QuizContact[]; streakByEmail: Map<string, StreakByEmail[]>; streakSince: string }> {
+  return cached('leadMagnet', async () => {
+    const [hs, ss] = [await softRows('raw:hs_all', SHEETS_TABS.HUBSPOT_CONTACTS_ALL), await softRows('raw:streak_sync', SHEETS_TABS.STREAK_SYNC)]
+    const contacts: QuizContact[] = []
+    for (const r of hs) {
+      const ev = `${r.first_conversion_event_name ?? ''} ${r.recent_conversion_event_name ?? ''}`
+      const email = String(r.email ?? '').trim().toLowerCase()
+      const day = toDay(r.createdate)
+      if (!email || !day) continue
+      // CSY first: its conversion name can also say "matchmaker"
+      const quiz: QuizKind | null = /superyacht|csy/i.test(`${ev} ${r.first_host ?? ''} ${r.first_url ?? ''} ${r.hs_analytics_source_data_2 ?? ''}`) && /quiz|matchmaker/i.test(`${ev} ${r.first_url ?? ''} ${r.hs_analytics_source_data_2 ?? ''}`) ? 'csy'
+        : /yacht matchmaker/i.test(ev) ? 'matchmaker' : null
+      if (!quiz) continue
+      contacts.push({ email, day, quiz, utmCampaign: String(r.utm_campaign ?? '').trim(), utmContent: String(r.utm_content ?? '').trim(), utmTerm: String(r.utm_term ?? '').trim() })
+    }
+    const streakByEmail = new Map<string, StreakByEmail[]>()
+    let since = '9999'
+    for (const r of ss) {
+      const email = String(r.Name ?? '').trim().toLowerCase(); const day = toDay(r['Inquiry Recieved'])
+      if (!email.includes('@') || !day) continue
+      if (day < since) since = day
+      const a = streakByEmail.get(email) || []; a.push({ day, ai: num(r.AI ?? r.ai) }); streakByEmail.set(email, a)
+    }
+    for (const a of streakByEmail.values()) a.sort((x, y) => (x.day < y.day ? -1 : 1))
+    return { contacts, streakByEmail, streakSince: since }
+  })
+}
+
 /** Sales-stage history per lead: first day in each bucket (streak_stage_reached). */
 export const HISTORY_BUCKETS = ['offer_sent', 'received_only', 'engaged', 'shortlist', 'one_yacht', 'sql', 'closing', 'won', 'unqualified', 'cql'] as const
 export type HistoryBucket = typeof HISTORY_BUCKETS[number]
