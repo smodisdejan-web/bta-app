@@ -82,3 +82,20 @@ export const ACTIVE_OPPS_DEFS = {
   C: { keys: new Set<StageKey>(['engaged', 'shortlist', 'one_yacht', 'sql', 'sql_prime', 'paper_work', 'start_finalisation']), text: 'B + PAPER WORK / START FINALISATION (everything open from engaged until won).' },
 } as const
 export const ACTIVE_OPPS_DEFAULT: keyof typeof ACTIVE_OPPS_DEFS = 'A'
+
+/** Sales sub-funnel buckets (node API salesStages, 2026-11-15): funnel order, then terminal buckets. */
+export const SALES_FUNNEL_ORDER = ['offer_sent', 'received_only', 'engaged', 'shortlist', 'one_yacht', 'sql', 'closing', 'won'] as const
+export const SALES_TERMINAL = ['unqualified', 'cql', 'black_listed', 'ai_robot', 'unassigned', 'archive', 'unknown'] as const
+export type SalesBucket = typeof SALES_FUNNEL_ORDER[number] | typeof SALES_TERMINAL[number]
+export function salesBucketOf(k: StageKey): SalesBucket {
+  switch (k) {
+    case 'sql': case 'sql_prime': return 'sql'
+    case 'paper_work': case 'start_finalisation': case 'finalisation': case 'finalised': case 'cruise': return 'closing'
+    case 'won': case 'after_cruise_direct': case 'after_cruise_agency': return 'won'
+    case 'agency_archive': case 'old_agency': case 'old_customers': case 'legal': case 'no_longer_travelling': return 'archive'
+    case 'offer_sent': case 'received_only': case 'engaged': case 'shortlist': case 'one_yacht': case 'unqualified': case 'cql': case 'black_listed': case 'ai_robot': case 'unassigned': return k
+    default: return 'unknown'
+  }
+}
+/** unqualifiedShare denominator excludes boxes no human has judged yet */
+export const NOT_HUMAN_STAGED = new Set<SalesBucket>(['ai_robot', 'unassigned', 'unknown'])

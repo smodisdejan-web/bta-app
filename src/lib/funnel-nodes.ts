@@ -17,7 +17,7 @@
 // src/data/bofu-adset-mtd.json (flagged `estimate`), and days outside both stay unsplit in
 // EB Croatia (flagged).
 
-import { ACTIVE_OPPS_DEFS, ACTIVE_OPPS_DEFAULT, type StageKey } from './streak-stages'
+import { ACTIVE_OPPS_DEFS, ACTIVE_OPPS_DEFAULT, type StageKey, SALES_FUNNEL_ORDER, SALES_TERMINAL, salesBucketOf, NOT_HUMAN_STAGED, type SalesBucket } from './streak-stages'
 import {
   CAMPAIGNS,
   UMBRELLA_ORDER,
@@ -1053,6 +1053,34 @@ function copyRows(parts: CopyPart[], info: Map<string, AdCopyInfo>) {
   return rows
 }
 
+// ─── Sales stages (2026-11-15) ──────────────────────────────────────────────
+
+type StageCounts = Partial<Record<SalesBucket, number>>
+const SALES_ALL: SalesBucket[] = [...SALES_FUNNEL_ORDER, ...SALES_TERMINAL]
+/** leads in the window per lead id → bucket, with the same context the QL attribution uses */
+function leadStageRows(ds: Datasets, A: Assignment, from: string, to: string, channel: Channel) {
+  const out: { i: number; c: Ctx; b: SalesBucket }[] = []
+  ds.streak.rows.forEach((l, i) => {
+    if (l.day < from || l.day > to) return
+    if (channel !== 'all' && leadChannel(l) !== channel) return
+    out.push({ i, c: { funnel: A.leadFunnel[i], campaignBase: A.leadCampaign[i], slug: ds.leadSlugs[i], adsetId: A.leadAdset[i], adId: A.leadAd[i], lp: A.leadLp[i] }, b: salesBucketOf(l.stage) })
+  })
+  return out
+}
+function stageCountsOf(rows: { c: Ctx; b: SalesBucket }[], pred: (c: Ctx) => boolean): StageCounts {
+  const o: StageCounts = {}
+  for (const r of rows) if (pred(r.c)) o[r.b] = (o[r.b] || 0) + 1
+  return o
+}
+const stageFull = (s: StageCounts | null, scale = 1): Record<SalesBucket, number> | null =>
+  s ? (Object.fromEntries(SALES_ALL.map((k) => [k, Math.round((s[k] || 0) * scale * 1000) / 1000])) as Record<SalesBucket, number>) : null
+/** unqualified / leads a human has staged (excludes AI ROBOT, UNASSIGNED, unknown names) */
+function unqualOf(s: Record<SalesBucket, number> | null) {
+  if (!s) return { unqualifiedShare: null, unqualified: null, humanStaged: null }
+  const human = SALES_ALL.filter((k) => !NOT_HUMAN_STAGED.has(k)).reduce((n, k) => n + s[k], 0)
+  return { unqualifiedShare: human > 0 ? s.unqualified / human : null, unqualified: s.unqualified, humanStaged: Math.round(human * 1000) / 1000 }
+}
+
 // ─── Video: hook / hold rate (2026-11-15) ────────────────────────────────────
 
 /** Raw video counts of a node / row (Meta only). videoImpressions/videoSpend = ads with video_plays > 0. */
@@ -1810,7 +1838,7 @@ export async function loadFunnelNode(o: NodeOpts) {
     return vsum(videoByAd(ds, A, from, to, o.channel, pred).values())
   }
   const nodeVideo = videoOfId(parsed.type === 'master' ? 'master' : parsed.type === 'lp' ? lpNodeId(lpKey!) : o.node, parsed.type)
-  Object.assign(nodeValues, videoRates(nodeVideo))
+  Object.assign(nodeValues, videoRates(nodeVideo ? vround(nodeVideo) : null))
   const mineParts = copyKey ? copyPartsOf(from, to, bo).parts.filter((p) => p.copyId === copyKey) : []
   for (const c of children) {
     let v: VideoCounts | null
@@ -1822,6 +1850,57 @@ export async function loadFunnelNode(o: NodeOpts) {
     } else v = videoOfId(c.id, c.type)
     ;(c as any).video = v ? vround(v) : null
     Object.assign(c.values, videoRates(v ? vround(v) : null))
+  }
+
+  // ── sales stages + unqualifiedShare (current Streak stage; same attribution as QL) ──
+  {
+    const lsr = leadStageRows(ds, A, from, to, o.channel)
+    const adStage = new Map<string, StageCounts>()
+    const adSt = (adId: string) => { let x = adStage.get(adId); if (!x) adStage.set(adId, (x = stageCountsOf(lsr, (c) => c.adId === adId))); return x }
+    const copyStages = (parts: CopyPart[]): StageCounts => {
+      const t: StageCounts = {}
+      for (const p of parts) {
+        const st = adSt(p.adId); const n = SALES_ALL.reduce((x, k) => x + (st[k] || 0), 0)
+        if (!n) continue
+        const sh = p.values.leads / n   // this text's share of the ad's leads (= its link-click share)
+        for (const k of SALES_ALL) if (st[k]) t[k] = (t[k] || 0) + st[k]! * sh
+      }
+      return t
+    }
+    const stagesOf = (id: string, type: NodeType, parts?: CopyPart[]): StageCounts | null => {
+      if (leadsNa) return null
+      if (type === 'copy') return copyStages(parts ?? (copyCp || copyPartsOf(from, to, bo)).parts.filter((p) => p.copyId === id))
+      const pn = parseNode(id); if (!pn) return null
+      if (pn.type === 'funnel' && FUNNEL_BY_KEY.get(pn.key as FunnelKey)?.leadsNa) return null
+      return stageCountsOf(lsr, pn.type === 'umbrella' ? (c: Ctx) => c.slug === pn.key : nodePredicate(pn.type, pn.key))
+    }
+    const nodeSt = stageFull(stagesOf(parsed.type === 'master' ? 'master' : parsed.type === 'lp' ? lpNodeId(lpKey!) : o.node, parsed.type))
+    Object.assign(nodeValues, { stage: nodeSt, ...unqualOf(nodeSt) })
+    let sumSt: Record<string, number> | null = nodeSt ? Object.fromEntries(SALES_ALL.map((k) => [k, 0])) : null
+    for (const c of children) {
+      let st: StageCounts | null
+      if (copyKey) { const pn = parseNode(c.id); const pred = pn ? nodePredicate(pn.type, pn.key) : () => false; st = copyStages(mineParts.filter((p) => pred(videoCtx(A, p.adId)))) }
+      else st = c.values.leads == null ? null : stagesOf(c.id, c.type)
+      const full = stageFull(st)
+      Object.assign(c.values, { stage: full, ...unqualOf(full) })
+      if (full && sumSt) for (const k of SALES_ALL) sumSt[k] += full[k]
+    }
+    if (remainder && nodeSt && sumSt) {
+      const r = Object.fromEntries(SALES_ALL.map((k) => [k, Math.round((nodeSt[k] - sumSt![k]) * 1000) / 1000])) as Record<SalesBucket, number>
+      Object.assign(remainder.values, { stage: r, ...unqualOf(r) })
+    }
+    const bk = steps.find((x) => x.key === 'bookings')
+    if (bk && nodeSt) {
+      let acc = 0
+      const atLeast: Record<string, number> = {}
+      for (const k of [...SALES_FUNNEL_ORDER].reverse()) { acc += nodeSt[k]; atLeast[k] = Math.round(acc * 1000) / 1000 }
+      bk.salesStages = {
+        basis: 'current', order: SALES_FUNNEL_ORDER, terminal: SALES_TERMINAL, counts: nodeSt,
+        atLeastCurrent: Object.fromEntries(SALES_FUNNEL_ORDER.map((k) => [k, atLeast[k]])),
+        note: 'Leads of this node by CURRENT Streak stage (alias map, sql = SQL + SQL PRIME, closing = paper work … cruise, won incl. after the cruise). atLeastCurrent = boxes now at this stage or further down the order — a lower bound until streak_stage_log history is used (basis switches to "history").',
+        unqualifiedRule: 'unqualifiedShare = UNQUALIFIED (ex MQL) / leads with a human-set stage (all buckets except ai_robot, unassigned, unknown).',
+      }
+    }
   }
 
   // ── node info / path ──

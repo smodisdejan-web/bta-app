@@ -193,6 +193,28 @@ async function pool<T>(items: T[], n: number, fn: (t: T) => Promise<void>) {
     }
   }
 
+  // ── 8. Sales stages: Σ rows + remainder = node per stage bucket
+  console.log('\n== 8. salesStages / values.stage (current Streak stage)')
+  for (const rk of RANGES) {
+    const range = resolveRange(rk, '', '')
+    let checked = 0
+    for (const [node, lv] of [['master', 'funnel'], ['master', 'campaign'], ['funnel:eb_croatia', 'campaign'], ['funnel:eb_croatia', 'adset'], ['master', 'lp'], ['master', 'copy']] as const) {
+      const n: any = await loadFunnelNode({ node, range, channel: 'all', level: lv })
+      const st = n.values.stage; if (!st) { fail(`${rk} ${node} values.stage missing`); continue }
+      for (const k of Object.keys(st)) {
+        const sum = n.children.reduce((x: number, c: any) => x + (c.values.stage?.[k] ?? 0), 0) + (n.remainder?.values.stage?.[k] ?? 0)
+        if (!near(st[k], sum, 0.01)) fail(`${rk} ${node} level=${lv} stage.${k} ${st[k]} ≠ Σ ${sum}`)
+        checked++
+      }
+      const tot = Object.values(st).reduce((x: number, v: any) => x + v, 0) as number
+      const leadsTot = node === 'master' ? n.values.leads : n.values.leads
+      if (!near(tot, leadsTot, 0.5)) fail(`${rk} ${node} Σ stage buckets ${tot} ≠ leads ${leadsTot}`)
+      if (!n.steps.find((x: any) => x.key === 'bookings')?.salesStages) fail(`${rk} ${node} steps[bookings].salesStages missing`)
+    }
+    const m: any = await loadFunnelNode({ node: 'master', range, channel: 'all' })
+    console.log(`  ${rk}: ${checked} stage sums checked · master unqualifiedShare ${m.values.unqualifiedShare == null ? 'n/a' : (m.values.unqualifiedShare * 100).toFixed(1) + ' %'} (${m.values.unqualified}/${m.values.humanStaged}) · stages ${JSON.stringify(m.values.stage)}`)
+  }
+
   // ── 7. Video: hook / hold rate (Σ children video counts vs node)
   console.log('\n== 7. Video counts (hookRate = 3-s views / video-ad impressions)')
   for (const rk of RANGES) {
