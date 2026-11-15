@@ -1259,6 +1259,31 @@ export function lpKeyOfUrl(url: string): string {
   try { const u = new URL(url); return lpKeyOf(u.hostname, u.pathname) } catch { return '' }
 }
 
+/** Sales-stage history per lead: first day in each bucket (streak_stage_reached). */
+export const HISTORY_BUCKETS = ['offer_sent', 'received_only', 'engaged', 'shortlist', 'one_yacht', 'sql', 'closing', 'won', 'unqualified', 'cql'] as const
+export type HistoryBucket = typeof HISTORY_BUCKETS[number]
+export type StageReached = Partial<Record<HistoryBucket, string>>
+/** Earliest inquiry day the timeline backfill covers (paid boxes from 2026-01-01). */
+export const STAGE_HISTORY_FROM = '2026-01-01'
+async function loadStageReached(): Promise<Map<string, StageReached>> {
+  return cached('stageReached', async () => {
+    const m = new Map<string, StageReached>()
+    for (const r of await softRows('raw:streak_stage_reached', SHEETS_TABS.STREAK_STAGE_REACHED)) {
+      const x: StageReached = {}
+      for (const b of HISTORY_BUCKETS) { const d = String(r[`first_${b}`] ?? '').slice(0, 10); if (/^\d{4}-\d{2}-\d{2}$/.test(d)) x[b] = d }
+      for (const k of [r.key_email, r.key_sp]) { const kk = String(k ?? '').trim(); if (kk && !m.has(kk)) m.set(kk, x) }
+    }
+    return m
+  })
+}
+/** Fill ds.stageReached on demand (salesStages basis 'history'). */
+export async function ensureStageHistory(ds: Datasets): Promise<Datasets> {
+  if (!ds.stageReached.size) ds.stageReached = await loadStageReached()
+  return ds
+}
+/** The two keys a Streak row can carry in streak_stage_reached (e-mail | day, or placement | day | ai). */
+export const leadHistoryKeys = (l: LeadRow) => [l.email.includes('@') ? `${l.email}|${l.day}` : '', `sp:${l.sp}|${l.day}|${l.ai}`]
+
 /** One Meta ad × day video row (fb_ad_video_daily). video = video_plays > 0. */
 export interface AdVideoDay { day: string; adId: string; impressions: number; spend: number; plays: number; views3s: number; thruplays: number }
 async function loadAdVideo(): Promise<AdVideoDay[]> {
@@ -1540,6 +1565,8 @@ export interface Datasets {
   copy: { bodyDaily: BodyAssetDay[]; texts: AdText[] }
   /** Meta ad × day video metrics (fb_ad_video_daily), loaded by ensureVideoFeed(); empty until then. */
   video: AdVideoDay[]
+  /** lead key → first day per sales stage (streak_stage_reached), loaded by ensureStageHistory() */
+  stageReached: Map<string, StageReached>
   /** memoised leadSlug per streak row index */
   leadSlugs: (string | null)[]
   /** memoised bookingSlug per bookings row index */
@@ -2476,6 +2503,7 @@ export async function getFunnelDatasets(): Promise<Datasets> {
     lp,
     copy,
     video: [],
+    stageReached: new Map(),
     leadSlugs: streak.rows.map((r) => (isFlatChannelLead(r) ? null : leadSlug(r, utmIndex))),
     bookingSlugs: bookings.rows.map((r) => bookingSlug(r)),
   }

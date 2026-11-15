@@ -206,6 +206,13 @@ async function pool<T>(items: T[], n: number, fn: (t: T) => Promise<void>) {
         if (!near(st[k], sum, 0.01)) fail(`${rk} ${node} level=${lv} stage.${k} ${st[k]} ≠ Σ ${sum}`)
         checked++
       }
+      for (const k of Object.keys(n.values.stageEver || {})) {
+        const sum = n.children.reduce((x: number, c: any) => x + (c.values.stageEver?.[k] ?? 0), 0) + (n.remainder?.values.stageEver?.[k] ?? 0)
+        if (!near(n.values.stageEver[k], sum, 0.01)) fail(`${rk} ${node} level=${lv} stageEver.${k} ${n.values.stageEver[k]} ≠ Σ ${sum}`)
+        checked++
+      }
+      { const sum = n.children.reduce((x: number, c: any) => x + (c.values.activeOppsEver ?? 0), 0) + (n.remainder?.values.activeOppsEver ?? 0)
+        if (!near(n.values.activeOppsEver, sum, 0.01)) fail(`${rk} ${node} level=${lv} activeOppsEver ${n.values.activeOppsEver} ≠ Σ ${sum}`) }
       const tot = Object.values(st).reduce((x: number, v: any) => x + v, 0) as number
       const leadsTot = node === 'master' ? n.values.leads : n.values.leads
       if (!near(tot, leadsTot, 0.5)) fail(`${rk} ${node} Σ stage buckets ${tot} ≠ leads ${leadsTot}`)

@@ -28,6 +28,9 @@ import {
   getFunnelDatasets,
   ensureCopyFeeds,
   ensureVideoFeed,
+  ensureStageHistory,
+  leadHistoryKeys,
+  STAGE_HISTORY_FROM,
   isFlatChannelLead,
   leadChannel,
   loadBusinessFunnel,
@@ -84,6 +87,8 @@ export interface NodeValues {
   roas: number | null
   /** PROVISIONAL (meta.activeOpps): leads whose Streak stage is an open opportunity; attributed like QL */
   activeOpps?: number | null
+  /** leads that were EVER in engaged / shortlist / one_yacht (streak_stage_log history) */
+  activeOppsEver?: number | null
 }
 
 export interface NodeEstimate {
@@ -1340,7 +1345,7 @@ export async function loadFunnelNode(o: NodeOpts) {
   if (!parsed) throw new Error(`Unknown node "${o.node}"`)
   const ds = await getFunnelDatasets()
   if (parsed.type === 'copy' || o.level === 'copy') await ensureCopyFeeds(ds)
-  await ensureVideoFeed(ds)
+  await Promise.all([ensureVideoFeed(ds), ensureStageHistory(ds)])
   const A = assignmentOf(ds)
   for (const r of ds.fbSpend.rows) A.metaParts(r.campaign, r.day)
   for (const r of ds.google.rows) A.googleFunnel(r.campaign)
@@ -1852,52 +1857,110 @@ export async function loadFunnelNode(o: NodeOpts) {
     Object.assign(c.values, videoRates(v ? vround(v) : null))
   }
 
-  // ── sales stages + unqualifiedShare (current Streak stage; same attribution as QL) ──
+  // ── sales stages + unqualifiedShare (current Streak stage) + history (streak_stage_reached); same attribution as QL ──
   {
+    const AO_EVER = ['engaged', 'shortlist', 'one_yacht'] as const
+    type SC = { cur: StageCounts; ever: Record<string, number>; aoEver: number }
+    const sc0 = (): SC => ({ cur: {}, ever: {}, aoEver: 0 })
     const lsr = leadStageRows(ds, A, from, to, o.channel)
-    const adStage = new Map<string, StageCounts>()
-    const adSt = (adId: string) => { let x = adStage.get(adId); if (!x) adStage.set(adId, (x = stageCountsOf(lsr, (c) => c.adId === adId))); return x }
-    const copyStages = (parts: CopyPart[]): StageCounts => {
-      const t: StageCounts = {}
+    const histOf = (i: number) => { const l = ds.streak.rows[i]; for (const k of leadHistoryKeys(l)) { const h = k && ds.stageReached.get(k); if (h) return h } return null }
+    const add = (t: SC, r: { i: number; b: SalesBucket }, w = 1) => {
+      t.cur[r.b] = (t.cur[r.b] || 0) + w
+      const h = histOf(r.i)
+      const ever = new Set<string>(h ? Object.keys(h) : [])
+      ever.add(r.b)   // in it now ⇒ was in it
+      for (const b of ever) t.ever[b] = (t.ever[b] || 0) + w
+      if (AO_EVER.some((b) => ever.has(b))) t.aoEver += w
+    }
+    const countOf = (rows: { i: number; c: Ctx; b: SalesBucket }[], pred: (c: Ctx) => boolean) => { const t = sc0(); for (const r of rows) if (pred(r.c)) add(t, r); return t }
+    const adCache = new Map<string, SC>()
+    const adSC = (adId: string) => { let x = adCache.get(adId); if (!x) adCache.set(adId, (x = countOf(lsr, (c) => c.adId === adId))); return x }
+    const copySC = (parts: CopyPart[]): SC => {
+      const t = sc0()
       for (const p of parts) {
-        const st = adSt(p.adId); const n = SALES_ALL.reduce((x, k) => x + (st[k] || 0), 0)
+        const a = adSC(p.adId); const n = SALES_ALL.reduce((x, k) => x + (a.cur[k] || 0), 0)
         if (!n) continue
-        const sh = p.values.leads / n   // this text's share of the ad's leads (= its link-click share)
-        for (const k of SALES_ALL) if (st[k]) t[k] = (t[k] || 0) + st[k]! * sh
+        const sh = p.values.leads / n
+        for (const [k, v] of Object.entries(a.cur)) t.cur[k as SalesBucket] = (t.cur[k as SalesBucket] || 0) + (v as number) * sh
+        for (const [k, v] of Object.entries(a.ever)) t.ever[k] = (t.ever[k] || 0) + v * sh
+        t.aoEver += a.aoEver * sh
       }
       return t
     }
-    const stagesOf = (id: string, type: NodeType, parts?: CopyPart[]): StageCounts | null => {
+    const predOf = (id: string): ((c: Ctx) => boolean) | null => { const pn = parseNode(id); if (!pn) return null; return pn.type === 'umbrella' ? (c: Ctx) => c.slug === pn.key : nodePredicate(pn.type, pn.key) }
+    const scOf = (id: string, type: NodeType): SC | null => {
       if (leadsNa) return null
-      if (type === 'copy') return copyStages(parts ?? (copyCp || copyPartsOf(from, to, bo)).parts.filter((p) => p.copyId === id))
+      if (type === 'copy') return copySC((copyCp || copyPartsOf(from, to, bo)).parts.filter((p) => p.copyId === id))
       const pn = parseNode(id); if (!pn) return null
       if (pn.type === 'funnel' && FUNNEL_BY_KEY.get(pn.key as FunnelKey)?.leadsNa) return null
-      return stageCountsOf(lsr, pn.type === 'umbrella' ? (c: Ctx) => c.slug === pn.key : nodePredicate(pn.type, pn.key))
+      return countOf(lsr, predOf(id)!)
     }
-    const nodeSt = stageFull(stagesOf(parsed.type === 'master' ? 'master' : parsed.type === 'lp' ? lpNodeId(lpKey!) : o.node, parsed.type))
-    Object.assign(nodeValues, { stage: nodeSt, ...unqualOf(nodeSt) })
+    const H_ALL = [...SALES_FUNNEL_ORDER, 'unqualified', 'cql']
+    const r3x = (x: number) => Math.round(x * 1000) / 1000
+    const everFull = (t: SC | null) => (t ? Object.fromEntries(H_ALL.map((k) => [k, r3x(t.ever[k] || 0)])) : null)
+    const nodeId0 = parsed.type === 'master' ? 'master' : parsed.type === 'lp' ? lpNodeId(lpKey!) : o.node
+    const nodeSC = scOf(nodeId0, parsed.type)
+    const nodeSt = stageFull(nodeSC?.cur ?? null)
+    const nodeEver = everFull(nodeSC)
+    Object.assign(nodeValues, { stage: nodeSt, ...unqualOf(nodeSt), stageEver: nodeEver, activeOppsEver: nodeSC ? r3x(nodeSC.aoEver) : null })
     let sumSt: Record<string, number> | null = nodeSt ? Object.fromEntries(SALES_ALL.map((k) => [k, 0])) : null
+    const sumEver: Record<string, number> = Object.fromEntries(H_ALL.map((k) => [k, 0]))
+    let sumAoEver = 0
     for (const c of children) {
-      let st: StageCounts | null
-      if (copyKey) { const pn = parseNode(c.id); const pred = pn ? nodePredicate(pn.type, pn.key) : () => false; st = copyStages(mineParts.filter((p) => pred(videoCtx(A, p.adId)))) }
-      else st = c.values.leads == null ? null : stagesOf(c.id, c.type)
-      const full = stageFull(st)
-      Object.assign(c.values, { stage: full, ...unqualOf(full) })
+      let t: SC | null
+      if (copyKey) { const pn = parseNode(c.id); const pred = pn ? nodePredicate(pn.type, pn.key) : () => false; t = copySC(mineParts.filter((p) => pred(videoCtx(A, p.adId)))) }
+      else t = c.values.leads == null ? null : scOf(c.id, c.type)
+      const full = stageFull(t?.cur ?? null), ev = everFull(t)
+      Object.assign(c.values, { stage: full, ...unqualOf(full), stageEver: ev, activeOppsEver: t ? r3x(t.aoEver) : null })
       if (full && sumSt) for (const k of SALES_ALL) sumSt[k] += full[k]
+      if (ev) { for (const k of H_ALL) sumEver[k] += ev[k]; sumAoEver += t!.aoEver }
     }
     if (remainder && nodeSt && sumSt) {
-      const r = Object.fromEntries(SALES_ALL.map((k) => [k, Math.round((nodeSt[k] - sumSt![k]) * 1000) / 1000])) as Record<SalesBucket, number>
-      Object.assign(remainder.values, { stage: r, ...unqualOf(r) })
+      const r = Object.fromEntries(SALES_ALL.map((k) => [k, r3x(nodeSt[k] - sumSt![k])])) as Record<SalesBucket, number>
+      Object.assign(remainder.values, {
+        stage: r, ...unqualOf(r),
+        stageEver: Object.fromEntries(H_ALL.map((k) => [k, r3x((nodeEver![k] || 0) - sumEver[k])])),
+        activeOppsEver: r3x(nodeSC!.aoEver - sumAoEver),
+      })
+    }
+    // previous window: activeOppsEver
+    if (previous && nodeSC) {
+      const pw2 = (resp.meta as any).benchmark?.window
+      if (pw2?.from) {
+        const prow = leadStageRows(ds, A, pw2.from, pw2.to, o.channel)
+        const pred = parsed.type === 'copy' ? null : predOf(nodeId0)
+        previous.values.activeOppsEver = pred ? r3x(countOf(prow, pred).aoEver) : null
+      }
     }
     const bk = steps.find((x) => x.key === 'bookings')
-    if (bk && nodeSt) {
+    if (bk && nodeSt && nodeSC) {
       let acc = 0
       const atLeast: Record<string, number> = {}
-      for (const k of [...SALES_FUNNEL_ORDER].reverse()) { acc += nodeSt[k]; atLeast[k] = Math.round(acc * 1000) / 1000 }
+      for (const k of [...SALES_FUNNEL_ORDER].reverse()) { acc += nodeSt[k]; atLeast[k] = r3x(acc) }
+      // history: reachedAtLeast = ever in this stage OR any later one in funnel order (per lead)
+      const reached: Record<string, number> = Object.fromEntries(SALES_FUNNEL_ORDER.map((k) => [k, 0]))
+      const days: Record<string, number[]> = Object.fromEntries(SALES_FUNNEL_ORDER.map((k) => [k, []]))
+      const pred = parsed.type === 'copy' ? null : predOf(nodeId0)
+      let withHist = 0, inWin = 0
+      if (pred) for (const r of lsr) {
+        if (!pred(r.c)) continue
+        inWin++
+        const h = histOf(r.i); if (h) withHist++
+        const ever = new Set<string>(h ? Object.keys(h) : []); ever.add(r.b)
+        let later = false
+        for (const k of [...SALES_FUNNEL_ORDER].reverse()) { if (ever.has(k)) later = true; if (later) reached[k]++ }
+        const l = ds.streak.rows[r.i]
+        if (h) for (const k of SALES_FUNNEL_ORDER) { const d = h[k as keyof typeof h]; if (d) days[k].push((Date.parse(d) - Date.parse(l.day)) / 864e5) }
+      }
+      const med = (xs: number[]) => { if (xs.length < 10) return null; const s2 = [...xs].sort((a, b) => a - b); return s2[Math.floor(s2.length / 2)] }
       bk.salesStages = {
-        basis: 'current', order: SALES_FUNNEL_ORDER, terminal: SALES_TERMINAL, counts: nodeSt,
+        basis: pred ? 'history' : 'current', order: SALES_FUNNEL_ORDER, terminal: SALES_TERMINAL, counts: nodeSt,
         atLeastCurrent: Object.fromEntries(SALES_FUNNEL_ORDER.map((k) => [k, atLeast[k]])),
-        note: 'Leads of this node by CURRENT Streak stage (alias map, sql = SQL + SQL PRIME, closing = paper work … cruise, won incl. after the cruise). atLeastCurrent = boxes now at this stage or further down the order — a lower bound until streak_stage_log history is used (basis switches to "history").',
+        everIn: pred ? Object.fromEntries(SALES_FUNNEL_ORDER.map((k) => [k, nodeEver![k]])) : null,
+        reachedAtLeast: pred ? reached : null,
+        medianDaysToStage: pred ? Object.fromEntries(SALES_FUNNEL_ORDER.map((k) => [k, med(days[k])])) : null,
+        historyFrom: STAGE_HISTORY_FROM, historyPartial: from < STAGE_HISTORY_FROM, leadsWithHistory: pred ? withHist : null, leads: pred ? inWin : null,
+        note: 'counts = CURRENT stage. everIn = leads that were in that stage at any time since their inquiry (streak_stage_log: Streak timeline backfill + daily diffs). reachedAtLeast = in that stage or any LATER one in funnel order (a lead that jumped to SQL counts for engaged) — stage-to-stage rates use reachedAtLeast. medianDaysToStage = inquiry → first entry, null when n < 10. Copy nodes keep basis current.',
         unqualifiedRule: 'unqualifiedShare = UNQUALIFIED (ex MQL) / leads with a human-set stage (all buckets except ai_robot, unassigned, unknown).',
       }
     }
